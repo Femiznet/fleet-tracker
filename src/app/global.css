@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+:root {
+  --brand-600: #0072E5;
+  --brand-500: #1A8CFF;
+  --brand-50: #EEF7FF;
+  --brand-100: #D9EDFF;
+  --brand-400: #4DA3FF;
+  --brand-700: #005BB8;
+  --brand-900: #0B2A4A;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: sans-serif;
+  background: var(--brand-900);
+  color: #fff;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Router containers and page transitions can go here later */
