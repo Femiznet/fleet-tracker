@@ -12,91 +12,89 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.18"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
-      driver_motormate: {
+      companies: {
         Row: {
-          driver_id: string
           id: string
-          motormate_id: string
+          name: string
         }
         Insert: {
-          driver_id: string
           id?: string
-          motormate_id: string
+          name: string
         }
         Update: {
-          driver_id?: string
           id?: string
-          motormate_id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      drivers: {
+        Row: {
+          created_at: string
+          id: string
+          motormate_id: string | null
+          name: string
+          phone_number: string | null
+          truck_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          motormate_id?: string | null
+          name: string
+          phone_number?: string | null
+          truck_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          motormate_id?: string | null
+          name?: string
+          phone_number?: string | null
+          truck_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "driver_motormate_driver_id_fkey"
-            columns: ["driver_id"]
-            isOneToOne: true
-            referencedRelation: "drivers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "driver_motormate_motormate_id_fkey"
+            foreignKeyName: "drivers_motormate_id_fkey"
             columns: ["motormate_id"]
             isOneToOne: true
             referencedRelation: "motormates"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      driver_trucks: {
-        Row: {
-          driver_id: string
-          id: string
-          truck_id: string
-        }
-        Insert: {
-          driver_id: string
-          id?: string
-          truck_id: string
-        }
-        Update: {
-          driver_id?: string
-          id?: string
-          truck_id?: string
-        }
-        Relationships: [
           {
-            foreignKeyName: "driver_trucks_driver_id_fkey"
-            columns: ["driver_id"]
-            isOneToOne: false
-            referencedRelation: "drivers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "driver_trucks_truck_id_fkey"
+            foreignKeyName: "drivers_truck_id_fkey"
             columns: ["truck_id"]
             isOneToOne: true
             referencedRelation: "trucks"
             referencedColumns: ["id"]
           },
         ]
-      }
-      drivers: {
-        Row: {
-          id: string
-          name: string
-          phone_number: string | null
-        }
-        Insert: {
-          id?: string
-          name: string
-          phone_number?: string | null
-        }
-        Update: {
-          id?: string
-          name?: string
-          phone_number?: string | null
-        }
-        Relationships: []
       }
       locations: {
         Row: {
@@ -118,245 +116,90 @@ export type Database = {
       }
       managers: {
         Row: {
-          id: string
-          name: string
-        }
-        Insert: {
-          id?: string
-          name: string
-        }
-        Update: {
-          id?: string
-          name?: string
-        }
-        Relationships: []
-      }
-      motormates: {
-        Row: {
+          created_at: string
           id: string
           name: string
           phone_number: string | null
         }
         Insert: {
+          created_at?: string
           id?: string
           name: string
           phone_number?: string | null
         }
         Update: {
+          created_at?: string
           id?: string
           name?: string
           phone_number?: string | null
         }
         Relationships: []
       }
-      object_tracker: {
+      motormates: {
         Row: {
+          created_at: string
+          id: string
+          name: string
+          phone_number: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          phone_number?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          phone_number?: string | null
+        }
+        Relationships: []
+      }
+      trucks: {
+        Row: {
+          company_id: string
           id: string
           location_id: string
-          skid_id: string | null
-          status: Database["public"]["Enums"]["object_tracking_status"]
-          truck_id: string | null
+          plate_number: string
+          state: Database["public"]["Enums"]["truck_state"]
+          status: Database["public"]["Enums"]["truck_status"]
           updated_at: string
         }
         Insert: {
+          company_id: string
           id?: string
           location_id: string
-          skid_id?: string | null
-          status?: Database["public"]["Enums"]["object_tracking_status"]
-          truck_id?: string | null
+          plate_number: string
+          state?: Database["public"]["Enums"]["truck_state"]
+          status?: Database["public"]["Enums"]["truck_status"]
           updated_at?: string
         }
         Update: {
+          company_id?: string
           id?: string
           location_id?: string
-          skid_id?: string | null
-          status?: Database["public"]["Enums"]["object_tracking_status"]
-          truck_id?: string | null
+          plate_number?: string
+          state?: Database["public"]["Enums"]["truck_state"]
+          status?: Database["public"]["Enums"]["truck_status"]
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "object_tracker_location_id_fkey"
+            foreignKeyName: "trucks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trucks_location_id_fkey"
             columns: ["location_id"]
             isOneToOne: false
             referencedRelation: "locations"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "object_tracker_skid_id_fkey"
-            columns: ["skid_id"]
-            isOneToOne: true
-            referencedRelation: "skids"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "object_tracker_truck_id_fkey"
-            columns: ["truck_id"]
-            isOneToOne: true
-            referencedRelation: "trucks"
-            referencedColumns: ["id"]
-          },
         ]
-      }
-      skids: {
-        Row: {
-          id: string
-          skid_no: string
-        }
-        Insert: {
-          id?: string
-          skid_no: string
-        }
-        Update: {
-          id?: string
-          skid_no?: string
-        }
-        Relationships: []
-      }
-      trip_tracker: {
-        Row: {
-          completed_at: string | null
-          created_at: string
-          destination: string
-          driver_id: string
-          id: string
-          manager_id: string
-          motormate_id: string
-          origin: string
-          skid_id: string | null
-          skid_previous_location_id: string | null
-          skid_previous_status:
-            | Database["public"]["Enums"]["object_tracking_status"]
-            | null
-          status: Database["public"]["Enums"]["dispatch_status"]
-          truck_id: string
-          truck_previous_location_id: string | null
-          truck_previous_status:
-            | Database["public"]["Enums"]["object_tracking_status"]
-            | null
-        }
-        Insert: {
-          completed_at?: string | null
-          created_at?: string
-          destination: string
-          driver_id: string
-          id?: string
-          manager_id: string
-          motormate_id: string
-          origin: string
-          skid_id?: string | null
-          skid_previous_location_id?: string | null
-          skid_previous_status?:
-            | Database["public"]["Enums"]["object_tracking_status"]
-            | null
-          status?: Database["public"]["Enums"]["dispatch_status"]
-          truck_id: string
-          truck_previous_location_id?: string | null
-          truck_previous_status?:
-            | Database["public"]["Enums"]["object_tracking_status"]
-            | null
-        }
-        Update: {
-          completed_at?: string | null
-          created_at?: string
-          destination?: string
-          driver_id?: string
-          id?: string
-          manager_id?: string
-          motormate_id?: string
-          origin?: string
-          skid_id?: string | null
-          skid_previous_location_id?: string | null
-          skid_previous_status?:
-            | Database["public"]["Enums"]["object_tracking_status"]
-            | null
-          status?: Database["public"]["Enums"]["dispatch_status"]
-          truck_id?: string
-          truck_previous_location_id?: string | null
-          truck_previous_status?:
-            | Database["public"]["Enums"]["object_tracking_status"]
-            | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "trip_tracker_destination_fkey"
-            columns: ["destination"]
-            isOneToOne: false
-            referencedRelation: "locations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "trip_tracker_driver_id_fkey"
-            columns: ["driver_id"]
-            isOneToOne: false
-            referencedRelation: "drivers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "trip_tracker_manager_id_fkey"
-            columns: ["manager_id"]
-            isOneToOne: false
-            referencedRelation: "managers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "trip_tracker_motormate_id_fkey"
-            columns: ["motormate_id"]
-            isOneToOne: false
-            referencedRelation: "motormates"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "trip_tracker_origin_fkey"
-            columns: ["origin"]
-            isOneToOne: false
-            referencedRelation: "locations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "trip_tracker_skid_id_fkey"
-            columns: ["skid_id"]
-            isOneToOne: false
-            referencedRelation: "skids"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "trip_tracker_skid_previous_location_id_fkey"
-            columns: ["skid_previous_location_id"]
-            isOneToOne: false
-            referencedRelation: "locations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "trip_tracker_truck_id_fkey"
-            columns: ["truck_id"]
-            isOneToOne: false
-            referencedRelation: "trucks"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "trip_tracker_truck_previous_location_id_fkey"
-            columns: ["truck_previous_location_id"]
-            isOneToOne: false
-            referencedRelation: "locations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      trucks: {
-        Row: {
-          id: string
-          plate_number: string
-        }
-        Insert: {
-          id?: string
-          plate_number: string
-        }
-        Update: {
-          id?: string
-          plate_number?: string
-        }
-        Relationships: []
       }
     }
     Views: {
@@ -366,13 +209,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      dispatch_status: "in_transit" | "arrived" | "cancelled"
-      object_tracking_status:
-        | "online"
-        | "in_transit"
-        | "empty"
-        | "loaded"
-        | "maintenance"
+      truck_state: "good" | "maintenance"
+      truck_status: "standby" | "assigned"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -498,16 +336,13 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
-      dispatch_status: ["in_transit", "arrived", "cancelled"],
-      object_tracking_status: [
-        "online",
-        "in_transit",
-        "empty",
-        "loaded",
-        "maintenance",
-      ],
+      truck_state: ["good", "maintenance"],
+      truck_status: ["standby", "assigned"],
     },
   },
 } as const

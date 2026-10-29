@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GASTECH CNG Fleet Tracker</title>
+<meta name="theme-color" content="#0B2A4A">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={theme:{extend:{colors:{brand:{50:"#EEF7FF",100:"#D9EDFF",400:"#4DA3FF",500:"#1A8CFF",600:"#0072E5",700:"#005BB8",900:"#0B2A4A"}}}}}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<style>
+html{scroll-behavior:smooth}.no-scrollbar::-webkit-scrollbar{display:none}.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}.touch-active:active{transform:scale(.97);transition:transform .1s}
+</style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col pb-20">
+<header class="sticky top-0 z-30 bg-brand-900 text-white shadow-md">
+  <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center space-x-2"><i class="fa-solid fa-gas-pump text-brand-400 text-xl"></i><h1 class="leading-tight"><span class="block text-lg font-black tracking-widest">GASTECH</span><span class="block text-[10px] font-medium tracking-wider text-brand-100/80 uppercase">CNG Fleet Tracker</span></h1></div>
+    <button onclick="exportToExcel()" class="bg-brand-600 hover:bg-brand-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 shadow touch-active"><i class="fa-solid fa-file-excel"></i><span class="hidden sm:inline">Export Excel</span><span class="sm:hidden">Excel</span></button>
+  </div>
+  <div class="max-w-4xl mx-auto px-2 flex border-t border-white/10 text-sm font-medium">
+    <button onclick="switchTab('ops')" id="tab-ops" class="tab-btn flex-1 py-2.5 text-center border-b-2 border-brand-400 text-brand-400 flex items-center justify-center space-x-1.5"><i class="fa-solid fa-list-check"></i><span>Operations</span></button>
+    <button onclick="switchTab('skids')" id="tab-skids" class="tab-btn flex-1 py-2.5 text-center border-b-2 border-transparent text-slate-400 flex items-center justify-center space-x-1.5"><i class="fa-solid fa-boxes-stacked"></i><span>Skid Register</span></button>
+    <button onclick="switchTab('fleet')" id="tab-fleet" class="tab-btn flex-1 py-2.5 text-center border-b-2 border-transparent text-slate-400 flex items-center justify-center space-x-1.5"><i class="fa-solid fa-truck-front"></i><span>Truck & Crew</span></button>
+  </div>
+</header>
+<main class="max-w-4xl mx-auto w-full px-4 pt-3 flex-grow">
+  <section id="section-ops" class="space-y-3">
+    <div class="grid grid-cols-4 gap-2 text-center">
+      <div class="bg-white p-2 rounded-xl shadow-sm border border-slate-200"><p class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Records</p><p id="metric-total" class="text-lg font-black">0</p></div>
+      <div class="bg-emerald-50 p-2 rounded-xl shadow-sm border border-emerald-100"><p class="text-[10px] text-emerald-600 uppercase font-bold tracking-wider">Loaded</p><p id="metric-loaded" class="text-lg font-black text-emerald-700">0</p></div>
+      <div class="bg-orange-50 p-2 rounded-xl shadow-sm border border-orange-100"><p class="text-[10px] text-orange-600 uppercase font-bold tracking-wider">Transit</p><p id="metric-transit" class="text-lg font-black text-orange-700">0</p></div>
+      <div class="bg-rose-50 p-2 rounded-xl shadow-sm border border-rose-100"><p class="text-[10px] text-rose-600 uppercase font-bold tracking-wider">Faulty</p><p id="metric-faulty" class="text-lg font-black text-rose-700">0</p></div>
+    </div>
+    <div id="ops-sticky" class="sticky top-[95px] z-20 bg-slate-100/95 backdrop-blur py-2 space-y-2">
+      <div class="flex gap-2"><div class="relative flex-grow"><i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-xs"></i><input id="ops-search" oninput="renderOpsList()" placeholder="Search skid, location, route, truck..." class="w-full pl-8 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-sm shadow-sm"></div>
+      <select id="ops-filter-status" onchange="renderOpsList()" class="bg-white border border-slate-300 rounded-xl text-sm px-2 py-2 shadow-sm"><option value="ALL">All Status</option><option value="TRANSIT_ONLY">🚛 In Transit</option><option value="Loaded">Loaded</option><option value="Empty">Empty</option><option value="Online (Connected)">Online</option><option value="Faulty">Faulty</option></select></div>
+    </div>
+    <div id="ops-list" class="space-y-2"></div>
+  </section>
+  <section id="section-skids" class="hidden space-y-3">
+    <div class="bg-brand-900 text-white p-4 rounded-2xl shadow-sm flex justify-between items-center"><div><h2 class="font-bold text-base">Registered Master Skids</h2><p class="text-xs text-slate-300">Whitelist skids to eliminate ghost typings.</p><p class="text-xs text-brand-400 mt-1">Total Skids: <strong id="metric-skid-total">0</strong></p></div><button onclick="openSkidModal()" class="bg-brand-500 text-white px-3 py-1.5 rounded-xl font-bold text-xs"><i class="fa-solid fa-plus"></i> Register Skid</button></div>
+    <div id="skid-master-list" class="space-y-2"></div>
+  </section>
+  <section id="section-fleet" class="hidden space-y-3">
+    <div class="bg-brand-900 text-white p-4 rounded-2xl shadow-sm flex justify-between items-center"><div><h2 class="font-bold text-base">Fleet & Crew Registry</h2><p class="text-xs text-slate-300">Truck assignments and driver details.</p><p class="text-xs text-brand-400 mt-1">Total Trucks: <strong id="metric-truck-total">0</strong></p></div><button onclick="openFleetModal()" class="bg-brand-500 text-white px-3 py-1.5 rounded-xl font-bold text-xs"><i class="fa-solid fa-plus"></i> Add Truck</button></div>
+    <div id="fleet-master-list" class="space-y-2"></div>
+  </section>
+</main>
+<button id="fab-add-op" onclick="openOpsModal()" class="fixed bottom-5 right-5 z-20 w-14 h-14 bg-brand-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl"><i class="fa-solid fa-plus"></i></button>
+<button id="btn-back-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" class="hidden fixed bottom-5 left-5 z-20 w-10 h-10 bg-slate-800/80 text-white rounded-full shadow-md"><i class="fa-solid fa-arrow-up"></i></button>
+<div id="toast" class="fixed top-16 left-1/2 -translate-x-1/2 z-[70] bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-xl opacity-0 pointer-events-none transition-opacity duration-300 flex items-center space-x-2"><i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400"></i><span id="toast-msg"></span></div>
+
+<div id="modal-ops" class="modal fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-end sm:items-center justify-center p-0 sm:p-4"><div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+  <div class="flex justify-between items-center border-b pb-3"><h3 id="modal-ops-title" class="text-base font-bold">Log Skid Operation</h3><button onclick="closeModal('modal-ops')"><i class="fa-solid fa-xmark text-lg"></i></button></div>
+  <form id="form-ops" onsubmit="saveOp(event)" oninput="saveOpsDraftCache()" class="space-y-3"><input type="hidden" id="op-id">
+    <div><label class="label">Select Skid *</label><select id="op-skid" required onchange="onSkidSelectChange()" class="field"></select></div>
+    <div class="grid grid-cols-2 gap-3"><div><label class="label">Status *</label><select id="op-status" required class="field"><option>Loaded</option><option>Empty</option><option>Online (Connected)</option><option>Faulty</option></select></div><div><label class="label">On Transit?</label><select id="op-transit" onchange="toggleTransitFields()" class="field"><option value="No">No (Stationary)</option><option value="Yes">Yes (In Transit)</option></select></div></div>
+    <div id="single-location-block"><label class="label">Current Location / Station *</label><input id="op-location" placeholder="e.g. Mother Station - Central" class="field"></div>
+    <div id="route-location-block" class="hidden grid grid-cols-2 gap-3 bg-orange-50 p-3 rounded-xl"><div><label class="label">FROM (Origin) *</label><input id="op-location-from" placeholder="Mother Station" class="field"></div><div><label class="label">TO (Destination) *</label><input id="op-location-to" placeholder="Factory A" class="field"></div></div>
+    <div id="transit-block" class="hidden bg-slate-50 p-3 rounded-xl border space-y-2"><label class="label">Assign Truck & Crew *</label><select id="op-truck" onchange="autoFillCrew()" class="field"><option value="">-- Choose Truck --</option></select><div class="grid grid-cols-2 gap-2 text-xs"><div><strong>Driver:</strong> <span id="op-driver-display">Unassigned</span></div><div><strong>Mate:</strong> <span id="op-mate-display">Unassigned</span></div></div></div>
+    <div><label class="label">Pressure (Bar) / Notes</label><input id="op-notes" placeholder="e.g. 210 Bar or valve checked" class="field"></div>
+    <div class="pt-2 flex justify-end gap-2"><button type="button" onclick="closeModal('modal-ops')" class="cancel-btn">Cancel</button><button type="submit" class="save-btn">Save Operation Record</button></div>
+  </form>
+</div></div>
+<div id="modal-skid" class="modal fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-end sm:items-center justify-center p-0 sm:p-4"><div class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-2xl p-5 space-y-4">
+  <div class="flex justify-between items-center border-b pb-3"><h3 id="modal-skid-title" class="font-bold">Register Master Skid</h3><button onclick="closeModal('modal-skid')"><i class="fa-solid fa-xmark"></i></button></div>
+  <form id="form-skid" onsubmit="saveSkidMaster(event)" class="space-y-3"><input type="hidden" id="skid-id">
+    <div><label class="label">Skid Number / Serial ID *</label><input id="skid-num" placeholder="e.g. SK-101" required class="field uppercase"></div>
+    <div><label class="label">Skid Type / Configuration *</label><select id="skid-type" required class="field"><option>20ft Cascade</option><option>40ft Cascade</option><option selected>Standard Skid</option><option>Compact Modular</option></select></div>
+    <div><label class="label">Capacity (Optional)</label><input id="skid-capacity" placeholder="e.g. 3,500 Sm3" class="field"></div><div><label class="label">Notes / Specs (Optional)</label><input id="skid-notes" placeholder="e.g. High Pressure Certified" class="field"></div>
+    <div class="pt-2 flex justify-end gap-2"><button type="button" onclick="closeModal('modal-skid')" class="cancel-btn">Cancel</button><button type="submit" class="save-btn">Save to Registry</button></div>
+  </form>
+</div></div>
+<div id="modal-fleet" class="modal fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-end sm:items-center justify-center p-0 sm:p-4"><div class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-2xl p-5 space-y-4">
+  <div class="flex justify-between items-center border-b pb-3"><h3 id="modal-fleet-title" class="font-bold">Add Truck & Crew</h3><button onclick="closeModal('modal-fleet')"><i class="fa-solid fa-xmark"></i></button></div>
+  <form id="form-fleet" onsubmit="saveFleetMaster(event)" class="space-y-3"><input type="hidden" id="fleet-id">
+    <div><label class="label">Truck Plate Number *</label><input id="fleet-plate" placeholder="e.g. KJA-882-X" required class="field uppercase"></div><div><label class="label">Assigned Driver Name *</label><input id="fleet-driver" placeholder="e.g. John Doe" required class="field"></div><div><label class="label">Motor Mate Name *</label><input id="fleet-mate" placeholder="e.g. Alex Smith" required class="field"></div>
+    <div class="pt-2 flex justify-end gap-2"><button type="button" onclick="closeModal('modal-fleet')" class="cancel-btn">Cancel</button><button type="submit" class="save-btn">Save Truck Crew</button></div>
+  </form>
+</div></div>
+<style>
+.field{width:100%;padding:.625rem;border:1px solid #cbd5e1;border-radius:.75rem;font-size:.875rem;outline:none}.field:focus{box-shadow:0 0 0 2px #1A8CFF}.label{display:block;font-size:.75rem;font-weight:700;color:#475569;margin-bottom:.25rem}.save-btn{padding:.5rem 1.25rem;font-size:.75rem;font-weight:700;color:white;background:#0072E5;border-radius:.75rem}.cancel-btn{padding:.5rem 1rem;font-size:.75rem;font-weight:600;color:#475569;border-radius:.75rem}
+</style>
+<script>
+const INITIAL_SKIDS=[
+{id:"skid_1",number:"SK-101",type:"20ft Cascade",capacity:"3,500 Sm3",notes:"Primary Unit"},
+{id:"skid_2",number:"SK-102",type:"20ft Cascade",capacity:"3,500 Sm3",notes:"Routine check done"},
+{id:"skid_3",number:"SK-103",type:"40ft Cascade",capacity:"7,000 Sm3",notes:"Heavy Duty"},
+{id:"skid_4",number:"SK-104",type:"Standard Skid",capacity:"2,800 Sm3",notes:"Stationary Backup"}];
+const INITIAL_FLEET=[
+{id:"fleet_1",plate:"KJA-123-XA",driver:"Ibrahim Musa",mate:"Samuel Okon"},
+{id:"fleet_2",plate:"LSD-984-ZY",driver:"Tunde Bakare",mate:"Usman Bello"}];
+const INITIAL_OPS=[
+{id:"op_1",skidNum:"SK-101",status:"Loaded",location:"",fromLoc:"Mother Station - Central",toLoc:"Factory A Terminal",inTransit:"Yes",truckPlate:"KJA-123-XA",driver:"Ibrahim Musa",mate:"Samuel Okon",notes:"220 Bar pressure",updatedAt:new Date().toISOString()},
+{id:"op_2",skidNum:"SK-102",status:"Online (Connected)",location:"Daughter Station - Factory A",fromLoc:"",toLoc:"",inTransit:"No",truckPlate:"",driver:"",mate:"",notes:"Supplying production line",updatedAt:new Date().toISOString()},
+{id:"op_3",skidNum:"SK-103",status:"Empty",location:"Mother Station - Central",fromLoc:"",toLoc:"",inTransit:"No",truckPlate:"",driver:"",mate:"",notes:"Awaiting refill batch",updatedAt:new Date().toISOString()},
+{id:"op_4",skidNum:"SK-104",status:"Faulty",location:"Maintenance Depot",fromLoc:"",toLoc:"",inTransit:"No",truckPlate:"",driver:"",mate:"",notes:"Manifold leak needs seal fix",updatedAt:new Date().toISOString()}];
+function loadStored(key,fallback){try{const value=localStorage.getItem(key);return value===null?fallback:JSON.parse(value)}catch{return fallback}}
+let skidRegistry=loadStored("cng_skids",INITIAL_SKIDS);
+let fleetRegistry=loadStored("cng_fleet",INITIAL_FLEET);
+let opsData=loadStored("cng_ops",INITIAL_OPS);
+const $=id=>document.getElementById(id);
+const escapeHTML=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function saveState(){try{localStorage.setItem("cng_skids",JSON.stringify(skidRegistry));localStorage.setItem("cng_fleet",JSON.stringify(fleetRegistry));localStorage.setItem("cng_ops",JSON.stringify(opsData))}catch{showToast("Could not save on this device. Export to Excel to keep your data.",false)}updateMetrics()}
+function fixStickyOffset(){const h=document.querySelector("header");if(h)$("ops-sticky").style.top=h.offsetHeight+"px"}
+window.addEventListener("resize",fixStickyOffset);
+window.addEventListener("load",()=>{fixStickyOffset();renderOpsList();renderSkidList();renderFleetList();updateMetrics();checkAndRestoreOpsDraft();window.addEventListener("scroll",()=>$("btn-back-top").classList.toggle("hidden",window.scrollY<=300))});
+function switchTab(tab){["ops","skids","fleet"].forEach(name=>{$("section-"+name).classList.toggle("hidden",name!==tab);$("tab-"+name).className="tab-btn flex-1 py-2.5 text-center border-b-2 "+(name===tab?"border-brand-400 text-brand-400":"border-transparent text-slate-400")+" flex items-center justify-center space-x-1.5"});$("fab-add-op").classList.toggle("hidden",tab!=="ops")}
+function showToast(msg,success=true){$("toast-msg").textContent=msg;$("toast-icon").className=success?"fa-solid fa-circle-check text-emerald-400":"fa-solid fa-circle-exclamation text-rose-400";$("toast").classList.remove("opacity-0","pointer-events-none");clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>$("toast").classList.add("opacity-0","pointer-events-none"),3000)}
+function saveOpsDraftCache(){try{const d={id:$("op-id").value,skidNum:$("op-skid").value,status:$("op-status").value,inTransit:$("op-transit").value,location:$("op-location").value,fromLoc:$("op-location-from").value,toLoc:$("op-location-to").value,truckPlate:$("op-truck").value,notes:$("op-notes").value};localStorage.setItem("cng_ops_draft",JSON.stringify(d))}catch{}}
+function clearOpsDraftCache(){try{localStorage.removeItem("cng_ops_draft")}catch{}}
+function checkAndRestoreOpsDraft(){let raw=null;try{raw=localStorage.getItem("cng_ops_draft")}catch{}if(!raw)return;try{const d=JSON.parse(raw);if(d&&(d.skidNum||d.location||d.fromLoc||d.toLoc||d.notes)){openOpsModal(d.id||null,true);showToast("Restored unsaved operation draft!")}}catch{clearOpsDraftCache()}}
+function updateMetrics(){$("metric-total").textContent=opsData.length;$("metric-loaded").textContent=opsData.filter(o=>o.status==="Loaded").length;$("metric-transit").textContent=opsData.filter(o=>o.inTransit==="Yes").length;$("metric-faulty").textContent=opsData.filter(o=>o.status==="Faulty").length;$("metric-skid-total").textContent=skidRegistry.length;$("metric-truck-total").textContent=fleetRegistry.length}
+function getStatusBadgeClass(status){return {"Loaded":"bg-emerald-100 text-emerald-800 border-emerald-200","Empty":"bg-amber-100 text-amber-800 border-amber-200","Online (Connected)":"bg-violet-100 text-violet-800 border-violet-200","Faulty":"bg-rose-100 text-rose-800 border-rose-200"}[status]||"bg-slate-100 text-slate-800 border-slate-200"}
+function renderOpsList(){
+ const container=$("ops-list"),search=$("ops-search").value.toLowerCase(),filter=$("ops-filter-status").value;
+ const filtered=opsData.filter(op=>{const text=[op.skidNum,op.location,op.fromLoc,op.toLoc,op.truckPlate,op.driver,op.mate,op.notes].join(" ").toLowerCase();return text.includes(search)&&(filter==="ALL"||(filter==="TRANSIT_ONLY"?op.inTransit==="Yes":op.status===filter))});
+ if(!filtered.length){container.innerHTML='<div class="bg-white p-8 rounded-2xl text-center text-slate-400 shadow-sm border"><i class="fa-solid fa-box-open text-3xl mb-2"></i><p class="text-sm font-semibold">No operational records match criteria.</p></div>';return}
+ container.innerHTML=filtered.map(op=>{const badge=getStatusBadgeClass(op.status),transit=op.inTransit==="Yes";
+ const location=transit?`<div class="flex items-center gap-1.5 text-orange-800 font-bold"><i class="fa-solid fa-route text-orange-600 w-4 text-center"></i><span>FROM: ${escapeHTML(op.fromLoc||"N/A")} <i class="fa-solid fa-arrow-right text-slate-400 mx-1"></i> TO: ${escapeHTML(op.toLoc||"N/A")}</span></div>`:`<div class="flex items-center gap-1.5"><i class="fa-solid fa-location-dot text-slate-400 w-4 text-center"></i><span class="font-medium text-slate-800">${escapeHTML(op.location||"N/A")}</span></div>`;
+ return `<article class="bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between"><div class="flex justify-between items-start mb-2"><div class="flex items-center gap-2"><span class="font-black text-slate-900 text-base">${escapeHTML(op.skidNum)}</span><span class="${transit?"bg-orange-500 text-white":"bg-slate-200 text-slate-700"} text-[10px] px-2 py-0.5 rounded-md font-bold">${transit?"IN TRANSIT":"STATIONARY"}</span></div><span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${badge}">${escapeHTML(op.status)}</span></div><div class="text-xs space-y-1 text-slate-600 mb-3">${location}${transit?`<div class="flex items-center gap-1.5 bg-slate-50 p-2 rounded-xl border"><i class="fa-solid fa-truck text-brand-600 w-4 text-center"></i><div><strong class="text-slate-800">${escapeHTML(op.truckPlate||"Unassigned")}</strong><span class="text-slate-500"> | ${escapeHTML(op.driver||"Unassigned")} (${escapeHTML(op.mate||"Unassigned")})</span></div></div>`:""}${op.notes?`<div class="flex items-start gap-1.5"><i class="fa-solid fa-note-sticky text-slate-400 w-4 pt-0.5"></i><span class="italic text-slate-500">${escapeHTML(op.notes)}</span></div>`:""}</div><div class="pt-2 border-t flex justify-between items-center text-slate-400 text-[11px]"><span>Updated ${new Date(op.updatedAt).toLocaleString([],{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</span><div class="space-x-1"><button onclick="openOpsModal('${op.id}')" class="px-2.5 py-1 text-slate-600 bg-slate-100 rounded-lg font-bold text-xs"><i class="fa-solid fa-pen-to-square mr-1"></i>Edit</button><button onclick="deleteOp('${op.id}')" class="px-2 py-1 text-rose-600 rounded-lg text-xs"><i class="fa-solid fa-trash"></i></button></div></div></article>`}).join("")
+}
+function openOpsModal(id=null,isDraftRestore=false){
+ if(!skidRegistry.length){showToast("Register at least one skid first.",false);switchTab("skids");return}
+ $("op-skid").innerHTML=skidRegistry.map(s=>`<option value="${escapeHTML(s.number)}">${escapeHTML(s.number)} (${escapeHTML(s.type)})</option>`).join("");
+ $("op-truck").innerHTML='<option value="">-- Choose Truck --</option>'+fleetRegistry.map(f=>`<option value="${escapeHTML(f.plate)}">${escapeHTML(f.plate)} (${escapeHTML(f.driver)})</option>`).join("");
+ const form=$("form-ops");form.reset();$("op-id").value="";
+ let record=null;
+ if(isDraftRestore){try{record=JSON.parse(localStorage.getItem("cng_ops_draft")||"null")}catch{}}
+ else if(id)record=opsData.find(o=>o.id===id);
+ if(record){$("modal-ops-title").textContent=isDraftRestore?(record.id?"Edit Skid Operation (Restored Draft)":"Log Skid Operation (Restored Draft)"):"Edit Skid Operation";$("op-id").value=record.id||"";["skidNum","status","inTransit"].forEach((key,i)=>$(["op-skid","op-status","op-transit"][i]).value=record[key]||$(["op-skid","op-status","op-transit"][i]).value);$("op-location").value=record.location||"";$("op-location-from").value=record.fromLoc||"";$("op-location-to").value=record.toLoc||"";$("op-truck").value=record.truckPlate||"";$("op-notes").value=record.notes||""}
+ else $("modal-ops-title").textContent="Log Skid Operation";
+ toggleTransitFields();$("modal-ops").classList.remove("hidden");$("modal-ops").classList.add("flex")
+}
+function onSkidSelectChange(){const currentId=$("op-id").value,skidNum=$("op-skid").value;if(!currentId){const old=opsData.find(o=>o.skidNum===skidNum);if(old){$("op-status").value=old.status;$("op-transit").value=old.inTransit;$("op-location").value=old.location||"";$("op-location-from").value=old.fromLoc||"";$("op-location-to").value=old.toLoc||"";$("op-truck").value=old.truckPlate||"";$("op-notes").value=old.notes||"";toggleTransitFields()}}saveOpsDraftCache()}
+function toggleTransitFields(){const transit=$("op-transit").value==="Yes";if(transit&&!fleetRegistry.length){showToast("Register a truck before dispatching.",false);$("op-transit").value="No";return toggleTransitFields()}$("transit-block").classList.toggle("hidden",!transit);$("single-location-block").classList.toggle("hidden",transit);$("route-location-block").classList.toggle("hidden",!transit);$("op-location").required=!transit;$("op-location-from").required=transit;$("op-location-to").required=transit;$("op-truck").required=transit;if(transit)autoFillCrew()}
+function autoFillCrew(){const fleet=fleetRegistry.find(f=>f.plate===$("op-truck").value);$("op-driver-display").textContent=fleet?.driver||"Unassigned";$("op-mate-display").textContent=fleet?.mate||"Unassigned"}
+function saveOp(e){
+ e.preventDefault();const id=$("op-id").value,skidNum=$("op-skid").value,status=$("op-status").value,inTransit=$("op-transit").value;
+ const truckPlate=inTransit==="Yes"?$("op-truck").value:"";if(inTransit==="Yes"&&!truckPlate){showToast("Select an assigned truck.",false);return}
+ const fleet=fleetRegistry.find(f=>f.plate===truckPlate),record={skidNum,status,inTransit,location:inTransit==="No"?$("op-location").value.trim():"",fromLoc:inTransit==="Yes"?$("op-location-from").value.trim():"",toLoc:inTransit==="Yes"?$("op-location-to").value.trim():"",truckPlate,driver:fleet?.driver||"",mate:fleet?.mate||"",notes:$("op-notes").value.trim(),updatedAt:new Date().toISOString()};
+ const indexById=opsData.findIndex(o=>o.id===id),indexBySkid=opsData.findIndex(o=>o.skidNum===skidNum);
+ if(id&&indexById!==-1){opsData[indexById]={...opsData[indexById],...record};showToast(`Operation for ${skidNum} updated!`)}
+ else if(indexBySkid!==-1){opsData[indexBySkid]={...opsData[indexBySkid],...record};showToast(`Existing record for ${skidNum} updated!`)}
+ else{opsData.unshift({id:"op_"+Date.now(),...record});showToast("New operation logged!")}
+ clearOpsDraftCache();saveState();renderOpsList();closeModal("modal-ops")
+}
+function deleteOp(id){if(confirm("Delete this operation record?")){opsData=opsData.filter(o=>o.id!==id);saveState();renderOpsList();showToast("Record removed",false)}}
+function renderSkidList(){const c=$("skid-master-list");if(!skidRegistry.length){c.innerHTML='<div class="bg-white p-6 rounded-2xl text-center text-slate-400 text-sm">No skids registered yet.</div>';return}c.innerHTML=skidRegistry.map(s=>`<article class="bg-white p-3.5 rounded-2xl shadow-sm border flex justify-between items-center"><div><div class="flex items-center gap-2"><span class="font-bold text-slate-900">${escapeHTML(s.number)}</span><span class="bg-slate-100 text-slate-700 text-xs px-2 py-0.5 rounded-md border">${escapeHTML(s.type)}</span></div><div class="text-xs text-slate-500 mt-1">${s.capacity?`<span><i class="fa-solid fa-weight-hanging mr-1"></i>${escapeHTML(s.capacity)}</span>`:""} ${s.notes?`<span class="italic">${escapeHTML(s.notes)}</span>`:""}</div></div><div><button onclick="openSkidModal('${s.id}')" class="p-2 text-slate-500"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteSkidMaster('${s.id}')" class="p-2 text-rose-500"><i class="fa-solid fa-trash"></i></button></div></article>`).join("")}
+function openSkidModal(id=null){const form=$("form-skid");form.reset();$("skid-id").value="";if(id){const s=skidRegistry.find(s=>s.id===id);if(!s)return;$("modal-skid-title").textContent="Edit Registered Skid";$("skid-id").value=s.id;$("skid-num").value=s.number;$("skid-type").value=s.type;$("skid-capacity").value=s.capacity||"";$("skid-notes").value=s.notes||""}else $("modal-skid-title").textContent="Register Master Skid";$("modal-skid").classList.remove("hidden");$("modal-skid").classList.add("flex")}
+function saveSkidMaster(e){e.preventDefault();const id=$("skid-id").value,number=$("skid-num").value.trim().toUpperCase(),type=$("skid-type").value,capacity=$("skid-capacity").value.trim(),notes=$("skid-notes").value.trim();if(skidRegistry.some(s=>s.number.toUpperCase()===number&&s.id!==id)){showToast("Skid number already registered!",false);return}if(id){const i=skidRegistry.findIndex(s=>s.id===id),oldNumber=skidRegistry[i].number;skidRegistry[i]={id,number,type,capacity,notes};if(oldNumber!==number)opsData.forEach(o=>{if(o.skidNum===oldNumber)o.skidNum=number});showToast("Skid updated!")}else{skidRegistry.push({id:"skid_"+Date.now(),number,type,capacity,notes});showToast("Skid registered!")}saveState();renderSkidList();refreshOperationSkidOptions();renderOpsList();closeModal("modal-skid")}
+function deleteSkidMaster(id){const s=skidRegistry.find(s=>s.id===id);if(s&&confirm(`Remove ${s.number} from master registry? Its operation record will be deleted too.`)){skidRegistry=skidRegistry.filter(x=>x.id!==id);opsData=opsData.filter(o=>o.skidNum!==s.number);renderOpsList();saveState();renderSkidList();refreshOperationSkidOptions();showToast("Skid removed",false)}}
+function refreshOperationSkidOptions(){const select=$("op-skid"),selected=select.value;select.innerHTML=skidRegistry.map(s=>`<option value="${escapeHTML(s.number)}">${escapeHTML(s.number)} (${escapeHTML(s.type)})</option>`).join("");if(skidRegistry.some(s=>s.number===selected))select.value=selected}
+function renderFleetList(){const c=$("fleet-master-list");if(!fleetRegistry.length){c.innerHTML='<div class="bg-white p-6 rounded-2xl text-center text-slate-400 text-sm">No trucks registered.</div>';return}c.innerHTML=fleetRegistry.map(f=>`<article class="bg-white p-3.5 rounded-2xl shadow-sm border flex justify-between items-center"><div><div class="font-bold text-slate-900 flex items-center gap-2"><i class="fa-solid fa-truck text-brand-600 text-xs"></i>${escapeHTML(f.plate)}</div><div class="text-xs text-slate-600 mt-1"><div><strong>Driver:</strong> ${escapeHTML(f.driver)}</div><div><strong>Motor Mate:</strong> ${escapeHTML(f.mate)}</div></div></div><div><button onclick="openFleetModal('${f.id}')" class="p-2 text-slate-500"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteFleetMaster('${f.id}')" class="p-2 text-rose-500"><i class="fa-solid fa-trash"></i></button></div></article>`).join("")}
+function openFleetModal(id=null){const form=$("form-fleet");form.reset();$("fleet-id").value="";if(id){const f=fleetRegistry.find(f=>f.id===id);if(!f)return;$("modal-fleet-title").textContent="Edit Truck Assignment";$("fleet-id").value=f.id;$("fleet-plate").value=f.plate;$("fleet-driver").value=f.driver;$("fleet-mate").value=f.mate}else $("modal-fleet-title").textContent="Add Truck & Crew";$("modal-fleet").classList.remove("hidden");$("modal-fleet").classList.add("flex")}
+function saveFleetMaster(e){e.preventDefault();const id=$("fleet-id").value,plate=$("fleet-plate").value.trim().toUpperCase(),driver=$("fleet-driver").value.trim(),mate=$("fleet-mate").value.trim();if(fleetRegistry.some(f=>f.plate.toUpperCase()===plate&&f.id!==id)){showToast("Truck plate already registered!",false);return}if(id){const i=fleetRegistry.findIndex(f=>f.id===id),oldPlate=fleetRegistry[i].plate;fleetRegistry[i]={id,plate,driver,mate};opsData.forEach(o=>{if(o.truckPlate===oldPlate){o.truckPlate=plate;o.driver=driver;o.mate=mate}});showToast("Fleet entry updated!")}else{fleetRegistry.push({id:"fleet_"+Date.now(),plate,driver,mate});showToast("Truck and crew added!")}saveState();renderFleetList();refreshOperationTruckOptions();renderOpsList();closeModal("modal-fleet")}
+function refreshOperationTruckOptions(){const select=$("op-truck"),selected=select.value;select.innerHTML='<option value="">-- Choose Truck --</option>'+fleetRegistry.map(f=>`<option value="${escapeHTML(f.plate)}">${escapeHTML(f.plate)} (${escapeHTML(f.driver)})</option>`).join("");if(fleetRegistry.some(f=>f.plate===selected))select.value=selected;autoFillCrew()}
+function deleteFleetMaster(id){const f=fleetRegistry.find(f=>f.id===id);if(f&&opsData.some(o=>o.inTransit==="Yes"&&o.truckPlate===f.plate)){showToast(`${f.plate} is on an active trip. Update that operation first.`,false);return}if(f&&confirm("Remove truck entry?")){fleetRegistry=fleetRegistry.filter(x=>x.id!==id);saveState();renderFleetList();refreshOperationTruckOptions();renderOpsList();showToast("Truck removed",false)}}
+function closeModal(id){if(id==="modal-ops")clearOpsDraftCache();$(id).classList.add("hidden");$(id).classList.remove("flex")}
+function exportToExcel(){
+ if(typeof XLSX==="undefined"){showToast("Excel library failed to load. Check your internet connection.",false);return}
+ const up=v=>typeof v==="string"?v.toUpperCase():v;
+ const upRows=rows=>rows.map(r=>Object.fromEntries(Object.entries(r).map(([k,v])=>[k.toUpperCase(),up(v)])));
+ const NAVY="0B2A4A",ZEBRA="EEF7FF",LINE={style:"thin",color:{rgb:"B6C6D8"}},BORDER={top:LINE,bottom:LINE,left:LINE,right:LINE};
+ const STATUS={"LOADED":["D1FAE5","065F46"],"EMPTY":["FEF3C7","92400E"],"ONLINE (CONNECTED)":["EDE9FE","5B21B6"],"FAULTY":["FFE4E6","9F1239"]};
+ const ops=upRows(opsData.map(o=>({"Skid Number":o.skidNum,"Status":o.status,"In Transit":o.inTransit,"Current Location (Stationary)":o.inTransit==="No"?(o.location||"N/A"):"N/A","FROM (Origin)":o.inTransit==="Yes"?(o.fromLoc||"N/A"):"N/A","TO (Destination)":o.inTransit==="Yes"?(o.toLoc||"N/A"):"N/A","Assigned Truck":o.truckPlate||"N/A","Driver":o.driver||"N/A","Motor Mate":o.mate||"N/A","Notes / Pressure":o.notes||"","Last Updated":new Date(o.updatedAt).toLocaleString()})));
+ const skids=upRows(skidRegistry.map(s=>({"Skid Number":s.number,"Type":s.type,"Capacity":s.capacity||"N/A","Notes / Specs":s.notes||""})));
+ const fleet=upRows(fleetRegistry.map(f=>({"Truck Plate Number":f.plate,"Assigned Driver":f.driver,"Motor Mate":f.mate})));
+ const EMPTY_HEADERS={"Records":["Skid Number","Status","In Transit","Current Location (Stationary)","FROM (Origin)","TO (Destination)","Assigned Truck","Driver","Motor Mate","Notes / Pressure","Last Updated"],"Skid Registry":["Skid Number","Type","Capacity","Notes / Specs"],"Fleet Registry":["Truck Plate Number","Assigned Driver","Motor Mate"]};
+ const wb=XLSX.utils.book_new();
+ function addSheet(data,name){
+  const ws=data.length?XLSX.utils.json_to_sheet(data):XLSX.utils.aoa_to_sheet([EMPTY_HEADERS[name].map(h=>h.toUpperCase())]);
+  const headers=data.length?Object.keys(data[0]):EMPTY_HEADERS[name].map(h=>h.toUpperCase());
+  ws["!cols"]=headers.map(k=>({wch:Math.min(45,Math.max(14,k.length+4,...data.map(r=>String(r[k]??"").length+4)))}));
+  ws["!rows"]=[{hpt:28}];
+  const range=XLSX.utils.decode_range(ws["!ref"]);
+  for(let R=range.s.r;R<=range.e.r;R++)for(let C=range.s.c;C<=range.e.c;C++){
+   const addr=XLSX.utils.encode_cell({r:R,c:C});
+   if(!ws[addr])ws[addr]={t:"s",v:""};
+   if(R===0){ws[addr].s={font:{bold:true,color:{rgb:"FFFFFF"},sz:11,name:"Calibri"},fill:{fgColor:{rgb:NAVY}},alignment:{horizontal:"center",vertical:"center",wrapText:true},border:BORDER};continue}
+   const style={font:{sz:11,name:"Calibri"},alignment:{vertical:"center",wrapText:true},border:BORDER};
+   if(R%2===0)style.fill={fgColor:{rgb:ZEBRA}};
+   if(headers[C]==="STATUS"&&STATUS[ws[addr].v]){const[bg,fg]=STATUS[ws[addr].v];style.fill={fgColor:{rgb:bg}};style.font={bold:true,sz:11,name:"Calibri",color:{rgb:fg}};style.alignment={horizontal:"center",vertical:"center"}}
+   ws[addr].s=style
+  }
+  ws["!autofilter"]={ref:ws["!ref"]};
+  XLSX.utils.book_append_sheet(wb,ws,name)
+ }
+ addSheet(ops,"Records");addSheet(skids,"Skid Registry");addSheet(fleet,"Fleet Registry");
+ const now=new Date(),date=now.toISOString().slice(0,10),time=now.toTimeString().slice(0,8).replace(/:/g,"-"),filename=`GASTECH_CNG_Records_${date}_${time}.xlsx`;
+ XLSX.writeFile(wb,filename);showToast(`Downloaded: ${filename}`)
+}
+</script>
+</body>
+</html>
