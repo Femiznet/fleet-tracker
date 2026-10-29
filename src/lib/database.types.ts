@@ -156,6 +156,88 @@ export type Database = {
         }
         Relationships: []
       }
+      truck_trips: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          destination_id: string
+          driver_id: string
+          id: string
+          manager_id: string | null
+          motormate_id: string | null
+          origin_id: string
+          status: Database["public"]["Enums"]["trip_status"]
+          truck_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          destination_id: string
+          driver_id: string
+          id?: string
+          manager_id?: string | null
+          motormate_id?: string | null
+          origin_id: string
+          status?: Database["public"]["Enums"]["trip_status"]
+          truck_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          destination_id?: string
+          driver_id?: string
+          id?: string
+          manager_id?: string | null
+          motormate_id?: string | null
+          origin_id?: string
+          status?: Database["public"]["Enums"]["trip_status"]
+          truck_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "truck_trips_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "truck_trips_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "truck_trips_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "truck_trips_motormate_id_fkey"
+            columns: ["motormate_id"]
+            isOneToOne: false
+            referencedRelation: "motormates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "truck_trips_origin_id_fkey"
+            columns: ["origin_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "truck_trips_truck_id_fkey"
+            columns: ["truck_id"]
+            isOneToOne: false
+            referencedRelation: "trucks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trucks: {
         Row: {
           company_id: string
@@ -209,6 +291,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      trip_status: "in_transit" | "arrived" | "cancelled"
       truck_state: "good" | "maintenance"
       truck_status: "standby" | "assigned"
     }
@@ -341,6 +424,7 @@ export const Constants = {
   },
   public: {
     Enums: {
+      trip_status: ["in_transit", "arrived", "cancelled"],
       truck_state: ["good", "maintenance"],
       truck_status: ["standby", "assigned"],
     },
