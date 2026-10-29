@@ -112,7 +112,7 @@ create table public.truck_trips (
   truck_id uuid not null references public.trucks(id) on delete restrict,
   driver_id uuid not null references public.drivers(id) on delete restrict,
   motormate_id uuid references public.motormates(id) on delete set null,
-  manager_id uuid references public.managers(id) on delete set null,
+  manager_id uuid not null references public.managers(id) on delete restrict,
   origin_id uuid not null references public.locations(id) on delete restrict,
   destination_id uuid not null references public.locations(id) on delete restrict,
   status public.trip_status not null default 'in_transit',
@@ -223,6 +223,23 @@ execute function public.before_update_trucks();
 create unique index trip_trips_in_transit_truck_id_key on public.truck_trips (truck_id) where status = 'in_transit';
 create unique index trip_trips_in_transit_driver_id_key on public.truck_trips (driver_id) where status = 'in_transit';
 create unique index trip_trips_in_transit_motormate_id_key on public.truck_trips (motormate_id) where status = 'in_transit';
+
+
+-- SKIDS
+create type public.skid_state as enum ('good','maintenance');
+create type public.skid_status as enum ('empty','loading','loaded');
+
+create table public.skids (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  skid_number text not null,
+  location_id uuid not null references public.locations(id) on delete restrict,
+  state public.skid_state not null default 'good',
+  status public.skid_status not null default 'empty'
+);
+create unique index skids_number_lower_key on public.skids (lower(skid_number));
+create index skids_location_id_idx on public.skids (location_id);
 
 
 -- GRANT ACCESS TO ANONS

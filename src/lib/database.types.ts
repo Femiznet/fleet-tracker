@@ -163,7 +163,7 @@ export type Database = {
           destination_id: string
           driver_id: string
           id: string
-          manager_id: string | null
+          manager_id: string
           motormate_id: string | null
           origin_id: string
           status: Database["public"]["Enums"]["trip_status"]
@@ -175,7 +175,7 @@ export type Database = {
           destination_id: string
           driver_id: string
           id?: string
-          manager_id?: string | null
+          manager_id: string
           motormate_id?: string | null
           origin_id: string
           status?: Database["public"]["Enums"]["trip_status"]
@@ -187,7 +187,7 @@ export type Database = {
           destination_id?: string
           driver_id?: string
           id?: string
-          manager_id?: string | null
+           manager_id?: string
           motormate_id?: string | null
           origin_id?: string
           status?: Database["public"]["Enums"]["trip_status"]

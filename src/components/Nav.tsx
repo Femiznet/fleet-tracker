@@ -4,7 +4,8 @@ const links = [
   { href: "/", label: "Trucks" },
   { href: "/registry", label: "Locations" },
   { href: "/crew", label: "Crew" },
-];
+  { href: "/trips", label: "Trips" },
+]
 
 export function Nav() {
   return (
