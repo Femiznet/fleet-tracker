@@ -156,6 +156,44 @@ export type Database = {
         }
         Relationships: []
       }
+      skids: {
+        Row: {
+          created_at: string
+          id: string
+          location_id: string
+          skid_number: string
+          state: Database["public"]["Enums"]["skid_state"]
+          status: Database["public"]["Enums"]["skid_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          location_id: string
+          skid_number: string
+          state?: Database["public"]["Enums"]["skid_state"]
+          status?: Database["public"]["Enums"]["skid_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          location_id?: string
+          skid_number?: string
+          state?: Database["public"]["Enums"]["skid_state"]
+          status?: Database["public"]["Enums"]["skid_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skids_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       truck_trips: {
         Row: {
           completed_at: string | null
@@ -187,7 +225,7 @@ export type Database = {
           destination_id?: string
           driver_id?: string
           id?: string
-           manager_id?: string
+          manager_id?: string
           motormate_id?: string | null
           origin_id?: string
           status?: Database["public"]["Enums"]["trip_status"]
@@ -291,6 +329,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      skid_state: "good" | "maintenance"
+      skid_status: "empty" | "loading" | "loaded"
       trip_status: "in_transit" | "arrived" | "cancelled"
       truck_state: "good" | "maintenance"
       truck_status: "standby" | "assigned"
@@ -424,6 +464,8 @@ export const Constants = {
   },
   public: {
     Enums: {
+      skid_state: ["good", "maintenance"],
+      skid_status: ["empty", "loading", "loaded"],
       trip_status: ["in_transit", "arrived", "cancelled"],
       truck_state: ["good", "maintenance"],
       truck_status: ["standby", "assigned"],

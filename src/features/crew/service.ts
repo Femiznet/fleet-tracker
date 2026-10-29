@@ -93,5 +93,12 @@ export async function updateCrew(kind: CrewKind, id: string, v: CrewInput) {
 
 export async function removeCrew(kind: CrewKind, id: string) {
   const { error } = await supabase.from(kind).delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  if (error) {
+    const msg = error.message;
+    if (msg.includes("23503") || msg.toLowerCase().includes("violates foreign key")) {
+      const what = kind === "drivers" ? "driver" : kind === "motormates" ? "motormate" : "manager";
+      throw new Error(`Cannot delete: this ${what} is used in trips`);
+    }
+    throw new Error(msg);
+  }
 }
