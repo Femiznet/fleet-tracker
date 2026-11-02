@@ -1,9 +1,0 @@
-// app/api/trucks/route.ts
-import { ok, withErrorHandler } from "@/lib/api-response-handlers";
-import { registerTruck } from "@/features/trucks/services";
-
-export const POST = withErrorHandler(async (request) => {
-  const body = await request.json();
-  const data = await registerTruck(body);
-  return ok({ data, status: 201 });
-});
