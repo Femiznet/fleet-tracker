@@ -72,6 +72,30 @@ export type Database = {
         }
         Relationships: []
       }
+      alert_preferences: {
+        Row: {
+          dashboard_alerts: boolean
+          updated_at: string
+          user_id: string
+          whatsapp_alerts: boolean
+          whatsapp_number: string | null
+        }
+        Insert: {
+          dashboard_alerts?: boolean
+          updated_at?: string
+          user_id: string
+          whatsapp_alerts?: boolean
+          whatsapp_number?: string | null
+        }
+        Update: {
+          dashboard_alerts?: boolean
+          updated_at?: string
+          user_id?: string
+          whatsapp_alerts?: boolean
+          whatsapp_number?: string | null
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           active: boolean
