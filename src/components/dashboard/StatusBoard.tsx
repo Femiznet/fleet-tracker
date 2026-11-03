@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import AlertBanner from "./AlertBanner"
 import type { CustomerStatus, Status } from "@/lib/calc/monitor"
 
 const TZ = "Africa/Lagos"
@@ -127,7 +128,7 @@ function updatedText(c: CustomerStatus, now: Date) {
   return diff < 60000 ? "Updated just now" : `Updated ${Math.round(diff / 60000)} min ago`
 }
 
-export default function StatusBoard({ statuses, generatedAt }: { statuses: CustomerStatus[]; generatedAt: string }) {
+export default function StatusBoard({ statuses, generatedAt, alertsOn }: { statuses: CustomerStatus[]; generatedAt: string; alertsOn: boolean }) {
   const now = new Date()
 
   const shown = statuses.filter(
@@ -136,6 +137,7 @@ export default function StatusBoard({ statuses, generatedAt }: { statuses: Custo
 
   return (
     <div className="space-y-4">
+      <AlertBanner statuses={statuses} enabled={alertsOn} />
       {shown.length > 0 ? (
         <table className="w-full caption-bottom text-sm">
           <thead>
