@@ -7,10 +7,7 @@ import { supabase } from "@/lib/supabase";
 
 const links = [
   { href: "/", label: "Dashboard" },
-  { href: "/fleet", label: "Fleet" },
-  { href: "/registry", label: "Locations" },
-  { href: "/crew", label: "Crew" },
-  { href: "/trips", label: "Trips" },
+  { href: "/customers", label: "Customers" },
   { href: "/settings/ai", label: "AI Settings" },
   { href: "/settings/alerts", label: "Alerts" },
 ];
