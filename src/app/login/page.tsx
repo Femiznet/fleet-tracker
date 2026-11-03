@@ -1,8 +1,14 @@
 "use client";
 
+import { Inter } from "next/font/google";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
+const plex = Inter({ subsets: ["latin"], weight: ["400", "500", "600"] });
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,88 +38,74 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 flex items-center justify-center px-5 py-12 relative overflow-hidden">
-      <div className="absolute w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl -top-32 -left-32" />
-      <div className="absolute w-96 h-96 bg-blue-600/10 rounded-full blur-3xl -bottom-32 -right-32" />
-
-      <div className="relative w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-500 text-slate-950 text-xl font-black shadow-lg shadow-cyan-500/20">
-            CNG
+    <main className={`${plex.className} min-h-screen bg-[var(--bg)] text-[var(--fg)]`}>
+      <div className="px-4 sm:px-6 py-8">
+        <div className="mx-auto max-w-md">
+          <div className="mb-8">
+            <h1 className="text-2xl font-semibold text-[var(--fg)] mb-1">
+              Sign in
+            </h1>
+            <p className="text-sm text-[var(--muted)]">
+              Enter your credentials to access your operations dashboard
+            </p>
           </div>
 
-          <h1 className="text-2xl font-bold tracking-tight text-white">
-            Operations Dashboard
-          </h1>
+          <section
+            className="rounded-2xl border border-[var(--border)] border-l-4 border-[var(--brand)] bg-[var(--card)] p-6 sm:p-8"
+          >
+            <form onSubmit={handleLogin} className="space-y-5">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-[var(--fg)]">
+                  Email address
+                </label>
+                <Input
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@example.com"
+                  className="w-full border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-sm text-[var(--fg)] outline-none transition-colors focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)/20] placeholder:text-[var(--muted)]"
+                  aria-describedby="email-helptext"
+                />
+              </div>
 
-          <p className="mt-2 text-sm text-slate-400">
-            Logistics CNG Gastech International Limited
+              <div>
+                <label className="mb-2 block text-sm font-medium text-[var(--fg)]">
+                  Password
+                </label>
+                <Input
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  className="w-full border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-sm text-[var(--fg)] outline-none transition-colors focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)/20] placeholder:text-[var(--muted)]"
+                  aria-describedby="password-helptext"
+                />
+              </div>
+
+              {error && (
+                <div className="rounded-lg border border-[var(--destructive)/20] bg-[var(--destructive)/10] px-4 py-3 text-sm text-[var(--destructive)]">
+                  {error}
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full border border-[var(--brand)] px-4 py-3 text-sm font-medium text-[var(--brand)] hover:bg-[var(--brand)/10] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? "Signing in..." : "Sign in"}
+              </Button>
+            </form>
+          </section>
+
+          <p className="mt-6 text-sm text-center text-[var(--muted)]">
+            Authorized personnel only
           </p>
         </div>
-
-        <form
-          onSubmit={handleLogin}
-          className="rounded-2xl border border-white/10 bg-slate-900/80 p-8 shadow-2xl backdrop-blur-xl"
-        >
-          <div className="mb-7">
-            <h2 className="text-xl font-semibold text-white">
-              Welcome back
-            </h2>
-            <p className="mt-1 text-sm text-slate-400">
-              Sign in to access your operations.
-            </p>
-          </div>
-
-          <div className="space-y-5">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-300">
-                Email address
-              </label>
-              <input
-                type="email"
-                required
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@example.com"
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-300">
-                Password
-              </label>
-              <input
-                type="password"
-                required
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
-              />
-            </div>
-          </div>
-
-          {error && (
-            <p className="mt-5 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-              {error}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-7 w-full rounded-xl bg-cyan-500 py-3.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loading ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
-
-        <p className="mt-6 text-center text-xs text-slate-600">
-          Authorized personnel only.
-        </p>
       </div>
     </main>
   );

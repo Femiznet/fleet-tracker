@@ -5,7 +5,10 @@
   --fg: #0f172a;
   --muted: #64748b;
   --border: #e2e8f0;
-  --card: #ffffff;
+  --input-bg: #ffffff;
+  --input-border: #e2e8f0;
+  --ring: #3f83f8;
+  --destructive: #dc2626;
   --brand: #0ea5e9;
   --critical: #dc2626;
   --warning: #d97706;
@@ -22,7 +25,10 @@
   --fg: #e2e8f0;
   --muted: #94a3b8;
   --border: #1e293b;
-  --card: #111827;
+  --input-bg: #111827;
+  --input-border: #1e293b;
+  --ring: #60a5fa;
+  --destructive: #f87171;
   --brand: #38bdf8;
   --critical: #f87171;
   --warning: #fbbf24;
