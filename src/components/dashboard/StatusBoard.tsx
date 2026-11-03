@@ -163,7 +163,7 @@ export default function StatusBoard({
   const shown = filter === "action" ? needsAction : statuses;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 bg-[var(--bg)] text-[var(--fg)]">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Customer monitor</h1>
