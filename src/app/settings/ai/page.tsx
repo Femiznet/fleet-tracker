@@ -1,6 +1,7 @@
 
 "use client";
 
+import { Inter } from "next/font/google";
 import { useEffect, useState } from "react";
 import {
   saveAiProviderAction,
@@ -21,6 +22,8 @@ const providerOptions = [
   "OpenRouter",
   "Custom",
 ];
+
+const plex = Inter({ subsets: ["latin"], weight: ["400", "500", "600"] });
 
 export default function AiSettingsPage() {
   const [providers, setProviders] = useState<Provider[]>([]);
