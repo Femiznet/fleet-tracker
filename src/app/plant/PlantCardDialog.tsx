@@ -1,12 +1,13 @@
 "use client";
 
-import { useId, useRef, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, type MouseEvent, type ReactNode } from "react";
 
 type Props = {
   title: string;
   subtitle: string;
   detail: string;
   badges?: string[];
+  open?: boolean;
   children: ReactNode;
 };
 
@@ -15,10 +16,15 @@ export default function PlantCardDialog({
   subtitle,
   detail,
   badges = [],
+  open = false,
   children,
 }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
+
+  useEffect(() => {
+    if (open && dialogRef.current && !dialogRef.current.open) dialogRef.current.showModal();
+  }, [open]);
 
   function closeOnBackdrop(event: MouseEvent<HTMLDialogElement>) {
     if (event.target === event.currentTarget) dialogRef.current?.close();
