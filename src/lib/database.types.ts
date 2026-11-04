@@ -129,6 +129,174 @@ export type Database = {
         }
         Relationships: []
       }
+      plant_events: {
+        Row: {
+          by_user: string | null
+          customer_id: string | null
+          event: string
+          gas_state: string | null
+          id: number
+          note: string | null
+          occurred_at: string
+          recorded_at: string
+          skid_id: string | null
+          truck_id: string | null
+        }
+        Insert: {
+          by_user?: string | null
+          customer_id?: string | null
+          event: string
+          gas_state?: string | null
+          id?: never
+          note?: string | null
+          occurred_at?: string
+          recorded_at?: string
+          skid_id?: string | null
+          truck_id?: string | null
+        }
+        Update: {
+          by_user?: string | null
+          customer_id?: string | null
+          event?: string
+          gas_state?: string | null
+          id?: never
+          note?: string | null
+          occurred_at?: string
+          recorded_at?: string
+          skid_id?: string | null
+          truck_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plant_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plant_events_skid_id_fkey"
+            columns: ["skid_id"]
+            isOneToOne: false
+            referencedRelation: "skids"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plant_events_truck_id_fkey"
+            columns: ["truck_id"]
+            isOneToOne: false
+            referencedRelation: "trucks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      skids: {
+        Row: {
+          active: boolean
+          created_at: string
+          customer_id: string | null
+          gas_state: string
+          id: string
+          in_plant: boolean
+          notes: string | null
+          skid_key: string | null
+          skid_number: string
+          state_since: string
+          status: string
+          truck_id: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          customer_id?: string | null
+          gas_state?: string
+          id?: string
+          in_plant?: boolean
+          notes?: string | null
+          skid_key?: string | null
+          skid_number: string
+          state_since?: string
+          status?: string
+          truck_id?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          customer_id?: string | null
+          gas_state?: string
+          id?: string
+          in_plant?: boolean
+          notes?: string | null
+          skid_key?: string | null
+          skid_number?: string
+          state_since?: string
+          status?: string
+          truck_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skids_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "skids_truck_id_fkey"
+            columns: ["truck_id"]
+            isOneToOne: true
+            referencedRelation: "trucks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trucks: {
+        Row: {
+          active: boolean
+          created_at: string
+          customer_id: string | null
+          id: string
+          in_plant: boolean
+          notes: string | null
+          plate_key: string | null
+          plate_number: string
+          state_since: string
+          status: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          in_plant?: boolean
+          notes?: string | null
+          plate_key?: string | null
+          plate_number: string
+          state_since?: string
+          status?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          in_plant?: boolean
+          notes?: string | null
+          plate_key?: string | null
+          plate_number?: string
+          state_since?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trucks_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_updates: {
         Row: {
           extracted_data: Json | null
@@ -213,6 +381,50 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      hook_skid: {
+        Args: { p_skid: string; p_truck: string; p_user: string }
+        Returns: undefined
+      }
+      record_arrival: {
+        Args: {
+          p_at: string | null
+          p_gas: string | null
+          p_note: string | null
+          p_skid: string | null
+          p_truck: string | null
+          p_user: string
+        }
+        Returns: undefined
+      }
+      record_dispatch: {
+        Args: {
+          p_at: string | null
+          p_customer: string | null
+          p_note: string | null
+          p_skid: string | null
+          p_truck: string
+          p_user: string
+        }
+        Returns: undefined
+      }
+      set_gas_state: {
+        Args: { p_skid: string; p_state: string; p_user: string }
+        Returns: undefined
+      }
+      set_maintenance: {
+        Args: {
+          p_id: string
+          p_kind: string
+          p_note: string | null
+          p_on: boolean
+          p_user: string
+        }
+        Returns: undefined
+      }
+      unhook_skid: {
+        Args: { p_skid: string; p_user: string }
+        Returns: undefined
       }
     }
     Enums: {

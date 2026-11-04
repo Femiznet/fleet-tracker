@@ -2,6 +2,7 @@
 
 :root {
   --bg: #f8fafc;
+  --card: #ffffff;
   --fg: #0f172a;
   --muted: #64748b;
   --border: #e2e8f0;
@@ -10,6 +11,7 @@
   --ring: #3f83f8;
   --destructive: #dc2626;
   --brand: #0ea5e9;
+  --brand-foreground: #ffffff;
   --critical: #dc2626;
   --warning: #d97706;
   --success: #059669;
@@ -22,6 +24,7 @@
 
 .dark {
   --bg: #0b1220;
+  --card: #111827;
   --fg: #e2e8f0;
   --muted: #94a3b8;
   --border: #1e293b;
@@ -30,6 +33,7 @@
   --ring: #60a5fa;
   --destructive: #f87171;
   --brand: #38bdf8;
+  --brand-foreground: #082f49;
   --critical: #f87171;
   --warning: #fbbf24;
   --success: #34d399;
@@ -46,6 +50,9 @@ body {
   -webkit-font-smoothing: antialiased;
   font-feature-settings: "tnum";
 }
+button, input, select, textarea { font: inherit; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+::selection { background: color-mix(in srgb, var(--brand) 24%, transparent); }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }

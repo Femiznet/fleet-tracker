@@ -32,11 +32,16 @@ export function CustomerRow({ customer }: { customer: Customer }) {
   );
 
   return (
-    <form action={action} className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4">
+    <form action={action} className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm sm:p-5">
       <input type="hidden" name="id" value={customer.id} />
-      <p className="text-xs text-[var(--muted)]">
-        WhatsApp group: {customer.group_name}
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-medium text-[var(--muted)]">
+          WhatsApp group: {customer.group_name}
+        </p>
+        <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${customer.active ? "bg-[var(--success)]/10 text-[var(--success)]" : "bg-[var(--bg)] text-[var(--muted)]"}`}>
+          {customer.active ? "On dashboard" : "Hidden"}
+        </span>
+      </div>
 
       <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div>
@@ -115,15 +120,15 @@ export function CustomerRow({ customer }: { customer: Customer }) {
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-4">
+      <div className="mt-5 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <label className="flex items-center gap-2 text-sm text-[var(--fg)]">
-          <input type="checkbox" name="active" defaultChecked={customer.active} />
+          <input type="checkbox" name="active" defaultChecked={customer.active} className="size-4 accent-[var(--brand)]" />
           Show on the dashboard
         </label>
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg border border-[var(--brand)] px-4 py-3 text-sm font-medium text-[var(--brand)] hover:bg-[var(--brand)/10] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--brand)] px-5 py-2.5 text-sm font-semibold text-[var(--brand)] transition-colors hover:bg-[var(--brand)]/10 disabled:cursor-not-allowed disabled:opacity-50 sm:ml-auto"
         >
           {pending ? "Saving…" : "Save"}
         </button>
@@ -142,10 +147,10 @@ export function NewGroupRow({ groupName }: { groupName: string }) {
   return (
     <form
       action={action}
-      className="flex flex-wrap items-end gap-3 rounded-lg border border-dashed border-[var(--border)] bg-[var(--card)] p-4"
+      className="flex flex-col items-stretch gap-3 rounded-xl border border-dashed border-[var(--border)] bg-[var(--bg)] p-3 sm:flex-row sm:items-end sm:p-4"
     >
       <input type="hidden" name="group_name" value={groupName} />
-      <div className="min-w-[14rem] flex-1">
+      <div className="min-w-0 flex-1">
         <label className="text-sm font-medium text-[var(--fg)]">Customer name</label>
         <input
           name="name"
@@ -160,7 +165,7 @@ export function NewGroupRow({ groupName }: { groupName: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg border border-[var(--brand)] px-4 py-3 text-sm font-medium text-[var(--brand)] hover:bg-[var(--brand)/10] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--brand)] px-4 py-2.5 text-sm font-semibold text-[var(--brand)] transition-colors hover:bg-[var(--brand)]/10 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {pending ? "Adding…" : "Add customer"}
       </button>

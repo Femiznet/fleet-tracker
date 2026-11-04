@@ -9,7 +9,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={inter.variable}>
       <body className="min-h-screen bg-[var(--bg)] text-[var(--fg)] antialiased">
         <Nav />
-        <main className="md:pl-64">{children}</main>
+        {children}
       </body>
     </html>
   );

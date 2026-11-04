@@ -29,7 +29,7 @@ export default function AlertBanner({
   return (
     <div role="alert" className="mb-6 space-y-2">
       {critical.length > 0 && (
-        <div className="rounded-lg border border-red-200 border-l-4 border-l-red-600 bg-red-50 p-4 text-red-900">
+        <div className="rounded-xl border border-[var(--critical)]/20 border-l-4 border-l-[var(--critical)] bg-[var(--critical)]/10 p-4 text-[var(--fg)]">
           <p className="font-medium">
             Critical: {critical.map((c) => c.name).join(", ")}
           </p>
@@ -39,7 +39,7 @@ export default function AlertBanner({
         </div>
       )}
       {sendNow.length > 0 && (
-        <div className="rounded-lg border border-orange-200 border-l-4 border-l-orange-500 bg-orange-50 p-4 text-orange-900">
+        <div className="rounded-xl border border-[var(--warning)]/20 border-l-4 border-l-[var(--warning)] bg-[var(--warning)]/10 p-4 text-[var(--fg)]">
           <p className="font-medium">
             Send a skid now: {sendNow.map((c) => c.name).join(", ")}
           </p>

@@ -2,110 +2,119 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 const links = [
-  { href: "/", label: "Dashboard" },
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/plant", label: "Plant" },
   { href: "/customers", label: "Customers" },
-  { href: "/settings/ai", label: "AI Settings" },
+  { href: "/settings/ai", label: "AI settings" },
   { href: "/settings/alerts", label: "Alerts" },
 ];
 
 export function Nav() {
+  const pathname = usePathname();
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
-  const [activeLink, setActiveLink] = React.useState("/");
-
-  React.useEffect(() => {
-    if (typeof window !== "undefined") {
-      setActiveLink(window.location.pathname);
-    }
-  }, []);
-
-  const formattedLinks = links.map((l) => ({
-    ...l,
-    isActive: l.href === activeLink,
-  }));
 
   async function handleLogout() {
     await supabase.auth.signOut();
     router.replace("/login");
   }
 
+  if (pathname === "/login") return null;
+
   return (
-    <nav
-      className="border-b border-[var(--border)] bg-[var(--card)] flex flex-col sm:flex-row items-center justify-between px-4 py-3 sm:py-2"
-    >
-      <div className="flex items-center gap-3">
-        <strong className="tracking-widest text-[var(--fg)]">GASTECH</strong>
-      </div>
-
-      <ul className="flex gap-4 sm:gap-0 sm:ml-8 text-[var(--muted)] transition-colors hover:[var(--fg)]">
-        {formattedLinks.map((l) => (
-          <li key={l.href} className="relative py-2 sm:py-0">
-            <Link
-              key={l.href}
-              href={l.href}
-              className={`relative px-3 py-2 rounded-md transition-colors [&.active]:bg-[var(--brand)/20] [&.active]:text-[var(--brand)]`}
-            >
-              {l.label}
-            </Link>
-          </li>
-        ))}
-      </ul>
-
-      <div className="flex items-center gap-2">
-        <button
-          onClick={handleLogout}
-          className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-semibold text-[var(--fg)] transition-colors hover:bg-[var(--border)/5] sm:hidden"
-          aria-label="Sign out"
+    <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--card)]/95 shadow-sm backdrop-blur">
+      <nav
+        aria-label="Main navigation"
+        className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-6 px-4 py-3 sm:px-6 lg:px-8"
+      >
+        <Link
+          href="/dashboard"
+          className="inline-flex min-h-11 items-center gap-2 rounded-md text-[var(--fg)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--ring)]"
         >
-          Sign out
-        </button>
+          <span
+            aria-hidden="true"
+            className="grid size-8 place-items-center rounded-lg bg-[var(--brand)] text-sm font-bold text-white"
+          >
+            G
+          </span>
+          <span className="font-semibold tracking-[0.16em]">GASTECH</span>
+        </Link>
 
-        <button
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="rounded-lg px-3 py-2 [var(--fg)] transition-colors sm:hidden"
-          aria-label="Open menu"
-        >
-          ☰
-        </button>
-
-        <button
-          onClick={handleLogout}
-          className="hidden sm:flex rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-semibold text-[var(--fg)] transition-colors hover:bg-[var(--border)/5]"
-          aria-label="Sign out"
-        >
-          Sign out
-        </button>
-      </div>
-
-      {/* Mobile menu */}
-      {isMobileMenuOpen && (
-        <div className="mt-4 sm:mt-0 absolute top-full left-0 right-0 bg-[var(--card)] border-t border-[var(--border)] p-4 w-full sm:w-64">
-          <ul className="flex flex-col gap-2">
-            {formattedLinks.map((l) => (
-              <li key={l.href}>
-                <Link
-                  href={l.href}
-                  className="rounded-md py-2 px-3 transition-colors [&.active]:bg-[var(--brand)/20] [&.active]:text-[var(--brand)]"
-                >
-                  {l.label}
-                </Link>
-              </li>
-            ))}
-            <li>
-              <button
-                onClick={handleLogout}
-                className="w-full rounded-md border border-[var(--border)] py-2 px-3 text-xs font-semibold text-[var(--fg)] transition-colors hover:bg-[var(--border)/5] text-left"
+        <div className="hidden items-center gap-1 md:flex">
+          {links.map((link) => {
+            const active =
+              pathname === link.href ||
+              (link.href !== "/dashboard" && pathname.startsWith(`${link.href}/`));
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                aria-current={active ? "page" : undefined}
+                className={`inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] ${
+                  active
+                    ? "bg-[var(--brand)]/10 text-[var(--brand)]"
+                    : "text-[var(--muted)] hover:bg-[var(--bg)] hover:text-[var(--fg)]"
+                }`}
               >
-                Sign out
-              </button>
-            </li>
-          </ul>
+                {link.label}
+              </Link>
+            );
+          })}
         </div>
-      )}
-    </nav>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="inline-flex min-h-10 items-center rounded-lg border border-[var(--border)] px-3 text-sm font-medium text-[var(--fg)] transition-colors hover:bg-[var(--bg)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
+          >
+            Sign out
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsMobileMenuOpen((open) => !open)}
+            aria-expanded={isMobileMenuOpen}
+            aria-controls="mobile-navigation"
+            aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+            className="inline-flex size-10 items-center justify-center rounded-lg border border-[var(--border)] text-lg text-[var(--fg)] transition-colors hover:bg-[var(--bg)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] md:hidden"
+          >
+            {isMobileMenuOpen ? "×" : "☰"}
+          </button>
+        </div>
+
+        <div
+          id="mobile-navigation"
+          className={`${isMobileMenuOpen ? "block border-t border-[var(--border)] pt-3" : "hidden"} w-full md:hidden`}
+        >
+            <ul className="grid grid-cols-2 gap-2">
+              {links.map((link) => {
+                const active =
+                  pathname === link.href ||
+                  (link.href !== "/dashboard" && pathname.startsWith(`${link.href}/`));
+                return (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex min-h-11 items-center rounded-lg px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] ${
+                        active
+                          ? "bg-[var(--brand)]/10 text-[var(--brand)]"
+                          : "text-[var(--muted)] hover:bg-[var(--bg)] hover:text-[var(--fg)]"
+                      }`}
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+        </div>
+      </nav>
+    </header>
   );
 }
