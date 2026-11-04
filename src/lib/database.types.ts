@@ -388,21 +388,21 @@ export type Database = {
       }
       record_arrival: {
         Args: {
-          p_at: string | null
-          p_gas: string | null
-          p_note: string | null
-          p_skid: string | null
-          p_truck: string | null
+          p_at: string
+          p_gas: string
+          p_note: string
+          p_skid: string
+          p_truck: string
           p_user: string
         }
         Returns: undefined
       }
       record_dispatch: {
         Args: {
-          p_at: string | null
-          p_customer: string | null
-          p_note: string | null
-          p_skid: string | null
+          p_at: string
+          p_customer: string
+          p_note: string
+          p_skid: string
           p_truck: string
           p_user: string
         }
@@ -416,7 +416,7 @@ export type Database = {
         Args: {
           p_id: string
           p_kind: string
-          p_note: string | null
+          p_note: string
           p_on: boolean
           p_user: string
         }
