@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { addCustomer, updateCustomer, type SaveResult } from "./actions";
+import { addCustomer, deleteCustomer, updateCustomer, type SaveResult } from "./actions";
 
 export type Customer = {
   id: string;
@@ -28,6 +28,10 @@ const input =
 export function CustomerRow({ customer }: { customer: Customer }) {
   const [result, action, pending] = useActionState<SaveResult, FormData>(
     updateCustomer,
+    null,
+  );
+  const [deleteResult, deleteAction, deletePending] = useActionState<SaveResult, FormData>(
+    deleteCustomer,
     null,
   );
 
@@ -132,7 +136,18 @@ export function CustomerRow({ customer }: { customer: Customer }) {
         >
           {pending ? "Saving…" : "Save"}
         </button>
-        <Message result={result} />
+        <Message result={result ?? deleteResult} />
+        <button
+          type="submit"
+          formAction={deleteAction}
+          disabled={deletePending}
+          onClick={(event) => {
+            if (!window.confirm(`Delete ${customer.name}? This cannot be undone.`)) event.preventDefault();
+          }}
+          className="min-h-11 rounded-lg px-3 py-2 text-sm font-medium text-[var(--destructive)] hover:bg-[var(--destructive)]/10 disabled:opacity-50"
+        >
+          {deletePending ? "Deleting…" : "Delete"}
+        </button>
       </div>
     </form>
   );

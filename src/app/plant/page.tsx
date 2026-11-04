@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import PlantCardDialog from "./PlantCardDialog";
+import PlantFeedback from "./PlantFeedback";
 import {
   hookSkid,
   recordArrival,
@@ -584,16 +585,7 @@ export default async function PlantPage({
           </button>
         </form>
 
-        {sp.error && (
-          <p role="alert" className="rounded-lg border border-[var(--destructive)]/20 bg-[var(--destructive)]/10 p-3 text-sm text-[var(--destructive)]">
-            {sp.error}
-          </p>
-        )}
-        {sp.notice && (
-          <p role="status" className="rounded-lg border border-[var(--success)]/20 bg-[var(--success)]/10 p-3 text-sm text-[var(--success)]">
-            {sp.notice}
-          </p>
-        )}
+        <PlantFeedback error={sp.error} notice={sp.notice} />
       </header>
 
       {key ? (

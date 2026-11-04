@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { CustomerRow, NewGroupRow, type Customer } from "./CustomerForms";
+import { addCustomer } from "./actions";
 
 export const instant = false
 
@@ -59,6 +60,24 @@ export default async function CustomersPage() {
           )}
         </div>
       </header>
+
+      <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm sm:p-5">
+        <div className="mb-3">
+          <h2 className="font-semibold">Add customer</h2>
+          <p className="text-sm text-[var(--muted)]">Create a customer even before their WhatsApp group sends an update.</p>
+        </div>
+        <form action={async (formData) => { await addCustomer(null, formData); }} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <div>
+            <label htmlFor="new-customer-name" className="text-sm font-medium">Customer name</label>
+            <input id="new-customer-name" name="name" required className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label htmlFor="new-customer-group" className="text-sm font-medium">WhatsApp group name</label>
+            <input id="new-customer-group" name="group_name" required className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-sm" />
+          </div>
+          <button type="submit" className="min-h-11 rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-[var(--brand-foreground)]">Add customer</button>
+        </form>
+      </section>
 
       {newGroups.length > 0 && (
         <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 sm:p-5">

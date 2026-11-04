@@ -57,16 +57,34 @@ export async function updateCustomer(
   return { ok: true, message: "Saved." };
 }
 
+export async function deleteCustomer(
+  _prev: SaveResult,
+  formData: FormData
+): Promise<SaveResult> {
+  if (!(await signedIn())) return { ok: false, message: "Sign in again to delete." };
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { ok: false, message: "Missing customer." };
+
+  const { error } = await supabaseAdmin.from("customers").delete().eq("id", id);
+  if (error) return { ok: false, message: "Could not delete. Remove related records first or try again." };
+
+  revalidatePath("/customers");
+  revalidatePath("/dashboard");
+  revalidatePath("/plant");
+  return { ok: true, message: "Customer deleted." };
+}
+
 export async function addCustomer(
   _prev: SaveResult,
   formData: FormData
 ): Promise<SaveResult> {
   if (!(await signedIn())) return { ok: false, message: "Sign in again to save." };
 
-  const groupName = String(formData.get("group_name") ?? "");
+  const groupName = String(formData.get("group_name") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
 
-  if (!groupName) return { ok: false, message: "Missing WhatsApp group." };
+  if (!groupName) return { ok: false, message: "Enter a WhatsApp group name." };
   if (!name) return { ok: false, message: "Enter a name." };
 
   const { error } = await supabaseAdmin
