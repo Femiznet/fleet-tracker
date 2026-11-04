@@ -20,6 +20,13 @@ function back(formData: FormData, msg: { error?: string; notice?: string } = {})
   if (q) p.set("q", q);
   if (msg.error) p.set("error", msg.error);
   if (msg.notice) p.set("notice", msg.notice);
+
+  const explicitOpen = text(formData, "open");
+  const kind = text(formData, "kind");
+  const id = text(formData, "id");
+  const open = explicitOpen || (kind && id ? `${kind}:${id}` : id ? `skid:${id}` : text(formData, "truck") ? `truck:${text(formData, "truck")}` : text(formData, "skid") ? `skid:${text(formData, "skid")}` : "");
+  if (open) p.set("open", open);
+
   revalidatePath("/plant");
   const s = p.toString();
   redirect(s ? `/plant?${s}` : "/plant");

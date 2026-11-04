@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import PlantCardDialog from "./PlantCardDialog";
+import PlantFeedback from "./PlantFeedback";
 import {
   hookSkid,
   recordArrival,
@@ -58,6 +59,7 @@ type PlantEvent = {
 
 type Ctx = {
   q: string;
+  open: string;
   nowInput: string;
   customers: Customer[];
   customerName: (id: string | null) => string;
@@ -165,6 +167,7 @@ function TruckCard({ t, c }: { t: Truck; c: Ctx }) {
       title={`Truck ${t.plate_number}${skid ? ` + skid ${skid.skid_number}` : ""}`}
       subtitle={`${where} for ${ago(t.state_since)}`}
       detail={skid ? `Carrying skid ${skid.skid_number} (${GAS_LABEL[skid.gas_state].toLowerCase()})` : "No skid hooked"}
+      open={c.open === `truck:${t.id}`}
       badges={[
         ...(t.status === "maintenance" ? ["In maintenance"] : []),
         ...(!t.active ? ["Not in fleet"] : []),
@@ -270,6 +273,7 @@ function TruckCard({ t, c }: { t: Truck; c: Ctx }) {
             ) : (
               <form action={hookSkid} className="flex gap-2">
                 <Hidden name="truck" value={t.id} />
+                <Hidden name="open" value={`truck:${t.id}`} />
                 <Hidden name="q" value={c.q} />
                 <select name="skid" defaultValue="" aria-label="Skid to hook" className="rounded-md border border-[var(--border)] px-2 py-1.5 text-sm">
                   <option value="" disabled>
@@ -314,6 +318,7 @@ function SkidCard({ s, c }: { s: Skid; c: Ctx }) {
       title={`Skid ${s.skid_number} (${GAS_LABEL[s.gas_state].toLowerCase()})`}
       subtitle={`${where} for ${ago(s.state_since)}`}
       detail={truck ? `Hooked to truck ${truck.plate_number}` : "No truck"}
+      open={c.open === `skid:${s.id}`}
       badges={[
         ...(s.status === "maintenance" ? ["In maintenance"] : []),
         ...(!s.active ? ["Not in fleet"] : []),
@@ -387,6 +392,7 @@ function SkidCard({ s, c }: { s: Skid; c: Ctx }) {
             ) : (
               <form action={hookSkid} className="flex gap-2">
                 <Hidden name="skid" value={s.id} />
+                <Hidden name="open" value={`skid:${s.id}`} />
                 <Hidden name="q" value={c.q} />
                 <select name="truck" defaultValue="" aria-label="Truck to hook to" className="rounded-md border border-[var(--border)] px-2 py-1.5 text-sm">
                   <option value="" disabled>
@@ -431,12 +437,13 @@ function Section({ title, children, count }: { title: string; children: ReactNod
 export default async function PlantPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; error?: string; notice?: string }>;
+  searchParams: Promise<{ q?: string; error?: string; notice?: string; open?: string }>;
 }) {
   await connection();
 
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
+  const open = sp.open ?? "";
 
   const supabase = await createSupabaseServerClient();
   const {
@@ -513,7 +520,7 @@ export default async function PlantPage({
     .replace(" ", "T")
     .slice(0, 16);
 
-  const c: Ctx = { q, nowInput, customers, customerName, allTrucks, allSkids, skidByTruck, truckById, history };
+  const c: Ctx = { q, open, nowInput, customers, customerName, allTrucks, allSkids, skidByTruck, truckById, history };
 
   const trucks = allTrucks.filter((t) => t.active);
   const skids = allSkids.filter((s) => s.active);
@@ -578,16 +585,7 @@ export default async function PlantPage({
           </button>
         </form>
 
-        {sp.error && (
-          <p role="alert" className="rounded-lg border border-[var(--destructive)]/20 bg-[var(--destructive)]/10 p-3 text-sm text-[var(--destructive)]">
-            {sp.error}
-          </p>
-        )}
-        {sp.notice && (
-          <p role="status" className="rounded-lg border border-[var(--success)]/20 bg-[var(--success)]/10 p-3 text-sm text-[var(--success)]">
-            {sp.notice}
-          </p>
-        )}
+        <PlantFeedback error={sp.error} notice={sp.notice} />
       </header>
 
       {key ? (
