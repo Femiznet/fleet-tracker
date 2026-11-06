@@ -339,6 +339,18 @@ export type Database = {
     Functions: {
       current_station_id: { Args: never; Returns: string }
       is_admin: { Args: never; Returns: boolean }
+      submit_station_report: {
+        Args: {
+          p_available_trucks: number
+          p_empty_skids: number
+          p_landing_gear_boxes: number
+          p_prms_readings: Json
+          p_reported_at: string
+          p_skid_readings: Json
+          p_standby_skids: number
+        }
+        Returns: string
+      }
     }
     Enums: {
       user_role: "admin" | "customer"
