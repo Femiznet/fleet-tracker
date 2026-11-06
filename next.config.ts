@@ -15,6 +15,7 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  allowedDevOrigins: ['odin-frowzier-spatteringly.ngrok-free.dev']
 };
 
 export default nextConfig;

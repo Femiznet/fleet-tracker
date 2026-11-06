@@ -14,26 +14,30 @@ CREATE TABLE ai_provider_configs (
 CREATE OR REPLACE FUNCTION public.claim_whatsapp_updates()
 RETURNS SETOF public.whatsapp_updates
 LANGUAGE plpgsql
+SECURITY DEFINER -- Ensures the automated system has permission to read/update the rows
 AS $$
 DECLARE
   active_count INTEGER;
   available_slots INTEGER;
 BEGIN
+  -- 1. Grab an explicit transaction-level advisory lock to serialize workers
   PERFORM pg_advisory_xact_lock(741852963);
 
+  -- 2. See how many slots are currently being processed (Concurreny Limit = 2)
   SELECT COUNT(*) INTO active_count
   FROM public.whatsapp_updates
   WHERE processing_status = 'processing';
 
   available_slots := GREATEST(0, 2 - active_count);
 
+  -- 3. If slots are open, grab pending rows and atomically mark them as 'processing'
   RETURN QUERY
   WITH candidates AS (
     SELECT id
     FROM public.whatsapp_updates
     WHERE processing_status = 'pending'
     ORDER BY received_at ASC
-    FOR UPDATE SKIP LOCKED
+    FOR UPDATE SKIP LOCKED -- Skips rows currently locked by other transactions
     LIMIT available_slots
   )
   UPDATE public.whatsapp_updates AS updates
@@ -47,3 +51,4 @@ BEGIN
   RETURNING updates.*;
 END;
 $$;
+

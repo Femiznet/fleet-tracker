@@ -1,5 +1,5 @@
 
-import { after, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import {
   buildRegex,
   FIELDS,
@@ -10,14 +10,18 @@ import {
 import { saveWhatsappUpdate } from "@/features/whatsapp/updates";
 import { processQueuedWhatsappUpdates } from "@/features/whatsapp/processor";
 
+const shortText = (text: string) => text.split(' ').slice(0, 4).join(' ') + '...';
+
 export async function POST(request: Request) {
   try {
     const rawText = await request.text();
     const parts = rawText.split("|||");
 
     if (parts.length < 2) {
+      const err_message = "Invalid payload format. Expected 'title|||text'";
+      console.log(`Error: ${err_message}`);
       return NextResponse.json(
-        { error: "Invalid payload format. Expected 'title|||text'" },
+        { error: err_message },
         { status: 400 }
       );
     }
@@ -41,7 +45,9 @@ export async function POST(request: Request) {
       matched.length >= MIN_FIELDS && text.length >= MIN_LENGTH;
 
     if (!isUpdate) {
-      return NextResponse.json({ error: "denied" }, { status: 400 });
+      const err_message = `Not a valid update: ${shortText(text)}`;
+      console.log(`Error: ${err_message}`);
+      return NextResponse.json({ error: err_message }, { status: 400 });
     }
 
     const result = await saveWhatsappUpdate({
@@ -54,14 +60,6 @@ export async function POST(request: Request) {
     if (result.duplicate) {
       return NextResponse.json({ message: "Duplicate ignored" });
     }
-
-    after(async () => {
-      try {
-        await processQueuedWhatsappUpdates();
-      } catch (error) {
-        console.error("Background AI processing failed:", error);
-      }
-    });
 
     return NextResponse.json({ data: result.data }, { status: 201 });
   } catch (error) {

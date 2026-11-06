@@ -27,7 +27,7 @@ export async function saveAiProvider(input: SaveProviderInput) {
       {
         provider,
         model,
-        encrypted_api_key: encryptApiKey(apiKey),
+        encrypted_api_key: apiKey, //encryptApiKey(apiKey),
         enabled: true,
         updated_at: new Date().toISOString(),
       },

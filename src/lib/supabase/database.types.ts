@@ -72,231 +72,6 @@ export type Database = {
         }
         Relationships: []
       }
-      alert_preferences: {
-        Row: {
-          dashboard_alerts: boolean
-          updated_at: string
-          user_id: string
-          whatsapp_alerts: boolean
-          whatsapp_number: string | null
-        }
-        Insert: {
-          dashboard_alerts?: boolean
-          updated_at?: string
-          user_id: string
-          whatsapp_alerts?: boolean
-          whatsapp_number?: string | null
-        }
-        Update: {
-          dashboard_alerts?: boolean
-          updated_at?: string
-          user_id?: string
-          whatsapp_alerts?: boolean
-          whatsapp_number?: string | null
-        }
-        Relationships: []
-      }
-      customers: {
-        Row: {
-          active: boolean
-          created_at: string
-          cutoff_bar: number
-          full_bar: number
-          group_name: string
-          id: string
-          name: string
-          trip_minutes: number | null
-        }
-        Insert: {
-          active?: boolean
-          created_at?: string
-          cutoff_bar?: number
-          full_bar?: number
-          group_name: string
-          id?: string
-          name: string
-          trip_minutes?: number | null
-        }
-        Update: {
-          active?: boolean
-          created_at?: string
-          cutoff_bar?: number
-          full_bar?: number
-          group_name?: string
-          id?: string
-          name?: string
-          trip_minutes?: number | null
-        }
-        Relationships: []
-      }
-      plant_events: {
-        Row: {
-          by_user: string | null
-          customer_id: string | null
-          event: string
-          gas_state: string | null
-          id: number
-          note: string | null
-          occurred_at: string
-          recorded_at: string
-          skid_id: string | null
-          truck_id: string | null
-        }
-        Insert: {
-          by_user?: string | null
-          customer_id?: string | null
-          event: string
-          gas_state?: string | null
-          id?: never
-          note?: string | null
-          occurred_at?: string
-          recorded_at?: string
-          skid_id?: string | null
-          truck_id?: string | null
-        }
-        Update: {
-          by_user?: string | null
-          customer_id?: string | null
-          event?: string
-          gas_state?: string | null
-          id?: never
-          note?: string | null
-          occurred_at?: string
-          recorded_at?: string
-          skid_id?: string | null
-          truck_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "plant_events_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "plant_events_skid_id_fkey"
-            columns: ["skid_id"]
-            isOneToOne: false
-            referencedRelation: "skids"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "plant_events_truck_id_fkey"
-            columns: ["truck_id"]
-            isOneToOne: false
-            referencedRelation: "trucks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      skids: {
-        Row: {
-          active: boolean
-          created_at: string
-          customer_id: string | null
-          gas_state: string
-          id: string
-          in_plant: boolean
-          notes: string | null
-          skid_key: string | null
-          skid_number: string
-          state_since: string
-          status: string
-          truck_id: string | null
-        }
-        Insert: {
-          active?: boolean
-          created_at?: string
-          customer_id?: string | null
-          gas_state?: string
-          id?: string
-          in_plant?: boolean
-          notes?: string | null
-          skid_key?: string | null
-          skid_number: string
-          state_since?: string
-          status?: string
-          truck_id?: string | null
-        }
-        Update: {
-          active?: boolean
-          created_at?: string
-          customer_id?: string | null
-          gas_state?: string
-          id?: string
-          in_plant?: boolean
-          notes?: string | null
-          skid_key?: string | null
-          skid_number?: string
-          state_since?: string
-          status?: string
-          truck_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "skids_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "skids_truck_id_fkey"
-            columns: ["truck_id"]
-            isOneToOne: true
-            referencedRelation: "trucks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      trucks: {
-        Row: {
-          active: boolean
-          created_at: string
-          customer_id: string | null
-          id: string
-          in_plant: boolean
-          notes: string | null
-          plate_key: string | null
-          plate_number: string
-          state_since: string
-          status: string
-        }
-        Insert: {
-          active?: boolean
-          created_at?: string
-          customer_id?: string | null
-          id?: string
-          in_plant?: boolean
-          notes?: string | null
-          plate_key?: string | null
-          plate_number: string
-          state_since?: string
-          status?: string
-        }
-        Update: {
-          active?: boolean
-          created_at?: string
-          customer_id?: string | null
-          id?: string
-          in_plant?: boolean
-          notes?: string | null
-          plate_key?: string | null
-          plate_number?: string
-          state_since?: string
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "trucks_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       whatsapp_updates: {
         Row: {
           extracted_data: Json | null
@@ -310,7 +85,7 @@ export type Database = {
           processing_attempts: number
           processing_error: string | null
           processing_started_at: string | null
-          processing_status: string
+          processing_status: Database["public"]["Enums"]["processing_status_type"]
           received_at: string
           review_reason: string | null
           sender: string | null
@@ -327,7 +102,7 @@ export type Database = {
           processing_attempts?: number
           processing_error?: string | null
           processing_started_at?: string | null
-          processing_status?: string
+          processing_status?: Database["public"]["Enums"]["processing_status_type"]
           received_at?: string
           review_reason?: string | null
           sender?: string | null
@@ -344,7 +119,7 @@ export type Database = {
           processing_attempts?: number
           processing_error?: string | null
           processing_started_at?: string | null
-          processing_status?: string
+          processing_status?: Database["public"]["Enums"]["processing_status_type"]
           received_at?: string
           review_reason?: string | null
           sender?: string | null
@@ -370,7 +145,7 @@ export type Database = {
           processing_attempts: number
           processing_error: string | null
           processing_started_at: string | null
-          processing_status: string
+          processing_status: Database["public"]["Enums"]["processing_status_type"]
           received_at: string
           review_reason: string | null
           sender: string | null
@@ -382,53 +157,14 @@ export type Database = {
           isSetofReturn: true
         }
       }
-      hook_skid: {
-        Args: { p_skid: string; p_truck: string; p_user: string }
-        Returns: undefined
-      }
-      record_arrival: {
-        Args: {
-          p_at: string
-          p_gas: string
-          p_note: string
-          p_skid: string
-          p_truck: string
-          p_user: string
-        }
-        Returns: undefined
-      }
-      record_dispatch: {
-        Args: {
-          p_at: string
-          p_customer: string
-          p_note: string
-          p_skid: string
-          p_truck: string
-          p_user: string
-        }
-        Returns: undefined
-      }
-      set_gas_state: {
-        Args: { p_skid: string; p_state: string; p_user: string }
-        Returns: undefined
-      }
-      set_maintenance: {
-        Args: {
-          p_id: string
-          p_kind: string
-          p_note: string
-          p_on: boolean
-          p_user: string
-        }
-        Returns: undefined
-      }
-      unhook_skid: {
-        Args: { p_skid: string; p_user: string }
-        Returns: undefined
-      }
     }
     Enums: {
-      [_ in never]: never
+      processing_status_type:
+        | "pending"
+        | "processing"
+        | "processed"
+        | "needs_review"
+        | "failed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -558,6 +294,14 @@ export const Constants = {
     Enums: {},
   },
   public: {
-    Enums: {},
+    Enums: {
+      processing_status_type: [
+        "pending",
+        "processing",
+        "processed",
+        "needs_review",
+        "failed",
+      ],
+    },
   },
 } as const
