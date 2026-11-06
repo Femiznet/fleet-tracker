@@ -39,132 +39,303 @@ export type Database = {
   }
   public: {
     Tables: {
-      ai_provider_configs: {
+      prms_skid_assignments: {
+        Row: {
+          assigned_at: string
+          ended_at: string | null
+          id: string
+          prms_id: string
+          skid_id: string
+          station_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          ended_at?: string | null
+          id?: string
+          prms_id: string
+          skid_id: string
+          station_id: string
+        }
+        Update: {
+          assigned_at?: string
+          ended_at?: string | null
+          id?: string
+          prms_id?: string
+          skid_id?: string
+          station_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prms_skid_assignments_prms_id_station_id_fkey"
+            columns: ["prms_id", "station_id"]
+            isOneToOne: false
+            referencedRelation: "prms_units"
+            referencedColumns: ["id", "station_id"]
+          },
+          {
+            foreignKeyName: "prms_skid_assignments_skid_id_station_id_fkey"
+            columns: ["skid_id", "station_id"]
+            isOneToOne: false
+            referencedRelation: "skids"
+            referencedColumns: ["id", "station_id"]
+          },
+        ]
+      }
+      prms_units: {
         Row: {
           created_at: string
-          enabled: boolean
-          encrypted_api_key: string
           id: string
           is_active: boolean
-          model: string
-          provider: string
-          updated_at: string
+          name: string
+          station_id: string
         }
         Insert: {
           created_at?: string
-          enabled?: boolean
-          encrypted_api_key: string
           id?: string
           is_active?: boolean
-          model: string
-          provider: string
-          updated_at?: string
+          name: string
+          station_id: string
         }
         Update: {
           created_at?: string
-          enabled?: boolean
-          encrypted_api_key?: string
           id?: string
           is_active?: boolean
-          model?: string
-          provider?: string
-          updated_at?: string
+          name?: string
+          station_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prms_units_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["user_role"]
+          station_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          role: Database["public"]["Enums"]["user_role"]
+          station_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          station_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      skids: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          station_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          station_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          station_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skids_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      station_updates: {
+        Row: {
+          available_trucks: number | null
+          created_at: string
+          empty_skids: number | null
+          id: string
+          landing_gear_boxes: number | null
+          reported_at: string
+          standby_skids: number | null
+          station_id: string
+        }
+        Insert: {
+          available_trucks?: number | null
+          created_at?: string
+          empty_skids?: number | null
+          id?: string
+          landing_gear_boxes?: number | null
+          reported_at?: string
+          standby_skids?: number | null
+          station_id: string
+        }
+        Update: {
+          available_trucks?: number | null
+          created_at?: string
+          empty_skids?: number | null
+          id?: string
+          landing_gear_boxes?: number | null
+          reported_at?: string
+          standby_skids?: number | null
+          station_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "station_updates_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stations: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          slug: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          slug: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          slug?: string
         }
         Relationships: []
       }
-      whatsapp_updates: {
+      update_prms_readings: {
         Row: {
-          extracted_data: Json | null
-          group_name: string | null
+          flow_rate: number | null
           id: string
-          message: string
-          needs_review: boolean
-          notification_title: string | null
-          processed: boolean
-          processed_at: string | null
-          processing_attempts: number
-          processing_error: string | null
-          processing_started_at: string | null
-          processing_status: Database["public"]["Enums"]["processing_status_type"]
-          received_at: string
-          review_reason: string | null
-          sender: string | null
+          outlet_pressure: number | null
+          outlet_temperature: number | null
+          prms_id: string
+          station_id: string
+          total_flow: number | null
+          update_id: string
         }
         Insert: {
-          extracted_data?: Json | null
-          group_name?: string | null
+          flow_rate?: number | null
           id?: string
-          message: string
-          needs_review?: boolean
-          notification_title?: string | null
-          processed?: boolean
-          processed_at?: string | null
-          processing_attempts?: number
-          processing_error?: string | null
-          processing_started_at?: string | null
-          processing_status?: Database["public"]["Enums"]["processing_status_type"]
-          received_at?: string
-          review_reason?: string | null
-          sender?: string | null
+          outlet_pressure?: number | null
+          outlet_temperature?: number | null
+          prms_id: string
+          station_id: string
+          total_flow?: number | null
+          update_id: string
         }
         Update: {
-          extracted_data?: Json | null
-          group_name?: string | null
+          flow_rate?: number | null
           id?: string
-          message?: string
-          needs_review?: boolean
-          notification_title?: string | null
-          processed?: boolean
-          processed_at?: string | null
-          processing_attempts?: number
-          processing_error?: string | null
-          processing_started_at?: string | null
-          processing_status?: Database["public"]["Enums"]["processing_status_type"]
-          received_at?: string
-          review_reason?: string | null
-          sender?: string | null
+          outlet_pressure?: number | null
+          outlet_temperature?: number | null
+          prms_id?: string
+          station_id?: string
+          total_flow?: number | null
+          update_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "update_prms_readings_prms_id_station_id_fkey"
+            columns: ["prms_id", "station_id"]
+            isOneToOne: false
+            referencedRelation: "prms_units"
+            referencedColumns: ["id", "station_id"]
+          },
+          {
+            foreignKeyName: "update_prms_readings_update_id_station_id_fkey"
+            columns: ["update_id", "station_id"]
+            isOneToOne: false
+            referencedRelation: "station_updates"
+            referencedColumns: ["id", "station_id"]
+          },
+        ]
+      }
+      update_skid_readings: {
+        Row: {
+          id: string
+          pressure: number | null
+          skid_id: string
+          station_id: string
+          temperature: number | null
+          update_id: string
+        }
+        Insert: {
+          id?: string
+          pressure?: number | null
+          skid_id: string
+          station_id: string
+          temperature?: number | null
+          update_id: string
+        }
+        Update: {
+          id?: string
+          pressure?: number | null
+          skid_id?: string
+          station_id?: string
+          temperature?: number | null
+          update_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "update_skid_readings_skid_id_station_id_fkey"
+            columns: ["skid_id", "station_id"]
+            isOneToOne: false
+            referencedRelation: "skids"
+            referencedColumns: ["id", "station_id"]
+          },
+          {
+            foreignKeyName: "update_skid_readings_update_id_station_id_fkey"
+            columns: ["update_id", "station_id"]
+            isOneToOne: false
+            referencedRelation: "station_updates"
+            referencedColumns: ["id", "station_id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      claim_whatsapp_updates: {
-        Args: never
-        Returns: {
-          extracted_data: Json | null
-          group_name: string | null
-          id: string
-          message: string
-          needs_review: boolean
-          notification_title: string | null
-          processed: boolean
-          processed_at: string | null
-          processing_attempts: number
-          processing_error: string | null
-          processing_started_at: string | null
-          processing_status: Database["public"]["Enums"]["processing_status_type"]
-          received_at: string
-          review_reason: string | null
-          sender: string | null
-        }[]
-        SetofOptions: {
-          from: "*"
-          to: "whatsapp_updates"
-          isOneToOne: false
-          isSetofReturn: true
-        }
-      }
+      current_station_id: { Args: never; Returns: string }
+      is_admin: { Args: never; Returns: boolean }
     }
     Enums: {
-      processing_status_type:
-        | "pending"
-        | "processing"
-        | "processed"
-        | "needs_review"
-        | "failed"
+      user_role: "admin" | "customer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -295,13 +466,7 @@ export const Constants = {
   },
   public: {
     Enums: {
-      processing_status_type: [
-        "pending",
-        "processing",
-        "processed",
-        "needs_review",
-        "failed",
-      ],
+      user_role: ["admin", "customer"],
     },
   },
 } as const
