@@ -176,33 +176,33 @@ export type Database = {
       }
       station_updates: {
         Row: {
-          available_trucks: number | null
+          available_trucks: string[]
           created_at: string
-          empty_skids: number | null
+          empty_skids: string[]
           id: string
           landing_gear_boxes: number | null
           reported_at: string
-          standby_skids: number | null
+          standby_skids: string[]
           station_id: string
         }
         Insert: {
-          available_trucks?: number | null
+          available_trucks?: string[]
           created_at?: string
-          empty_skids?: number | null
+          empty_skids?: string[]
           id?: string
           landing_gear_boxes?: number | null
           reported_at?: string
-          standby_skids?: number | null
+          standby_skids?: string[]
           station_id: string
         }
         Update: {
-          available_trucks?: number | null
+          available_trucks?: string[]
           created_at?: string
-          empty_skids?: number | null
+          empty_skids?: string[]
           id?: string
           landing_gear_boxes?: number | null
           reported_at?: string
-          standby_skids?: number | null
+          standby_skids?: string[]
           station_id?: string
         }
         Relationships: [
@@ -341,13 +341,13 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       submit_station_report: {
         Args: {
-          p_available_trucks: number
-          p_empty_skids: number
+          p_available_trucks: string[]
+          p_empty_skids: string[]
           p_landing_gear_boxes: number
           p_prms_readings: Json
           p_reported_at: string
           p_skid_readings: Json
-          p_standby_skids: number
+          p_standby_skids: string[]
         }
         Returns: string
       }
