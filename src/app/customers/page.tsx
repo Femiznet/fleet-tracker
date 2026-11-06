@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { CustomerRow, NewGroupRow, type Customer } from "./CustomerForms";
-import { addCustomer } from "./actions";
+import { addCustomer, handleAddCustomer } from "./actions";
+
+
 
 export const instant = false
 
@@ -30,12 +32,17 @@ export default async function CustomersPage() {
       .limit(1000),
   ]);
 
-  if (customersRes.error) throw customersRes.error;
+  if (customersRes.error) {
+    console.error("Error fetching customers:", customersRes.error);
+    return <p className="text-red-500 text-sm">Error loading customers. Please try again.</p>;
+  }
 
   const customers = (customersRes.data ?? []) as Customer[];
   const known = new Set(customers.map((c) => c.group_name));
   const newGroups = [
-    ...new Set((groupsRes.data ?? []).map((g) => g.group_name as string)),
+    ...new Set(
+      (groupsRes.data ?? []).map((g) => g.group_name ?? "").filter((g): g is string => g !== "")
+    ),
   ].filter((g) => !known.has(g));
 
   const missingTrip = customers.filter((c) => c.active && c.trip_minutes === null).length;
@@ -66,7 +73,7 @@ export default async function CustomersPage() {
           <h2 className="font-semibold">Add customer</h2>
           <p className="text-sm text-[var(--muted)]">Create a customer even before their WhatsApp group sends an update.</p>
         </div>
-        <form action={async (formData) => { await addCustomer(null, formData); }} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <form action={handleAddCustomer} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
           <div>
             <label htmlFor="new-customer-name" className="text-sm font-medium">Customer name</label>
             <input id="new-customer-name" name="name" required className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-sm" />

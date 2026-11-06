@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
+import { toast } from "sonner";
 import { addCustomer, deleteCustomer, updateCustomer, type SaveResult } from "./actions";
 
 export type Customer = {
@@ -12,15 +13,6 @@ export type Customer = {
   full_bar: number | string;
   active: boolean;
 };
-
-function Message({ result }: { result: SaveResult }) {
-  if (!result) return null;
-  return (
-    <p role="status" className={result.ok ? "text-[var(--success)]" : "text-[var(--destructive)]"}>
-      {result.message}
-    </p>
-  );
-}
 
 const input =
   "mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-sm text-[var(--fg)] outline-none transition-colors focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)/20] placeholder:text-[var(--muted)]";
@@ -34,6 +26,20 @@ export function CustomerRow({ customer }: { customer: Customer }) {
     deleteCustomer,
     null,
   );
+
+  useEffect(() => {
+    if (result) {
+      if (result.ok) toast.success(result.message);
+      else toast.error(result.message);
+    }
+  }, [result]);
+
+  useEffect(() => {
+    if (deleteResult) {
+      if (deleteResult.ok) toast.success(deleteResult.message);
+      else toast.error(deleteResult.message);
+    }
+  }, [deleteResult]);
 
   return (
     <form action={action} className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm sm:p-5">
@@ -136,7 +142,6 @@ export function CustomerRow({ customer }: { customer: Customer }) {
         >
           {pending ? "Saving…" : "Save"}
         </button>
-        <Message result={result ?? deleteResult} />
         <button
           type="submit"
           formAction={deleteAction}
@@ -158,6 +163,13 @@ export function NewGroupRow({ groupName }: { groupName: string }) {
     addCustomer,
     null,
   );
+
+  useEffect(() => {
+    if (result) {
+      if (result.ok) toast.success(result.message);
+      else toast.error(result.message);
+    }
+  }, [result]);
 
   return (
     <form
@@ -184,7 +196,6 @@ export function NewGroupRow({ groupName }: { groupName: string }) {
       >
         {pending ? "Adding…" : "Add customer"}
       </button>
-      <Message result={result} />
     </form>
   );
 }

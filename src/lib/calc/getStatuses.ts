@@ -39,6 +39,8 @@ export async function getCustomerStatuses(): Promise<CustomerStatus[]> {
   if (updatesRes.error) throw updatesRes.error;
 
   const byGroup = new Map<string, UpdateRow[]>();
+  // Track groups that don't have a customer yet
+  const unknownGroups = new Set<string>();
   for (const u of updatesRes.data ?? []) {
     if (!u.group_name || !u.extracted_data) continue;
     const list = byGroup.get(u.group_name) ?? [];
@@ -48,6 +50,14 @@ export async function getCustomerStatuses(): Promise<CustomerStatus[]> {
       data: u.extracted_data as Extraction,
     });
     byGroup.set(u.group_name, list);
+
+    // Check if this group_name exists as a customer
+    const customerExists = customersRes.data?.some(
+      (c) => c.group_name && c.group_name.toLowerCase() === u.group_name.toLowerCase()
+    );
+    if (!customerExists) {
+      unknownGroups.add(u.group_name);
+    }
   }
 
   const statuses = (customersRes.data ?? []).map((c) =>

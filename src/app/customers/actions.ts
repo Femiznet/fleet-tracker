@@ -1,8 +1,24 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+
+// Wrapper for form action - accepts only formData (Next.js form signature)
+// addCustomer has signature (_prev: SaveResult, formData: FormData)
+// but forms expect (formData: FormData)
+export async function handleAddCustomer(formData: FormData) {
+  const supabase = supabaseAdmin;
+  const { error } = await supabase.from("customers")
+    .insert({ name: String(formData.get("name") ?? ""), group_name: String(formData.get("group_name") ?? "") });
+  
+  if (error) throw error;
+  
+  revalidatePath("/customers");
+  revalidatePath("/dashboard");
+  redirect("/customers");
+}
 
 export type SaveResult = { ok: boolean; message: string } | null;
 

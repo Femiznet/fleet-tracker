@@ -24,8 +24,9 @@ async function callAiProvider(
   message: string
 ) {
 
-const prompt = `
-Extract operational information from this WhatsApp message.
+  const prompt = `
+THE PROVIDED MESSAGE IS A COMPRESSED NATURAL GAS WHATSAPP UPDATE
+Extract operational information from this CNG LOGISTICS WhatsApp message.
 
 Return exactly one JSON object with this structure:
 
@@ -42,7 +43,7 @@ Return exactly one JSON object with this structure:
     "flow_rate": null,
     "total_flow": null,
     "meter_reading_scm":null,
-    "current_pressure_bar": null,
+    "current_pressure_bar": null, // could be named skid pressure or just pressure, do not mistake it for the out or outlet pressure
     "empty_skids": null,
     "standby_skids": null,
     "skid_in_use_count": null,
@@ -222,7 +223,8 @@ export async function processQueuedWhatsappUpdates() {
     .single();
 
   if (configError || !config) {
-    throw new Error("No active AI provider configured.");
+    console.error("No active AI provider configured.");
+    return { processed: 0 };
   }
 
   let processed = 0;
