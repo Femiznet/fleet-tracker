@@ -1,3 +1,7 @@
-grant select, insert, update on table public.customers to service_role;
-grant select, update on table public.trucks, public.skids to service_role;
-grant select, insert on table public.plant_events to service_role;
+-- Grants on tables
+GRANT SELECT, INSERT, UPDATE, DELETE
+ON ALL TABLES IN SCHEMA public
+TO service_role;
+
+-- Grants on functions
+GRANT EXECUTE ON FUNCTION public.claim_whatsapp_updates() TO service_role;

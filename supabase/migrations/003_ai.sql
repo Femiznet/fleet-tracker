@@ -11,12 +11,6 @@ CREATE TABLE ai_provider_configs (
     UNIQUE (provider, model)
 );
 
-CREATE UNIQUE INDEX idx_one_active_ai_provider
-ON ai_provider_configs (is_active)
-WHERE is_active = TRUE;
-
-ALTER TABLE ai_provider_configs ENABLE ROW LEVEL SECURITY;
-
 CREATE OR REPLACE FUNCTION public.claim_whatsapp_updates()
 RETURNS SETOF public.whatsapp_updates
 LANGUAGE plpgsql
