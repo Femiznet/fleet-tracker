@@ -242,7 +242,8 @@ export type Database = {
           id: string
           outlet_pressure: number | null
           outlet_temperature: number | null
-          prms_id: string
+          prms_id: string | null
+          prms_name: string | null
           station_id: string
           total_flow: number | null
           update_id: string
@@ -252,7 +253,8 @@ export type Database = {
           id?: string
           outlet_pressure?: number | null
           outlet_temperature?: number | null
-          prms_id: string
+          prms_id?: string | null
+          prms_name?: string | null
           station_id: string
           total_flow?: number | null
           update_id: string
@@ -262,7 +264,8 @@ export type Database = {
           id?: string
           outlet_pressure?: number | null
           outlet_temperature?: number | null
-          prms_id?: string
+          prms_id?: string | null
+          prms_name?: string | null
           station_id?: string
           total_flow?: number | null
           update_id?: string
@@ -288,7 +291,8 @@ export type Database = {
         Row: {
           id: string
           pressure: number | null
-          skid_id: string
+          skid_id: string | null
+          skid_identifier: string | null
           station_id: string
           temperature: number | null
           update_id: string
@@ -296,7 +300,8 @@ export type Database = {
         Insert: {
           id?: string
           pressure?: number | null
-          skid_id: string
+          skid_id?: string | null
+          skid_identifier?: string | null
           station_id: string
           temperature?: number | null
           update_id: string
@@ -304,7 +309,8 @@ export type Database = {
         Update: {
           id?: string
           pressure?: number | null
-          skid_id?: string
+          skid_id?: string | null
+          skid_identifier?: string | null
           station_id?: string
           temperature?: number | null
           update_id?: string
