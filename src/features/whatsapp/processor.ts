@@ -3,7 +3,7 @@ import "server-only";
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { decryptApiKey } from "@/lib/ai/encryption";
-import { validateExtraction } from "@/lib/ai/extractionSchema";
+import { validateExtraction } from "@/lib/ai/extraction-schema";
 
 function extractText(provider: string, result: unknown): string {
   if (provider === "google gemini") {

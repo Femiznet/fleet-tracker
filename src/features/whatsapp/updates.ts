@@ -1,5 +1,5 @@
-import { supabase } from "@/lib/supabase";
-import type { Database } from "@/lib/database.types";
+import { supabase } from "@/lib/supabase/client";
+import type { Database } from "@/lib/supabase/database.types";
 
 type WhatsappUpdate =
   Database["public"]["Tables"]["whatsapp_updates"]["Insert"];

@@ -6,7 +6,7 @@ import {
   MIN_FIELDS,
   MIN_LENGTH,
   toPattern,
-} from "@/lib/extract-update";
+} from "@/lib/whatsapp/extractor";
 import { saveWhatsappUpdate } from "@/features/whatsapp/updates";
 import { processQueuedWhatsappUpdates } from "@/features/whatsapp/processor";
 
