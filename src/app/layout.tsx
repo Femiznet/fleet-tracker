@@ -9,7 +9,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={inter.variable}>
       <body className="min-h-screen bg-[var(--bg)] text-[var(--fg)] antialiased">
         {children}
-        <Toaster position="bottom-center" richColors closeButton />
+        <Toaster
+          position="top-right"
+          richColors
+          closeButton
+          style={{ zIndex: 9999 }}
+        />
       </body>
     </html>
   );

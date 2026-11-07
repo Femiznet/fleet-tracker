@@ -34,3 +34,16 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Customer invitations
+
+Admins can create a station and invite its customer from the admin dashboard. The customer receives an email invitation, follows the link, and sets their own password before using the app.
+
+Configure these values in the app environment:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` — server-only; never expose it with a `NEXT_PUBLIC_` prefix.
+- `NEXT_PUBLIC_SITE_URL` — the app's origin, such as `http://localhost:3000` for local development or the production site origin.
+
+In Supabase Authentication URL Configuration, add `<app-origin>/auth/callback` to the allowed redirect URLs. Configure email delivery and disable public sign-ups if customer accounts should only be created by admins. At least one admin Auth user must also have an `admin` row in `public.profiles` before the invitation flow can be used.
