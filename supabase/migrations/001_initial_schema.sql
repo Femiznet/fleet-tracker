@@ -1,23 +1,16 @@
-
-
-
--- ==========================================
--- 1. STATIONS
--- ==========================================
+CREATE TYPE public.user_role AS ENUM ('admin', 'customer');
+CREATE TYPE public.customer_delivery_type AS ENUM ('METER', 'SELF-PICK', 'WAYBILL');
 
 CREATE TABLE public.stations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     slug TEXT UNIQUE NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    type public.customer_delivery_type,
+    distance NUMERIC(10, 2),
+    location TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
-
--- ==========================================
--- 2. PROFILES
--- ==========================================
-
-CREATE TYPE public.user_role AS ENUM ('admin', 'customer');
 
 CREATE TABLE public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -25,17 +18,13 @@ CREATE TABLE public.profiles (
     station_id UUID REFERENCES public.stations(id) ON DELETE RESTRICT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
+    CONSTRAINT profiles_station_id_unique UNIQUE (station_id),
     CONSTRAINT valid_profile_station CHECK (
         (role = 'admin' AND station_id IS NULL)
         OR
         (role = 'customer' AND station_id IS NOT NULL)
     )
 );
-
-
--- ==========================================
--- 3. SKIDS
--- ==========================================
 
 CREATE TABLE public.skids (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -48,11 +37,6 @@ CREATE TABLE public.skids (
     UNIQUE (id, station_id)
 );
 
-
--- ==========================================
--- 4. PRMS UNITS
--- ==========================================
-
 CREATE TABLE public.prms_units (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     station_id UUID NOT NULL REFERENCES public.stations(id) ON DELETE RESTRICT,
@@ -63,11 +47,6 @@ CREATE TABLE public.prms_units (
     UNIQUE (station_id, name),
     UNIQUE (id, station_id)
 );
-
-
--- ==========================================
--- 5. PRMS-SKID ASSIGNMENTS
--- ==========================================
 
 CREATE TABLE public.prms_skid_assignments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -88,39 +67,25 @@ CREATE TABLE public.prms_skid_assignments (
     CHECK (ended_at IS NULL OR ended_at >= assigned_at)
 );
 
-
--- ==========================================
--- 6. STATION UPDATES
--- ==========================================
-
 CREATE TABLE public.station_updates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     station_id UUID NOT NULL REFERENCES public.stations(id) ON DELETE RESTRICT,
-
     reported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-
-    standby_skids INTEGER CHECK (standby_skids >= 0),
-    empty_skids INTEGER CHECK (empty_skids >= 0),
+    standby_skids TEXT[] NOT NULL DEFAULT '{}',
+    empty_skids TEXT[] NOT NULL DEFAULT '{}',
     landing_gear_boxes INTEGER CHECK (landing_gear_boxes >= 0),
-    available_trucks INTEGER CHECK (available_trucks >= 0),
-
+    available_trucks TEXT[] NOT NULL DEFAULT '{}',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     UNIQUE (id, station_id)
 );
 
-
--- ==========================================
--- 7. UPDATE PRMS READINGS
--- ==========================================
-
 CREATE TABLE public.update_prms_readings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
     station_id UUID NOT NULL,
     update_id UUID NOT NULL,
-    prms_id UUID NOT NULL,
-
+    prms_id UUID,
+    prms_name TEXT,
     flow_rate NUMERIC CHECK (flow_rate >= 0),
     total_flow NUMERIC CHECK (total_flow >= 0),
     outlet_pressure NUMERIC CHECK (outlet_pressure >= 0),
@@ -134,21 +99,17 @@ CREATE TABLE public.update_prms_readings (
         REFERENCES public.prms_units(id, station_id)
         ON DELETE RESTRICT,
 
-    UNIQUE (update_id, prms_id)
+    UNIQUE (update_id, prms_id),
+    CONSTRAINT prms_name_not_blank
+        CHECK (prms_name IS NULL OR btrim(prms_name) <> '')
 );
-
-
--- ==========================================
--- 8. UPDATE SKID READINGS
--- ==========================================
 
 CREATE TABLE public.update_skid_readings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
     station_id UUID NOT NULL,
     update_id UUID NOT NULL,
-    skid_id UUID NOT NULL,
-
+    skid_id UUID,
+    skid_identifier TEXT,
     pressure NUMERIC CHECK (pressure >= 0),
     temperature NUMERIC,
 
@@ -160,5 +121,21 @@ CREATE TABLE public.update_skid_readings (
         REFERENCES public.skids(id, station_id)
         ON DELETE RESTRICT,
 
-    UNIQUE (update_id, skid_id)
+    UNIQUE (update_id, skid_id),
+    CONSTRAINT skid_identifier_not_blank
+        CHECK (skid_identifier IS NULL OR btrim(skid_identifier) <> '')
 );
+
+CREATE UNIQUE INDEX skids_station_name_unique
+    ON public.skids (station_id, lower(btrim(name)));
+
+CREATE UNIQUE INDEX prms_station_name_unique
+    ON public.prms_units (station_id, lower(btrim(name)));
+
+CREATE UNIQUE INDEX update_prms_name_unique
+    ON public.update_prms_readings (update_id, lower(btrim(prms_name)))
+    WHERE prms_name IS NOT NULL;
+
+CREATE UNIQUE INDEX update_skid_identifier_unique
+    ON public.update_skid_readings (update_id, lower(btrim(skid_identifier)))
+    WHERE skid_identifier IS NOT NULL;

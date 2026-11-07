@@ -136,7 +136,7 @@ export type Database = {
           {
             foreignKeyName: "profiles_station_id_fkey"
             columns: ["station_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "stations"
             referencedColumns: ["id"]
           },
@@ -218,21 +218,33 @@ export type Database = {
       stations: {
         Row: {
           created_at: string
+          distance: number | null
           id: string
+          location: string | null
           name: string
           slug: string
+          type: Database["public"]["Enums"]["customer_delivery_type"] | null
+          updated_at: string
         }
         Insert: {
           created_at?: string
+          distance?: number | null
           id?: string
+          location?: string | null
           name: string
           slug: string
+          type?: Database["public"]["Enums"]["customer_delivery_type"] | null
+          updated_at?: string
         }
         Update: {
           created_at?: string
+          distance?: number | null
           id?: string
+          location?: string | null
           name?: string
           slug?: string
+          type?: Database["public"]["Enums"]["customer_delivery_type"] | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -353,6 +365,7 @@ export type Database = {
       }
     }
     Enums: {
+      customer_delivery_type: "METER" | "SELF-PICK" | "WAYBILL"
       user_role: "admin" | "customer"
     }
     CompositeTypes: {
@@ -484,6 +497,7 @@ export const Constants = {
   },
   public: {
     Enums: {
+      customer_delivery_type: ["METER", "SELF-PICK", "WAYBILL"],
       user_role: ["admin", "customer"],
     },
   },

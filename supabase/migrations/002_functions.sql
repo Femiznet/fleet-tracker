@@ -1,58 +1,33 @@
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN
+LANGUAGE SQL
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+    SELECT EXISTS (
+        SELECT 1
+        FROM public.profiles
+        WHERE id = (SELECT auth.uid())
+          AND role = 'admin'::public.user_role
+    );
+$$;
 
--- ==========================================
--- 1. REPLACE INVENTORY COUNTS WITH TEXT ARRAYS
--- ==========================================
+CREATE OR REPLACE FUNCTION public.current_station_id()
+RETURNS UUID
+LANGUAGE SQL
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+    SELECT station_id
+    FROM public.profiles
+    WHERE id = (SELECT auth.uid())
+      AND role = 'customer'::public.user_role
+    LIMIT 1;
+$$;
 
-ALTER TABLE public.station_updates
-    DROP COLUMN standby_skids,
-    DROP COLUMN empty_skids,
-    DROP COLUMN available_trucks,
-    ADD COLUMN standby_skids TEXT[] NOT NULL DEFAULT '{}',
-    ADD COLUMN empty_skids TEXT[] NOT NULL DEFAULT '{}',
-    ADD COLUMN available_trucks TEXT[] NOT NULL DEFAULT '{}';
-
-
--- ==========================================
--- 2. CASE-INSENSITIVE REGISTERED NAME UNIQUENESS
--- ==========================================
-
-CREATE UNIQUE INDEX skids_station_name_unique
-ON public.skids (station_id, lower(btrim(name)));
-
-CREATE UNIQUE INDEX prms_station_name_unique
-ON public.prms_units (station_id, lower(btrim(name)));
-
-
--- ==========================================
--- 3. PREVENT DUPLICATE FREE-TEXT READINGS
--- ==========================================
-
-ALTER TABLE public.update_prms_readings
-ADD CONSTRAINT prms_name_not_blank
-CHECK (prms_name IS NULL OR btrim(prms_name) <> '');
-
-ALTER TABLE public.update_skid_readings
-ADD CONSTRAINT skid_identifier_not_blank
-CHECK (skid_identifier IS NULL OR btrim(skid_identifier) <> '');
-
-CREATE UNIQUE INDEX update_prms_name_unique
-ON public.update_prms_readings (update_id, lower(btrim(prms_name)))
-WHERE prms_name IS NOT NULL;
-
-CREATE UNIQUE INDEX update_skid_identifier_unique
-ON public.update_skid_readings (update_id, lower(btrim(skid_identifier)))
-WHERE skid_identifier IS NOT NULL;
-
-
--- ==========================================
--- 4. REPLACE REPORT SUBMISSION FUNCTION
--- ==========================================
-
-DROP FUNCTION public.submit_station_report(
-    TIMESTAMPTZ, INTEGER, INTEGER, INTEGER, INTEGER, JSONB, JSONB
-);
-
-CREATE FUNCTION public.submit_station_report(
+CREATE OR REPLACE FUNCTION public.submit_station_report(
     p_reported_at TIMESTAMPTZ,
     p_standby_skids TEXT[],
     p_empty_skids TEXT[],
@@ -73,14 +48,13 @@ BEGIN
     SELECT station_id
     INTO v_station_id
     FROM public.profiles
-    WHERE id = auth.uid()
+    WHERE id = (SELECT auth.uid())
       AND role = 'customer'::public.user_role;
 
     IF v_station_id IS NULL THEN
         RAISE EXCEPTION 'Customer station not found';
     END IF;
 
-    -- Reject blank inventory entries.
     IF EXISTS (
         SELECT 1
         FROM unnest(coalesce(p_standby_skids, ARRAY[]::TEXT[])) AS x(value)
@@ -97,7 +71,6 @@ BEGIN
         RAISE EXCEPTION 'Inventory entries cannot be blank';
     END IF;
 
-    -- Reject duplicate inventory entries, ignoring case and whitespace.
     IF EXISTS (
         SELECT 1
         FROM unnest(coalesce(p_standby_skids, ARRAY[]::TEXT[])) AS x(value)
@@ -198,10 +171,43 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.submit_station_report(
-    TIMESTAMPTZ, TEXT[], TEXT[], INTEGER, TEXT[], JSONB, JSONB
-) FROM PUBLIC;
+CREATE OR REPLACE FUNCTION public.validate_station_update_skid_status()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM unnest(COALESCE(NEW.standby_skids, ARRAY[]::TEXT[])) AS s(value)
+        JOIN unnest(COALESCE(NEW.empty_skids, ARRAY[]::TEXT[])) AS e(value)
+          ON lower(btrim(s.value)) = lower(btrim(e.value))
+    ) THEN
+        RAISE EXCEPTION 'A skid cannot be both standby and empty';
+    END IF;
 
-GRANT EXECUTE ON FUNCTION public.submit_station_report(
-    TIMESTAMPTZ, TEXT[], TEXT[], INTEGER, TEXT[], JSONB, JSONB
-) TO authenticated;
+    RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.update_stations_updated_at()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER prevent_standby_empty_skid_overlap
+BEFORE INSERT OR UPDATE OF standby_skids, empty_skids
+ON public.station_updates
+FOR EACH ROW
+EXECUTE FUNCTION public.validate_station_update_skid_status();
+
+CREATE TRIGGER update_stations_updated_at_trigger
+BEFORE UPDATE ON public.stations
+FOR EACH ROW
+EXECUTE FUNCTION public.update_stations_updated_at();
