@@ -2,8 +2,8 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import SignOutButton from "@/components/sign-out-button";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import CreateStationForm from "./create-station-form";
-import EditStationForm from "./edit-station-form";
+import CreateStationForm from "./station/create-station-form";
+import EditStationForm from "./station/edit-station-form";
 
 async function StationList() {
   await connection();

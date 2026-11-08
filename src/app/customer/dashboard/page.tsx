@@ -1,4 +1,5 @@
 import SignOutButton from "@/components/sign-out-button";
+import Link from "next/link";
 
 export default function DashboardPage() {
     return (
@@ -7,7 +8,12 @@ export default function DashboardPage() {
         <p className="mt-2 text-sm opacity-70">
           Welcome to your station dashboard.
         </p>
-        <SignOutButton/>
+        <SignOutButton />
+        <div>
+        <Link href="update/">
+        |Create Update|
+          </Link>
+          </div>
       </main>
     );
   }

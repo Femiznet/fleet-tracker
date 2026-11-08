@@ -25,7 +25,7 @@ export default function UpdatePasswordPage() {
     }
 
     setPending(true);
-    const { error } = await supabase.auth.updateUser({ password });
+    const { data, error } = await supabase.auth.updateUser({ password });
 
     if (error) {
       toast.error(error.message);
@@ -34,7 +34,8 @@ export default function UpdatePasswordPage() {
     }
 
     toast.success("Your password has been set.");
-    router.replace("/dashboard");
+    console.log(data);
+    router.replace(data.user.role === 'admin' ? "/admin/dashboard" : "/customer/dashboard");
     router.refresh();
   }
 

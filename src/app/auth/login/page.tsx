@@ -51,7 +51,7 @@ export default function LoginPage() {
 
     toast.success("Login successful.");
 
-    router.replace(profile.role === "admin" ? "/admin" : "/dashboard");
+    router.replace(profile.role === "admin" ? "/admin/dashboard" : "/customer/dashboard");
     router.refresh();
   }
 

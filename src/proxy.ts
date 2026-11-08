@@ -6,7 +6,7 @@ export async function proxy(request: NextRequest) {
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         getAll() {
@@ -31,12 +31,12 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isLogin = request.nextUrl.pathname === "/login";
+  const isLogin = request.nextUrl.pathname === "/auth/login";
 
   if (!user) {
     if (isLogin) return response;
 
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(new URL("/auth/login", request.url));
   }
 
   const { data: profile } = await supabase
@@ -47,11 +47,11 @@ export async function proxy(request: NextRequest) {
 
   if (!profile) {
     await supabase.auth.signOut();
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(new URL("/auth/login", request.url));
   }
 
   const destination =
-    profile.role === "admin" ? "/admin" : "/dashboard";
+    profile.role === "admin" ? "/admin/dashboard" : "/customer/dashboard";
 
   if (isLogin || request.nextUrl.pathname === "/") {
     return NextResponse.redirect(new URL(destination, request.url));
@@ -61,14 +61,14 @@ export async function proxy(request: NextRequest) {
     profile.role === "customer" &&
     request.nextUrl.pathname.startsWith("/admin")
   ) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return NextResponse.redirect(new URL("/customer/dashboard", request.url));
   }
 
   if (
     profile.role === "admin" &&
-    request.nextUrl.pathname.startsWith("/dashboard")
+    request.nextUrl.pathname.startsWith("/customer")
   ) {
-    return NextResponse.redirect(new URL("/admin", request.url));
+    return NextResponse.redirect(new URL("/admin/dashboard", request.url));
   }
 
   return response;
@@ -76,10 +76,10 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/login",
     "/",
     "/admin/:path*",
-    "/dashboard/:path*",
+    "/customer/:path*",
+    "/auth/login",
     "/auth/update-password",
   ],
 };

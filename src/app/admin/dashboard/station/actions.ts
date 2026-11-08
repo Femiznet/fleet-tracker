@@ -101,6 +101,8 @@ export async function createCustomerStation(
   const appOrigin =
     process.env.NEXT_PUBLIC_SITE_URL ?? requestHeaders.get("origin");
 
+  console.log("ORIGIN", appOrigin);
+
   if (!appOrigin) {
     return {
       status: "error",
@@ -121,6 +123,8 @@ export async function createCustomerStation(
       message: "The app site URL for customer invitations is invalid.",
     };
   }
+
+  console.log("REDIRECT-TO:", redirectTo);
 
   const { email, name, type, distance, location } = parsed.data;
   const slug = name.toLowerCase().replace(/\s+/g, "-");
@@ -215,7 +219,7 @@ export async function createCustomerStation(
     };
   }
 
-  revalidatePath("/admin");
+  revalidatePath("/admin/dashboard");
 
   return {
     status: "success",
@@ -260,6 +264,6 @@ export async function updateCustomerStation(
     };
   }
 
-  revalidatePath("/admin");
+  revalidatePath("/admin/dashboard");
   return { status: "success", message: "Station details updated." };
 }
