@@ -34,7 +34,6 @@ export default function UpdatePasswordPage() {
     }
 
     toast.success("Your password has been set.");
-    console.log(data);
     router.replace(data.user.role === 'admin' ? "/admin/dashboard" : "/customer/dashboard");
     router.refresh();
   }

@@ -20,9 +20,6 @@ export async function GET(request: NextRequest) {
       ? await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "invite" })
       : { error: new Error("Invitation link is missing a valid verification token.") };
 
-  console.log("Actual Request URL:", request.url);
-  console.log("Resolved Base Origin:", baseOrigin);
-
   if (error) {
     console.error("Supabase Auth Error Details:", error.message);
     // Explicitly redirect to the ngrok address, avoiding localhost fallback
