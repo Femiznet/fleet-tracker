@@ -10,10 +10,8 @@ export default function DashboardPage() {
         </p>
         <SignOutButton />
         <div>
-        <Link href="update/">
-        |Create Update|
-          </Link>
-          </div>
+          <Link href="update/">Update flow</Link>
+        </div>
       </main>
     );
   }
