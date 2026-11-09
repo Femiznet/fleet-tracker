@@ -6,6 +6,16 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
+const latitudeSchema = z.preprocess(
+  (value) => (value === "" || value == null ? null : value),
+  z.coerce.number().finite().min(-90).max(90).nullable()
+);
+
+const longitudeSchema = z.preprocess(
+  (value) => (value === "" || value == null ? null : value),
+  z.coerce.number().finite().min(-180).max(180).nullable()
+);
+
 const stationInputSchema = z.object({
   email: z.email().transform((email) => email.trim().toLowerCase()),
   name: z.string().trim().min(1).max(120),
@@ -18,7 +28,12 @@ const stationInputSchema = z.object({
     z.coerce.number().finite().min(0).max(99999999.99).optional()
   ),
   location: z.string().trim().max(300),
-});
+  latitude: latitudeSchema,
+  longitude: longitudeSchema,
+}).refine(
+  ({ latitude, longitude }) => (latitude === null) === (longitude === null),
+  { message: "Enter both station coordinates, or leave both blank." }
+);
 
 const stationUpdateSchema = z.object({
   stationId: z.uuid(),
@@ -32,6 +47,28 @@ const stationUpdateSchema = z.object({
     z.coerce.number().finite().min(0).max(99999999.99).optional()
   ),
   location: z.string().trim().max(300),
+  latitude: latitudeSchema,
+  longitude: longitudeSchema,
+}).refine(
+  ({ latitude, longitude }) => (latitude === null) === (longitude === null),
+  { message: "Enter both station coordinates, or leave both blank." }
+);
+
+const milestoneInputSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  location: z.string().trim().max(300),
+  latitude: z.preprocess(
+    (value) => (value === "" || value == null ? undefined : value),
+    z.coerce.number().finite().min(-90).max(90)
+  ),
+  longitude: z.preprocess(
+    (value) => (value === "" || value == null ? undefined : value),
+    z.coerce.number().finite().min(-180).max(180)
+  ),
+});
+
+const resendInvitationSchema = z.object({
+  stationId: z.uuid(),
 });
 
 export type CreateStationState =
@@ -39,6 +76,12 @@ export type CreateStationState =
   | null;
 
 export type UpdateStationState = CreateStationState;
+
+function revalidatePlaceViews() {
+  revalidatePath("/admin/dashboard");
+  revalidatePath("/admin/dashboard/places");
+  revalidatePath("/admin/dashboard/dispatches");
+}
 
 async function isCurrentUserAdmin(): Promise<
   { authorized: true; error: null } | { authorized: false; error: string }
@@ -64,10 +107,39 @@ async function isCurrentUserAdmin(): Promise<
   }
 
   if (profile?.role !== "admin") {
-    return { authorized: false, error: "Only admins can manage customer stations." };
+    return { authorized: false, error: "Only admins can manage places." };
   }
 
   return { authorized: true, error: null };
+}
+
+async function getInvitationRedirectTo(): Promise<
+  { ok: true; redirectTo: string } | { ok: false; error: string }
+> {
+  const requestHeaders = await headers();
+  const appOrigin =
+    process.env.NEXT_PUBLIC_SITE_URL ?? requestHeaders.get("origin");
+
+  if (!appOrigin) {
+    return {
+      ok: false,
+      error: "Set NEXT_PUBLIC_SITE_URL or send the request from the app origin to configure invite links.",
+    };
+  }
+
+  try {
+    const url = new URL(appOrigin);
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      throw new Error("Unsupported site URL protocol.");
+    }
+
+    return {
+      ok: true,
+      redirectTo: new URL("/auth/callback", url.origin).toString(),
+    };
+  } catch {
+    return { ok: false, error: "The app site URL for customer invitations is invalid." };
+  }
 }
 
 async function removeStation(stationId: string) {
@@ -97,41 +169,25 @@ export async function createCustomerStation(
     return { status: "error", message: authorization.error };
   }
 
-  const requestHeaders = await headers();
-  const appOrigin =
-    process.env.NEXT_PUBLIC_SITE_URL ?? requestHeaders.get("origin");
-
-  if (!appOrigin) {
-    return {
-      status: "error",
-      message: "Set NEXT_PUBLIC_SITE_URL or send the request from the app origin to configure invite links.",
-    };
+  const redirectResult = await getInvitationRedirectTo();
+  if (!redirectResult.ok) {
+    return { status: "error", message: redirectResult.error };
   }
+  const { redirectTo } = redirectResult;
 
-  let redirectTo: string;
-  try {
-    const url = new URL(appOrigin);
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
-      throw new Error("Unsupported site URL protocol.");
-    }
-    redirectTo = new URL("/auth/callback", url.origin).toString();
-  } catch {
-    return {
-      status: "error",
-      message: "The app site URL for customer invitations is invalid.",
-    };
-  }
-
-  const { email, name, type, distance, location } = parsed.data;
+  const { email, name, type, distance, location, latitude, longitude } = parsed.data;
   const slug = name.toLowerCase().replace(/\s+/g, "-");
   const { data: station, error: stationError } = await supabaseAdmin
     .from("stations")
     .insert({
       name,
       slug,
+      place_kind: "station",
       type,
       distance: distance ?? null,
       location: location || null,
+      latitude,
+      longitude,
     })
     .select("id")
     .single();
@@ -215,12 +271,140 @@ export async function createCustomerStation(
     };
   }
 
-  revalidatePath("/admin/dashboard");
+  revalidatePlaceViews();
 
   return {
     status: "success",
     message: `Station created and an invitation sent to ${email}.`,
   };
+}
+
+export async function resendCustomerInvitation(
+  _previousState: CreateStationState,
+  formData: FormData
+): Promise<CreateStationState> {
+  const parsed = resendInvitationSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { status: "error", message: "Could not identify this customer station." };
+  }
+
+  const authorization = await isCurrentUserAdmin();
+  if (!authorization.authorized) {
+    return { status: "error", message: authorization.error };
+  }
+
+  const { data: station, error: stationError } = await supabaseAdmin
+    .from("stations")
+    .select("id, name")
+    .eq("id", parsed.data.stationId)
+    .eq("place_kind", "station")
+    .maybeSingle();
+
+  if (stationError) {
+    console.error("Could not load station for invitation resend:", stationError);
+    return { status: "error", message: "Could not load this customer station." };
+  }
+  if (!station) {
+    return { status: "error", message: "This customer station no longer exists." };
+  }
+
+  const { data: profile, error: profileError } = await supabaseAdmin
+    .from("profiles")
+    .select("id")
+    .eq("station_id", station.id)
+    .eq("role", "customer")
+    .maybeSingle();
+
+  if (profileError) {
+    console.error("Could not load customer account for invitation resend:", profileError);
+    return { status: "error", message: "Could not find the customer account for this station." };
+  }
+  if (!profile) {
+    return { status: "error", message: "No customer account is linked to this station." };
+  }
+
+  const { data: userResult, error: userError } = await supabaseAdmin.auth.admin.getUserById(profile.id);
+  if (userError) {
+    console.error("Could not load customer account for invitation resend:", userError);
+    return { status: "error", message: "Could not load the customer account." };
+  }
+  if (!userResult.user.email) {
+    return { status: "error", message: "The customer account does not have an email address." };
+  }
+  if (userResult.user.email_confirmed_at) {
+    return {
+      status: "error",
+      message: "This customer has already accepted the invitation. Use the password reset flow if they need account access.",
+    };
+  }
+
+  const redirectResult = await getInvitationRedirectTo();
+  if (!redirectResult.ok) {
+    return { status: "error", message: redirectResult.error };
+  }
+
+  const { error: invitationError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+    userResult.user.email,
+    { redirectTo: redirectResult.redirectTo }
+  );
+
+  if (invitationError) {
+    console.error("Could not resend customer invitation:", invitationError);
+    return {
+      status: "error",
+      message: "Could not resend the invitation. Please try again or check the Supabase Auth email settings.",
+    };
+  }
+
+  return {
+    status: "success",
+    message: `Invitation resent to ${userResult.user.email} for ${station.name}.`,
+  };
+}
+
+export async function createRouteMilestone(
+  _previousState: CreateStationState,
+  formData: FormData
+): Promise<CreateStationState> {
+  const parsed = milestoneInputSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: parsed.error.issues[0]?.message ?? "Check the milestone details and try again.",
+    };
+  }
+
+  const authorization = await isCurrentUserAdmin();
+  if (!authorization.authorized) {
+    return { status: "error", message: authorization.error };
+  }
+
+  const { name, location, latitude, longitude } = parsed.data;
+  const { error } = await supabaseAdmin.from("stations").insert({
+    name,
+    slug: name.toLowerCase().replace(/\s+/g, "-"),
+    place_kind: "milestone",
+    type: null,
+    distance: null,
+    location: location || null,
+    latitude,
+    longitude,
+  });
+
+  if (error) {
+    if (error.code === "23505" && error.message.includes("stations_slug_key")) {
+      return {
+        status: "error",
+        message: "A place with this name already exists. Choose a different name.",
+      };
+    }
+
+    console.error("Could not create route milestone:", error);
+    return { status: "error", message: "Could not create the milestone. Please try again." };
+  }
+
+  revalidatePlaceViews();
+  return { status: "success", message: `Route milestone "${name}" created.` };
 }
 
 export async function updateCustomerStation(
@@ -241,7 +425,27 @@ export async function updateCustomerStation(
     return { status: "error", message: authorization.error };
   }
 
-  const { stationId, name, type, distance, location } = parsed.data;
+  const { data: existingPlace, error: placeError } = await supabaseAdmin
+    .from("stations")
+    .select("place_kind")
+    .eq("id", parsed.data.stationId)
+    .maybeSingle();
+
+  if (placeError) {
+    console.error("Could not load place before editing:", placeError);
+    return { status: "error", message: "Could not load this place. Please try again." };
+  }
+  if (!existingPlace) {
+    return { status: "error", message: "This place no longer exists. Refresh and try again." };
+  }
+  if (
+    existingPlace.place_kind === "milestone" &&
+    (parsed.data.latitude === null || parsed.data.longitude === null)
+  ) {
+    return { status: "error", message: "Route milestones must have both coordinates." };
+  }
+
+  const { stationId, name, type, distance, location, latitude, longitude } = parsed.data;
   const { error } = await supabaseAdmin
     .from("stations")
     .update({
@@ -250,16 +454,26 @@ export async function updateCustomerStation(
       type,
       distance: distance ?? null,
       location: location || null,
+      latitude,
+      longitude,
     })
     .eq("id", stationId);
 
   if (error) {
+    console.error("Could not update place:", error);
     return {
       status: "error",
-      message: `Could not update the station: ${error.message}`,
+      message: error.code === "23505"
+        ? "A place with this name already exists. Choose a different name."
+        : "Could not update this place. Please try again.",
     };
   }
 
-  revalidatePath("/admin/dashboard");
-  return { status: "success", message: "Station details updated." };
+  revalidatePlaceViews();
+  return {
+    status: "success",
+    message: existingPlace.place_kind === "milestone"
+      ? "Milestone details updated."
+      : "Station details updated.",
+  };
 }

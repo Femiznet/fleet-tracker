@@ -9,6 +9,8 @@ type StationDraft = {
   type: string;
   distance: string;
   location: string;
+  latitude: string;
+  longitude: string;
 };
 
 type StationDraftStore = StationDraft & {
@@ -22,6 +24,8 @@ const emptyDraft: StationDraft = {
   type: "",
   distance: "",
   location: "",
+  latitude: "",
+  longitude: "",
 };
 
 export const useCreateStationDraft = create<StationDraftStore>()(
@@ -41,6 +45,8 @@ export const useCreateStationDraft = create<StationDraftStore>()(
         type: state.type,
         distance: state.distance,
         location: state.location,
+        latitude: state.latitude,
+        longitude: state.longitude,
       }),
     }
   )

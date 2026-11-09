@@ -220,8 +220,11 @@ export type Database = {
           created_at: string
           distance: number | null
           id: string
+          latitude: number | null
           location: string | null
+          longitude: number | null
           name: string
+          place_kind: "station" | "milestone"
           slug: string
           type: Database["public"]["Enums"]["customer_delivery_type"] | null
           updated_at: string
@@ -230,8 +233,11 @@ export type Database = {
           created_at?: string
           distance?: number | null
           id?: string
+          latitude?: number | null
           location?: string | null
+          longitude?: number | null
           name: string
+          place_kind?: "station" | "milestone"
           slug: string
           type?: Database["public"]["Enums"]["customer_delivery_type"] | null
           updated_at?: string
@@ -240,8 +246,11 @@ export type Database = {
           created_at?: string
           distance?: number | null
           id?: string
+          latitude?: number | null
           location?: string | null
+          longitude?: number | null
           name?: string
+          place_kind?: "station" | "milestone"
           slug?: string
           type?: Database["public"]["Enums"]["customer_delivery_type"] | null
           updated_at?: string
@@ -343,6 +352,123 @@ export type Database = {
             referencedColumns: ["id", "station_id"]
           },
         ]
+      }
+      vehicle_dispatches: {
+        Row: {
+          arrived_at: string | null
+          created_at: string
+          created_by: string
+          customer_station_id: string
+          destination_lat: number
+          destination_lon: number
+          destination_name: string
+          id: string
+          plate_number: string
+          start_lat: number
+          start_lon: number
+          started_at: string
+          status: string
+        }
+        Insert: {
+          arrived_at?: string | null
+          created_at?: string
+          created_by: string
+          customer_station_id: string
+          destination_lat: number
+          destination_lon: number
+          destination_name: string
+          id?: string
+          plate_number: string
+          start_lat: number
+          start_lon: number
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          arrived_at?: string | null
+          created_at?: string
+          created_by?: string
+          customer_station_id?: string
+          destination_lat?: number
+          destination_lon?: number
+          destination_name?: string
+          id?: string
+          plate_number?: string
+          start_lat?: number
+          start_lon?: number
+          started_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_dispatches_customer_station_id_fkey"
+            columns: ["customer_station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_dispatches_plate_number_fkey"
+            columns: ["plate_number"]
+            isOneToOne: false
+            referencedRelation: "vehicle_tracking"
+            referencedColumns: ["plate_number"]
+          },
+        ]
+      }
+      vehicle_tracking: {
+        Row: {
+          approaching_next: string
+          current_address: string | null
+          destination_lat: number | null
+          destination_lon: number | null
+          destination_name: string
+          fleet_owner: string
+          last_sync: string
+          lat: number
+          lon: number
+          plate_number: string
+          remaining_distance_km: number | null
+          speed: number
+          status: string
+          total_mileage: number
+          updated_at: string
+        }
+        Insert: {
+          approaching_next: string
+          current_address?: string | null
+          destination_lat?: number | null
+          destination_lon?: number | null
+          destination_name?: string
+          fleet_owner: string
+          last_sync: string
+          lat: number
+          lon: number
+          plate_number: string
+          remaining_distance_km?: number | null
+          speed: number
+          status: string
+          total_mileage: number
+          updated_at?: string
+        }
+        Update: {
+          approaching_next?: string
+          current_address?: string | null
+          destination_lat?: number | null
+          destination_lon?: number | null
+          destination_name?: string
+          fleet_owner?: string
+          last_sync?: string
+          lat?: number
+          lon?: number
+          plate_number?: string
+          remaining_distance_km?: number | null
+          speed?: number
+          status?: string
+          total_mileage?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
     }
     Views: {

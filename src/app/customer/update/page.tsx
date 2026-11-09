@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
 
@@ -324,7 +325,7 @@ export default function ReportPage() {
       }
 
       toast.success("Station report submitted successfully.");
-      router.push("/dashboard");
+      router.push("/customer/dashboard");
       router.refresh();
     } catch {
       toast.error("Something went wrong while submitting.");
@@ -334,18 +335,27 @@ export default function ReportPage() {
   }
 
   return (
-    <main className="mx-auto max-w-4xl space-y-5 p-4 md:p-6">
-      <header>
-        <h1 className="text-xl font-bold">Station Report</h1>
-        <p className="mt-1 text-sm opacity-70">
-          {"Submit your station's operational readings."}
-        </p>
+    <div className="mx-auto max-w-4xl space-y-6">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-emerald-800">Station operations</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Submit station report</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Add the latest equipment readings and on-site inventory.
+          </p>
+        </div>
+        <Link href="/customer/dashboard" className="text-sm font-medium text-slate-600 hover:text-slate-950">
+          Back to overview
+        </Link>
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* PRMS readings */}
-        <section className="space-y-3">
-          <h2 className="text-base font-semibold">PRMS Readings</h2>
+        <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+          <div>
+            <h2 className="font-semibold">PRMS readings</h2>
+            <p className="mt-1 text-sm text-slate-500">Record flow and outlet conditions for each PRMS unit.</p>
+          </div>
 
           {prmsUnits.map((item, index) => (
             <div
@@ -411,8 +421,11 @@ export default function ReportPage() {
         </section>
 
         {/* Skid readings */}
-        <section className="space-y-3">
-          <h2 className="text-base font-semibold">Skid Readings</h2>
+        <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+          <div>
+            <h2 className="font-semibold">Skid readings</h2>
+            <p className="mt-1 text-sm text-slate-500">Record pressure and temperature for each skid.</p>
+          </div>
 
           {skids.map((item, index) => (
             <div
@@ -474,12 +487,10 @@ export default function ReportPage() {
         </section>
 
         {/* Station-wide information */}
-        <section className="space-y-4 rounded-xl border border-[var(--border)] p-4">
+        <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
           <div>
-            <h2 className="text-base font-semibold">
-              Station-wide Information
-            </h2>
-            <p className="mt-1 text-xs opacity-60">
+            <h2 className="font-semibold">Station inventory</h2>
+            <p className="mt-1 text-sm text-slate-500">
               Enter these values once for the entire station.
             </p>
           </div>
@@ -516,11 +527,11 @@ export default function ReportPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg bg-blue-600 p-3 font-semibold text-white disabled:opacity-50"
+          className="min-h-12 w-full rounded-lg bg-slate-950 px-4 font-semibold text-white hover:bg-slate-800 disabled:cursor-wait disabled:opacity-50"
         >
-          {loading ? "Submitting..." : "Submit Report"}
+          {loading ? "Submitting report…" : "Submit station report"}
         </button>
       </form>
-    </main>
+    </div>
   );
 }

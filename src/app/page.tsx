@@ -1,8 +1,5 @@
-export default function Home() {
-  return (
-    <main className="p-8">
-      <h1>APP</h1>
-    </main>
-  );
-}
+import { redirect } from "next/navigation";
 
+export default function HomePage() {
+  redirect("/auth/login");
+}

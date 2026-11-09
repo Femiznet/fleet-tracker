@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Fuel } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 
 export default function LoginPage() {
@@ -56,15 +57,19 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-6">
+    <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4 sm:p-6">
       <form
         onSubmit={handleLogin}
-        className="w-full max-w-md space-y-5 rounded-2xl border border-[var(--border)] p-8 shadow-lg"
+        className="w-full max-w-md space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
       >
         <div>
-          <h1 className="text-2xl font-bold">Welcome back</h1>
-          <p className="mt-2 text-sm opacity-70">
-            Sign in to your account.
+          <span className="mb-5 grid size-11 place-items-center rounded-xl bg-slate-950 text-emerald-300">
+            <Fuel aria-hidden="true" className="size-5" />
+          </span>
+          <p className="text-sm font-semibold text-emerald-800">CNG fleet operations</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Welcome back</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Sign in to your operations workspace.
           </p>
         </div>
 
@@ -78,7 +83,7 @@ export default function LoginPage() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border bg-transparent p-3"
+            className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"
             placeholder="you@example.com"
           />
         </div>
@@ -93,7 +98,7 @@ export default function LoginPage() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border bg-transparent p-3"
+            className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"
             placeholder="Your password"
           />
         </div>
@@ -101,7 +106,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg bg-[var(--fg)] p-3 font-semibold text-[var(--bg)] disabled:opacity-50"
+          className="min-h-11 w-full rounded-lg bg-slate-950 px-4 font-semibold text-white hover:bg-slate-800 disabled:cursor-wait disabled:opacity-50"
         >
           {loading ? "Signing in..." : "Sign in"}
         </button>

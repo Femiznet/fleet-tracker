@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Fuel } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 
 export default function UpdatePasswordPage() {
@@ -39,14 +40,18 @@ export default function UpdatePasswordPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-6">
+    <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4 sm:p-6">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-md space-y-5 rounded-2xl border border-[var(--border)] p-8 shadow-lg"
+        className="w-full max-w-md space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
       >
         <div>
-          <h1 className="text-2xl font-bold">Set your password</h1>
-          <p className="mt-2 text-sm opacity-70">
+          <span className="mb-5 grid size-11 place-items-center rounded-xl bg-slate-950 text-emerald-300">
+            <Fuel aria-hidden="true" className="size-5" />
+          </span>
+          <p className="text-sm font-semibold text-emerald-800">Customer account setup</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Set your password</h1>
+          <p className="mt-2 text-sm text-slate-600">
             Choose a password to finish setting up your customer account.
           </p>
         </div>
@@ -60,7 +65,7 @@ export default function UpdatePasswordPage() {
             required
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="w-full rounded-lg border bg-transparent p-3"
+            className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"
           />
         </label>
 
@@ -73,14 +78,14 @@ export default function UpdatePasswordPage() {
             required
             value={confirmPassword}
             onChange={(event) => setConfirmPassword(event.target.value)}
-            className="w-full rounded-lg border bg-transparent p-3"
+            className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"
           />
         </label>
 
         <button
           type="submit"
           disabled={pending}
-          className="w-full rounded-lg bg-[var(--fg)] p-3 font-semibold text-[var(--bg)] disabled:opacity-50"
+          className="min-h-11 w-full rounded-lg bg-slate-950 px-4 font-semibold text-white hover:bg-slate-800 disabled:cursor-wait disabled:opacity-50"
         >
           {pending ? "Saving password..." : "Set password"}
         </button>

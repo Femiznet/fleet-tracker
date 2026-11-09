@@ -10,7 +10,7 @@
   --input-border: #e2e8f0;
   --ring: #3f83f8;
   --destructive: #dc2626;
-  --brand: #0ea5e9;
+  --brand: #047857;
   --brand-foreground: #ffffff;
   --critical: #dc2626;
   --warning: #d97706;
@@ -30,9 +30,9 @@
   --border: #1e293b;
   --input-bg: #111827;
   --input-border: #1e293b;
-  --ring: #60a5fa;
+  --ring: #34d399;
   --destructive: #f87171;
-  --brand: #38bdf8;
+  --brand: #34d399;
   --brand-foreground: #082f49;
   --critical: #f87171;
   --warning: #fbbf24;
@@ -52,6 +52,21 @@ body {
 }
 button, input, select, textarea { font: inherit; }
 button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  border-color: var(--input-border);
+  border-radius: var(--radius-md);
+}
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
 ::selection { background: color-mix(in srgb, var(--brand) 24%, transparent); }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }

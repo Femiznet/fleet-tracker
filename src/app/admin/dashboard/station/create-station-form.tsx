@@ -21,6 +21,8 @@ export default function CreateStationForm() {
   const type = useCreateStationDraft((store) => store.type);
   const distance = useCreateStationDraft((store) => store.distance);
   const location = useCreateStationDraft((store) => store.location);
+  const latitude = useCreateStationDraft((store) => store.latitude);
+  const longitude = useCreateStationDraft((store) => store.longitude);
   const setField = useCreateStationDraft((store) => store.setField);
   const clearDraft = useCreateStationDraft((store) => store.clear);
 
@@ -41,7 +43,7 @@ export default function CreateStationForm() {
     <form
       ref={formRef}
       action={formAction}
-      className="grid gap-4 rounded-2xl border border-[var(--border)] p-6 sm:grid-cols-2"
+      className="grid gap-4 sm:grid-cols-2"
     >
       <label className="space-y-2 text-sm font-medium">
         Customer email
@@ -53,7 +55,7 @@ export default function CreateStationForm() {
           autoComplete="email"
           value={email}
           onChange={(event) => setField("email", event.target.value)}
-          className="w-full rounded-lg border bg-transparent p-3"
+          className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"
           placeholder="customer@example.com"
         />
       </label>
@@ -66,7 +68,7 @@ export default function CreateStationForm() {
           maxLength={120}
           value={name}
           onChange={(event) => setField("name", event.target.value)}
-          className="w-full rounded-lg border bg-transparent p-3"
+          className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"
           placeholder="Customer station"
         />
       </label>
@@ -77,7 +79,7 @@ export default function CreateStationForm() {
           name="type"
           value={type}
           onChange={(event) => setField("type", event.target.value)}
-          className="w-full rounded-lg border bg-background p-3"
+          className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"
         >
           <option value="">Not specified</option>
           <option value="METER">Meter</option>
@@ -96,7 +98,7 @@ export default function CreateStationForm() {
           step="0.01"
           value={distance}
           onChange={(event) => setField("distance", event.target.value)}
-          className="w-full rounded-lg border bg-transparent p-3"
+          className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"
           placeholder="Optional"
         />
       </label>
@@ -108,15 +110,52 @@ export default function CreateStationForm() {
           maxLength={300}
           value={location}
           onChange={(event) => setField("location", event.target.value)}
-          className="w-full rounded-lg border bg-transparent p-3"
+          className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"
           placeholder="Optional"
         />
       </label>
 
+      <fieldset className="space-y-2 sm:col-span-2">
+        <legend className="text-sm font-medium">Customer station coordinates</legend>
+        <p className="text-xs text-muted-foreground">
+          Enter decimal degrees. Add both coordinates or leave both blank.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="space-y-2 text-sm font-medium">
+            Latitude
+            <input
+              name="latitude"
+              type="number"
+              min="-90"
+              max="90"
+              step="any"
+              value={latitude}
+              onChange={(event) => setField("latitude", event.target.value)}
+              className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"
+              placeholder="e.g. 7.377"
+            />
+          </label>
+          <label className="space-y-2 text-sm font-medium">
+            Longitude
+            <input
+              name="longitude"
+              type="number"
+              min="-180"
+              max="180"
+              step="any"
+              value={longitude}
+              onChange={(event) => setField("longitude", event.target.value)}
+              className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"
+              placeholder="e.g. 3.947"
+            />
+          </label>
+        </div>
+      </fieldset>
+
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg bg-[var(--fg)] p-3 font-semibold text-[var(--bg)] disabled:opacity-50 sm:col-span-2"
+        className="min-h-11 rounded-lg bg-slate-950 px-4 font-semibold text-white hover:bg-slate-800 disabled:cursor-wait disabled:opacity-50 sm:col-span-2"
       >
         {pending ? "Creating station and sending invite..." : "Create station and invite customer"}
       </button>
