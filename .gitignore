@@ -32,11 +32,12 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
 
-# drizzle internals (local migration journal) - do not commit
-drizzle/meta/_journal.json
+# drizzle (migrations + internal meta tracking)
+drizzle/meta/*
 *.tsbuildinfo
 next-env.d.ts
