@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "npx tsc --noEmit"
+    "typecheck": "npx tsc --noEmit",
+    "db:migrate"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
@@ -26,10 +27,12 @@
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
+    "@types/dotenv": "^8.2.3",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^18.0.10",
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
