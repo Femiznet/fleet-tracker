@@ -36,6 +36,7 @@ yarn-error.log*
 # vercel
 .vercel
 
-# typescript
+# drizzle internals (local migration journal) - do not commit
+drizzle/meta/_journal.json
 *.tsbuildinfo
 next-env.d.ts
