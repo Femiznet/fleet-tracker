@@ -1,6 +1,6 @@
 import { pgTable, varchar, text, boolean, timestamp } from 'drizzle-orm/pg-core';
 
-export const aiConfiguration = pgTable('ai_configuration', {
+export const aiConfigurations = pgTable('ai_configurations', {
   endpoint_url: varchar('endpoint_url', { length: 500 }).notNull(),
   provider: varchar('provider', { length: 100 }).notNull(),
   model: varchar('model', { length: 200 }).notNull(),

@@ -1,4 +1,4 @@
-export { customer } from './customer';
+export { customers } from './customers';
 export { customerUpdates } from './customer-updates';
-export { aiConfiguration } from './ai-configuration';
+export { aiConfigurations } from './ai-configuration';
 export { customerType, processingStatus } from './enums';
