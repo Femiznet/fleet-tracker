@@ -1,24 +1,23 @@
-import { pgTable, uuid, varchar, doublePrecision, boolean, interval, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, doublePrecision, boolean, timestamp } from 'drizzle-orm/pg-core';
 import { customerType } from './enums';
 
 export const customers = pgTable('customers', {
   id: uuid('id').primaryKey().defaultRandom(),
-  name: varchar('name', { length: 255 }).notNull(),
-  location: varchar('location', { length: 255 }),
+  name: varchar('name', { length: 255 }).notNull().unique(),
   type: customerType("customer_type"),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-// export const customerStations = pgTable('customer_stations', {
-//   id: uuid('id').primaryKey().defaultRandom(),
-//   customerId: uuid('customer_id').references(() => customers.id),
-//   latitude: doublePrecision('latitude'),
-//   longitude: doublePrecision('longitude'),
-//   is_active: boolean('is_active').default(true),
-//   relative_time: interval('relative_time'),
-//   cutoff_pressure: doublePrecision('cutoff_pressure').default(0),
-// });
+export const customerStations = pgTable('customer_stations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  customerId: uuid('customer_id').references(() => customers.id).unique(),
+  geofenceName: varchar('geofence_name', { length: 100 }).unique(),
+  location: varchar('location', { length: 255 }),
+  latitude: doublePrecision('latitude'),
+  longitude: doublePrecision('longitude'),
+  is_active: boolean('is_active').default(true),
+});
 
 
 // export interface ProcessedTextData {

@@ -1,15 +1,21 @@
-import { pgTable, uuid, varchar, boolean } from 'drizzle-orm/pg-core';
-import { direction } from './enums';
+import { pgTable, uuid, varchar, boolean, unique } from 'drizzle-orm/pg-core';
+import { movements } from './movements';
+import { tripDirectionEnum, tripStatusEnum } from './enums';
 
 export const trips = pgTable('trips', {
   id: uuid('id').primaryKey().defaultRandom(),
-  dispatchId: uuid('dispatch_id').notNull(),
-  origin: varchar('origin', { length: 255 }),
-  current: varchar('current', { length: 255 }),
-  destination: varchar('destination', { length: 255 }),
-  direction: direction('direction').notNull(),
-  arrived: boolean('arrived').default(false),
-});
+  movementId: uuid('movement_id')
+    .notNull()
+    .references(() => movements.id, { onDelete: 'cascade' }),
+  status: tripStatusEnum('status').notNull().default('in_transit'),
+  direction: tripDirectionEnum('direction').notNull(),
+  origin: varchar('origin', { length: 255 }).notNull(),
+  destination: varchar('destination', { length: 255 }).notNull(),
+  arrived: boolean('arrived').notNull().default(false),
+}, (table) => [
+  // Prevents duplicate outbound or return trips for the same movement
+  unique('unq_movement_direction').on(table.movementId, table.direction),
+]);
 
 export type Trip = typeof trips.$inferSelect;
 export type NewTrip = typeof trips.$inferInsert;
