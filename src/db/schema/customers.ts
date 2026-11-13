@@ -6,8 +6,8 @@ export const customers = pgTable('customers', {
   name: varchar('name', { length: 255 }).notNull(),
   location: varchar('location', { length: 255 }),
   type: customerType("customer_type"),
-  created_at: timestamp('created_at').defaultNow(),
-  updated_at: timestamp('updated_at').defaultNow(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // export const customerStations = pgTable('customer_stations', {
