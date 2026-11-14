@@ -14,7 +14,7 @@ import { skids } from './skids';
 
 export const movements = pgTable('movements', {
   id: uuid('id').primaryKey().defaultRandom(),
-  type: movementTypeEnum('type').default('dispatch').notNull(),
+  type: movementTypeEnum('type').notNull(),
   status: movementStatusEnum('status').notNull().default('in_progress'),
   truckId: uuid('truck_id').references(() => trucks.id).notNull(),
   customerStationId: uuid('customer_station_id').references(() => customerStations.id),
