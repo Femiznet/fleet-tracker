@@ -4,6 +4,8 @@ import { customerType } from './enums';
 export const customers = pgTable('customers', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name', { length: 255 }).notNull().unique(),
+  geofenceName: varchar('geofence_name', { length: 100 }).unique(),
+  location: varchar('location', { length: 255 }),
   type: customerType("customer_type"),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
@@ -12,8 +14,6 @@ export const customers = pgTable('customers', {
 export const customerStations = pgTable('customer_stations', {
   id: uuid('id').primaryKey().defaultRandom(),
   customerId: uuid('customer_id').references(() => customers.id).unique(),
-  geofenceName: varchar('geofence_name', { length: 100 }).unique(),
-  location: varchar('location', { length: 255 }),
   latitude: doublePrecision('latitude'),
   longitude: doublePrecision('longitude'),
   is_active: boolean('is_active').default(true),
