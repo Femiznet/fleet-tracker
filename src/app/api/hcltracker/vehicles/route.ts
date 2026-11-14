@@ -8,7 +8,6 @@ interface UrlSearchParams {
   limit: string;
 }
 
-// 1. Minimal shape of the incoming API payload
 export interface HCLVehiclePayload {
   data?: {
     data?: {
@@ -19,6 +18,8 @@ export interface HCLVehiclePayload {
         speed?: string | number;
         address?: string;
         status?: string;
+        "group.title"?: string | null;
+        group?: { id?: number; title?: string } | null;
         config?: {
           components?: {
             position?: {
@@ -36,37 +37,46 @@ export interface HCLVehiclePayload {
   };
 }
 
-// 2. Clean, flat interface for your app
 export interface CleanVehicle {
   plateNumber: string;
   speed: string | number;
   address: string;
   status: string;
+  group: string | null;
   lat: number | null;
   lng: number | null;
 }
 
-export function extractVehicles(payload: HCLVehiclePayload): CleanVehicle[] {
+export function extractVehicles(
+  payload: HCLVehiclePayload,
+  filterGroup?: string
+): CleanVehicle[] {
   const list = payload?.data?.data?.data ?? [];
 
-  return list.map((item) => {
+  const mapped = list.map((item) => {
     const pos = item.config?.components?.position?.props?.position;
-
-    // Uses config position first, falling back to traccar coordinates
     const rawLat = pos?.lat ?? null;
     const rawLng = pos?.lng ?? null;
 
     return {
-      plateNumber: item.plate_number ?? '',
-      speed: item.speed ?? '0 kph',
-      address: item.address ?? '',
+      plateNumber: item.plate_number ?? 'unknown',
+      speed: item.speed ?? 'unknown',
+      address: item.address ?? 'unknown',
       status: item.status ?? 'unknown',
+      group: item["group.title"] ?? item.group?.title ?? null,
       lat: rawLat !== undefined ? Number(rawLat) : null,
       lng: rawLng !== undefined ? Number(rawLng) : null,
     };
   });
-}
 
+  if (filterGroup) {
+    return mapped.filter(
+      (v) => v.group?.toLowerCase() === filterGroup.toLowerCase()
+    );
+  }
+
+  return mapped;
+}
 
 async function fetchObjects({ params, cookies }: { params: UrlSearchParams, cookies: string }) {
   return fetch(
