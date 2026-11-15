@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { ALLOWED_MESSAGE_LISTS } from './config';
 
+const ACCEPTED_MESSAGE_TYPES = new Set([
+  'textMessage',
+  'extendedTextMessage',
+  'quotedMessage',
+]);
+
 const GreenApiSenderDataSchema = z.object({
   chatId: z.string(),
   sender: z.string(),
@@ -9,11 +15,22 @@ const GreenApiSenderDataSchema = z.object({
   chatName: z.string().optional(),
 });
 
+// Stage 1 Schema: Validates the outer webhook and captures any typeMessage
+const GreenApiBaseWebhookSchema = z.object({
+  typeWebhook: z.literal('incomingMessageReceived'),
+  senderData: GreenApiSenderDataSchema,
+  messageData: z
+    .object({
+      typeMessage: z.string(),
+    })
+    .passthrough(),
+});
+
 const GreenApiExtendedTextDataSchema = z.object({
   text: z.string(),
 });
 
-// Covers plain text, extended text (links/formatting), and quoted replies
+// Stage 2 Schema: Strictly parses only accepted text/quoted message structures
 const GreenApiMessageDataSchema = z.discriminatedUnion('typeMessage', [
   z.object({
     typeMessage: z.literal('textMessage'),
@@ -32,19 +49,19 @@ const GreenApiMessageDataSchema = z.discriminatedUnion('typeMessage', [
   }),
 ]);
 
-// EXPORTS 
-export const GreenApiIncomingWebhookSchema = z.object({
-  typeWebhook: z.literal('incomingMessageReceived'),
-  senderData: GreenApiSenderDataSchema,
-  messageData: GreenApiMessageDataSchema,
-});
-
 export type GreenApiSenderData = z.infer<typeof GreenApiSenderDataSchema>;
-export type GreenApiIncomingWebhook = z.infer<typeof GreenApiIncomingWebhookSchema>;
 
+export type BaseWebhook = z.infer<typeof GreenApiBaseWebhookSchema>;
+type MessageData = z.infer<typeof GreenApiMessageDataSchema>;
 
+type BaseTreeError = ReturnType<typeof z.treeifyError<BaseWebhook>>;
+type MessageDataTreeError = ReturnType<typeof z.treeifyError<MessageData>>;
 
-// HELPER FUNCTIONS
+export type FailureReason =
+  | 'CHAT_NOT_ALLOWED'
+  | 'UNSUPPORTED_MESSAGE_TYPE'
+  | 'CUSTOMER_NOT_FOUND'
+  | 'ZOD_PARSER_FAILED';
 
 export type GreenApiParsedMessage = {
   geofenceName: string;
@@ -52,69 +69,74 @@ export type GreenApiParsedMessage = {
   senderData: GreenApiSenderData;
 };
 
-// Infer the exact treeified error type directly from Zod
-type GreenApiTreeError = ReturnType<typeof z.treeifyError<GreenApiIncomingWebhook>>;
-
 export type GreenApiMessageResult =
   | { status: 'parsed'; data: GreenApiParsedMessage; error: null }
-  | { status: 'ignored'; reason: 'CHAT_NOT_ALLOWED' | 'UNSUPPORTED_WEBHOOK'; chatId: string; data: null; error: null }
-  | { status: 'invalid'; data: null; error: GreenApiTreeError };
+  | {
+      status: 'invalid';
+      reason: FailureReason;
+      data: null;
+      error: BaseTreeError | MessageDataTreeError | null;
+    };
 
 export function parseGreenApiMessage(payload: unknown): GreenApiMessageResult {
-  if (
-    typeof payload === 'object' &&
-    payload !== null &&
-    'typeWebhook' in payload &&
-    payload.typeWebhook !== 'incomingMessageReceived'
-  ) {
-    return {
-      status: 'ignored',
-      reason: 'UNSUPPORTED_WEBHOOK', // Add to your `reason` union if needed
-      chatId: '',
-      data: null,
-      error: null,
-    };
-  }
-  
-  const result = GreenApiIncomingWebhookSchema.safeParse(payload);
+  // 1. Validate outer webhook shape (typeWebhook, senderData, and loose messageData)
+  const baseResult = GreenApiBaseWebhookSchema.safeParse(payload);
 
-  if (!result.success) {
+  if (!baseResult.success) {
     return {
       status: 'invalid',
+      reason: 'ZOD_PARSER_FAILED',
       data: null,
-      error: z.treeifyError(result.error),
+      error: z.treeifyError(baseResult.error),
     };
   }
 
+  const { senderData, messageData } = baseResult.data;
 
-  const { senderData, messageData } = result.data;
-
+  // 2. Check chat allowlist
   if (!Object.hasOwn(ALLOWED_MESSAGE_LISTS, senderData.chatId)) {
     return {
-      status: 'ignored',
+      status: 'invalid',
       reason: 'CHAT_NOT_ALLOWED',
-      chatId: senderData.chatId,
       data: null,
       error: null,
     };
   }
-  
-  // Optional: You can now grab the configured label for that chatId
-  const configChatLabel = ALLOWED_MESSAGE_LISTS[senderData.chatId];
+
+  // 3. Check message type allowlist before running strict messageData parser
+  if (!ACCEPTED_MESSAGE_TYPES.has(messageData.typeMessage)) {
+    return {
+      status: 'invalid',
+      reason: 'UNSUPPORTED_MESSAGE_TYPE',
+      data: null,
+      error: null,
+    };
+  }
+
+  // 4. Apply strict discriminatedUnion parser to accepted messageData
+  const parsedMessage = GreenApiMessageDataSchema.safeParse(messageData);
+
+  if (!parsedMessage.success) {
+    return {
+      status: 'invalid',
+      reason: 'ZOD_PARSER_FAILED',
+      data: null,
+      error: z.treeifyError(parsedMessage.error),
+    };
+  }
 
   const textMessage =
-    messageData.typeMessage === 'textMessage'
-      ? messageData.textMessageData.textMessage
-      : messageData.extendedTextMessageData.text;
+    parsedMessage.data.typeMessage === 'textMessage'
+      ? parsedMessage.data.textMessageData.textMessage
+      : parsedMessage.data.extendedTextMessageData.text;
 
   return {
     status: 'parsed',
     data: {
-      geofenceName: configChatLabel,
+      geofenceName: ALLOWED_MESSAGE_LISTS[senderData.chatId],
       textMessage,
       senderData,
     },
     error: null,
   };
 }
-

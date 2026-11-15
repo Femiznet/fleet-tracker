@@ -5,8 +5,8 @@ import { messages, type Message } from '@/db/schema/messages';
 import type { GreenApiParsedMessage } from '@/services/messages/validator';
 
 type ProcessGreenApiMessageResult =
-  | { success: true; message: Message }
-  | { success: false; message: 'CUSTOMER_NOT_FOUND' };
+  | { success: true; data: Message }
+  | { success: false; message: string };
 
 export async function processAndSaveGreenApiMessage({
   geofenceName,
@@ -22,7 +22,7 @@ export async function processAndSaveGreenApiMessage({
   if (!customer) {
     return {
       success: false,
-      message: 'CUSTOMER_NOT_FOUND',
+      message: `CUSTOMER_NOT_FOUND: ${geofenceName}`,
     };
   }
 
@@ -37,6 +37,6 @@ export async function processAndSaveGreenApiMessage({
 
   return {
     success: true,
-    message: savedMessage,
+    data: savedMessage,
   };
 }
