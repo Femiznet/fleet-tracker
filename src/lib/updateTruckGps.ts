@@ -33,11 +33,13 @@ export async function resolveLocationFromApi(lat: number, lon: number): Promise<
   }
 }
 
-export async function processTruckLocationUpdate(
-  truckNum: string,
+export async function processTruckLocationUpdate({
+  truckNum, newLat, newLon, speed
+}:
+{  truckNum: string,
   newLat: number,
   newLon: number,
-  speed: number,
+  speed: number,}
 ) {
   const [existingTruck] = await db
     .select()

@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const res = await fetch(`${process.env.APP_URL}/api/hcltracker/vehicles`, {
+    const res = await fetch(`${process.env.APP_URL}/api/hcltracker/vehicles?page=1&per_page=25`, {
       cache: 'no-store',
     });
     if (!res.ok) throw new Error('Failed to fetch fleet feed');

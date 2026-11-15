@@ -38,7 +38,7 @@ CREATE TABLE "drivers" (
 );
 --> statement-breakpoint
 CREATE TABLE "geofence_zones" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"geofence_name" text,
 	"center_lat" double precision,
 	"center_lon" double precision,
@@ -101,8 +101,8 @@ CREATE TABLE "processed_messages" (
 CREATE TABLE "skids" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"skid_num" varchar(100) NOT NULL,
-	"slug_num" varchar(100) NOT NULL,
-	"current_skid_loc" varchar(255) NOT NULL,
+	"slug_num" varchar(100),
+	"current_loc" varchar(255) DEFAULT 'pending' NOT NULL,
 	"in_maintenance" boolean DEFAULT false NOT NULL,
 	CONSTRAINT "skids_skid_num_unique" UNIQUE("skid_num"),
 	CONSTRAINT "skids_slug_num_unique" UNIQUE("slug_num")
@@ -122,10 +122,10 @@ CREATE TABLE "trips" (
 CREATE TABLE "trucks" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"truck_num" varchar(100) NOT NULL,
-	"slug_num" varchar(100) NOT NULL,
+	"slug_num" varchar(100),
 	"lat" double precision NOT NULL,
 	"lon" double precision NOT NULL,
-	"current_loc" varchar(255) NOT NULL,
+	"current_loc" varchar(255) DEFAULT 'pending' NOT NULL,
 	"speed" integer NOT NULL,
 	"in_maintenance" boolean DEFAULT false NOT NULL,
 	CONSTRAINT "trucks_truck_num_unique" UNIQUE("truck_num"),

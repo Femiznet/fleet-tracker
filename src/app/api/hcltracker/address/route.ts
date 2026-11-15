@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { HCL_URL, queryHclTracker } from '../hcl-utils';
+import { HCL_URL, queryHclTracker } from '@/lib/hcltracker/utils';
 
 async function fetchAddress({lat, lon, cookies}:{lat: string, lon: string, cookies: string}) {
   return fetch(
