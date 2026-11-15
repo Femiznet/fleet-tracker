@@ -46,8 +46,8 @@ export type GreenApiIncomingWebhook = z.infer<typeof GreenApiIncomingWebhookSche
 
 // HELPER FUNCTIONS
 
-type GreenApiParsedMessage = {
-  from: string;
+export type GreenApiParsedMessage = {
+  geofenceName: string;
   textMessage: string;
   senderData: GreenApiSenderData;
 };
@@ -110,7 +110,7 @@ export function parseGreenApiMessage(payload: unknown): GreenApiMessageResult {
   return {
     status: 'parsed',
     data: {
-      from: configChatLabel,
+      geofenceName: configChatLabel,
       textMessage,
       senderData,
     },

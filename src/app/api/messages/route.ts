@@ -1,3 +1,5 @@
+import { processAndSaveGreenApiMessage } from "@/actions/messages";
+import { returnValueDebugger } from "@/lib/errors";
 import { parseGreenApiMessage, type GreenApiIncomingWebhook } from "@/services/messages/validator";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -11,7 +13,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
     }
     
-    console.log(data);
+    if (data) {
+        const result = await processAndSaveGreenApiMessage(data);
+        returnValueDebugger(result);
+    }
 
     return NextResponse.json({ ok: true });
 }
