@@ -1,5 +1,5 @@
 export { customers } from './customers';
-export { messages } from "./messages";
+export { messages, processedMessages } from "./messages";
 export { aiConfigurations } from './ai-configuration';
 export { customerType, processingStatus, tripDirectionEnum, movementTypeEnum, movementStatusEnum, tripStatusEnum } from './enums';
 export { drivers } from './drivers';
