@@ -41,3 +41,5 @@ yarn-error.log*
 drizzle/meta/*
 *.tsbuildinfo
 next-env.d.ts
+
+test.sh
