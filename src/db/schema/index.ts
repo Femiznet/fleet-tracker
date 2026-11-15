@@ -8,3 +8,4 @@ export { trucks } from './trucks';
 export { skids } from './skids';
 export { movements } from './movements';
 export { trips } from './trips';
+export { geofenceZones } from './geofence-zone';

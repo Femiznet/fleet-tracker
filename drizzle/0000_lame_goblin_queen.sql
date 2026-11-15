@@ -37,6 +37,25 @@ CREATE TABLE "drivers" (
 	CONSTRAINT "drivers_current_truck_unique" UNIQUE("current_truck")
 );
 --> statement-breakpoint
+CREATE TABLE "geofence_zones" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"geofence_name" text,
+	"center_lat" double precision,
+	"center_lon" double precision,
+	"radius_meters" double precision,
+	"sample_points" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"updated_at" timestamp DEFAULT now(),
+	CONSTRAINT "geofence_zones_geofence_name_unique" UNIQUE("geofence_name")
+);
+--> statement-breakpoint
+CREATE TABLE "messages" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"customer_id" uuid NOT NULL,
+	"text" text NOT NULL,
+	"metadata" jsonb NOT NULL,
+	"created_at" timestamp DEFAULT now()
+);
+--> statement-breakpoint
 CREATE TABLE "motormates" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" varchar(255) NOT NULL,
@@ -68,6 +87,17 @@ CREATE TABLE "movements" (
 	CONSTRAINT "chk_others_or_service_requires_note" CHECK ("movements"."type" NOT IN ('others', 'service') OR ("movements"."note" IS NOT NULL AND TRIM("movements"."note") != ''))
 );
 --> statement-breakpoint
+CREATE TABLE "processed_messages" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"message_id" uuid NOT NULL,
+	"customer_id" uuid NOT NULL,
+	"status" text NOT NULL,
+	"warnings" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"data" jsonb,
+	"processed_at" timestamp DEFAULT now(),
+	CONSTRAINT "processed_messages_message_id_unique" UNIQUE("message_id")
+);
+--> statement-breakpoint
 CREATE TABLE "skids" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"skid_num" varchar(100) NOT NULL,
@@ -93,7 +123,9 @@ CREATE TABLE "trucks" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"truck_num" varchar(100) NOT NULL,
 	"slug_num" varchar(100) NOT NULL,
-	"current_truck_loc" varchar(255) NOT NULL,
+	"lat" double precision NOT NULL,
+	"lon" double precision NOT NULL,
+	"current_loc" varchar(255) NOT NULL,
 	"speed" integer NOT NULL,
 	"in_maintenance" boolean DEFAULT false NOT NULL,
 	CONSTRAINT "trucks_truck_num_unique" UNIQUE("truck_num"),
@@ -101,9 +133,12 @@ CREATE TABLE "trucks" (
 );
 --> statement-breakpoint
 ALTER TABLE "drivers" ADD CONSTRAINT "drivers_current_truck_trucks_truck_num_fk" FOREIGN KEY ("current_truck") REFERENCES "public"."trucks"("truck_num") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "messages" ADD CONSTRAINT "messages_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "motormates" ADD CONSTRAINT "motormates_current_driver_drivers_name_fk" FOREIGN KEY ("current_driver") REFERENCES "public"."drivers"("name") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "movements" ADD CONSTRAINT "movements_truck_id_trucks_id_fk" FOREIGN KEY ("truck_id") REFERENCES "public"."trucks"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "movements" ADD CONSTRAINT "movements_customer_station_id_customers_id_fk" FOREIGN KEY ("customer_station_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "movements" ADD CONSTRAINT "movements_skid_id_out_skids_id_fk" FOREIGN KEY ("skid_id_out") REFERENCES "public"."skids"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "movements" ADD CONSTRAINT "movements_skid_id_in_skids_id_fk" FOREIGN KEY ("skid_id_in") REFERENCES "public"."skids"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "processed_messages" ADD CONSTRAINT "processed_messages_message_id_messages_id_fk" FOREIGN KEY ("message_id") REFERENCES "public"."messages"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "processed_messages" ADD CONSTRAINT "processed_messages_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "trips" ADD CONSTRAINT "trips_movement_id_movements_id_fk" FOREIGN KEY ("movement_id") REFERENCES "public"."movements"("id") ON DELETE cascade ON UPDATE no action;

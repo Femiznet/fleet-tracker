@@ -5,9 +5,9 @@ export const HCL_URL = process.env.HCL_BASE_URL!;
 let cachedCookieHeader: string | null = null;
 
 interface QueryHclOptions<T> {
-    callback: (cookies: string) => Promise<Response>;
-    parseResponse?: (res: Response) => Promise<T>;
-  }
+  fetchApiWithCookies: (cookies: string) => Promise<Response>;
+  parseResponse?: (res: Response) => Promise<T>;
+};
 
 function mergeCookies(existingCookie: string | null, setCookieHeaders: string[]): string {
   const cookieMap = new Map<string, string>();
@@ -88,17 +88,17 @@ async function authenticate(): Promise<string> {
 }
   
 export async function queryHclTracker<T = unknown>({
-    callback,
+    fetchApiWithCookies,
     parseResponse,
   }: QueryHclOptions<T>) {
     try {
       let cookies = cachedCookieHeader || (await authenticate());
-      let returnValue = await callback(cookies);
+      let returnValue = await fetchApiWithCookies(cookies);
   
-      // If session expired, re-authenticate once and pass the NEW cookies to callback
+      // If session expired, re-authenticate once and pass the NEW cookies to fetchApiWithCookies
       if (returnValue.status === 401 || returnValue.status === 302) {
         cookies = await authenticate();
-        returnValue = await callback(cookies);
+        returnValue = await fetchApiWithCookies(cookies);
       }
   
       // Rotate any updated session cookies returned by the server
@@ -125,7 +125,3 @@ export async function queryHclTracker<T = unknown>({
       return NextResponse.json({ error: message }, { status: 500 });
     }
 }
-  
-
-
-

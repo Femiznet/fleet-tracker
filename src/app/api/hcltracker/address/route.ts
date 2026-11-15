@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
   try {
     const fetchAddressTask = (cookies: string) => fetchAddress({ lat, lon, cookies });
     return queryHclTracker({
-      callback: fetchAddressTask,
+      fetchApiWithCookies: fetchAddressTask,
       parseResponse: async (res) => ({
         lat,
         lon,

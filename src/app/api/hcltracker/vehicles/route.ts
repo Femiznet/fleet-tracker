@@ -44,13 +44,14 @@ export interface CleanVehicle {
   status: string;
   group: string | null;
   lat: number | null;
-  lng: number | null;
+  lon: number | null;
 }
 
-export function extractVehicles(
-  payload: HCLVehiclePayload,
+export async function parseVehicles(
+  res: Response,
   filterGroup?: string
-): CleanVehicle[] {
+): Promise<CleanVehicle[]> {
+  const payload = (await res.json()) as HCLVehiclePayload;
   const list = payload?.data?.data?.data ?? [];
 
   const mapped = list.map((item) => {
@@ -65,7 +66,7 @@ export function extractVehicles(
       status: item.status ?? 'unknown',
       group: item["group.title"] ?? item.group?.title ?? null,
       lat: rawLat !== undefined ? Number(rawLat) : null,
-      lng: rawLng !== undefined ? Number(rawLng) : null,
+      lon: rawLng !== undefined ? Number(rawLng) : null,
     };
   });
 
@@ -78,7 +79,7 @@ export function extractVehicles(
   return mapped;
 }
 
-async function fetchObjects({ params, cookies }: { params: UrlSearchParams, cookies: string }) {
+async function fetchVehicles({ params, cookies }: { params: UrlSearchParams, cookies: string }) {
   return fetch(
     `${HCL_URL}/${PAGE_URL}?page=${params.page}&per_page=${params.limit}`,    {
       method: 'GET',
@@ -108,14 +109,9 @@ export async function GET(request: NextRequest) {
   const params = { page, limit };
 
   try {
-    const fetchObjectTask = (cookies: string) => fetchObjects({ params, cookies });
     return queryHclTracker({
-      callback: fetchObjectTask,
-      parseResponse: async (res) => {
-        const rawJson: HCLVehiclePayload = await res.json();
-        const vehicles = extractVehicles(rawJson);
-        return vehicles;
-      },
+      fetchApiWithCookies: (cookies: string) => fetchVehicles({ params, cookies }),
+      parseResponse: (res) => parseVehicles(res),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error';
