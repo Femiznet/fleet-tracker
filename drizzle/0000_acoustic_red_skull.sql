@@ -14,25 +14,17 @@ CREATE TABLE "ai_configurations" (
 	"updated_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "customer_stations" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"customer_id" uuid,
-	"geofence_name" varchar(100),
-	"location" varchar(255),
-	"latitude" double precision,
-	"longitude" double precision,
-	"is_active" boolean DEFAULT true,
-	CONSTRAINT "customer_stations_customer_id_unique" UNIQUE("customer_id"),
-	CONSTRAINT "customer_stations_geofence_name_unique" UNIQUE("geofence_name")
-);
---> statement-breakpoint
 CREATE TABLE "customers" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" varchar(255) NOT NULL,
+	"geofence_name" varchar(100),
+	"location" varchar(255),
 	"customer_type" "customer_type",
+	"is_active" boolean DEFAULT true,
 	"created_at" timestamp DEFAULT now(),
 	"updated_at" timestamp DEFAULT now(),
-	CONSTRAINT "customers_name_unique" UNIQUE("name")
+	CONSTRAINT "customers_name_unique" UNIQUE("name"),
+	CONSTRAINT "customers_geofence_name_unique" UNIQUE("geofence_name")
 );
 --> statement-breakpoint
 CREATE TABLE "drivers" (
@@ -57,7 +49,7 @@ CREATE TABLE "motormates" (
 --> statement-breakpoint
 CREATE TABLE "movements" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"type" "movement_type" DEFAULT 'dispatch' NOT NULL,
+	"type" "movement_type" NOT NULL,
 	"status" "movement_status" DEFAULT 'in_progress' NOT NULL,
 	"truck_id" uuid NOT NULL,
 	"customer_station_id" uuid,
@@ -67,7 +59,7 @@ CREATE TABLE "movements" (
 	"note" text,
 	CONSTRAINT "chk_dispatch_requires_skid_out" CHECK ("movements"."type" != 'dispatch' 
     OR "movements"."skid_id_out" IS NOT NULL),
-	CONSTRAINT "chk_dispatch_requires_customer_station" CHECK ("movements"."type" != 'dispatch' 
+	CONSTRAINT "chk_dispatch_requires_customer" CHECK ("movements"."type" != 'dispatch' 
     OR "movements"."customer_station_id" IS NOT NULL),
 	CONSTRAINT "chk_completed_dispatch_requires_skid_in_or_note" CHECK ("movements"."type" != 'dispatch' 
     OR NOT "movements"."completed" 
@@ -81,6 +73,7 @@ CREATE TABLE "skids" (
 	"skid_num" varchar(100) NOT NULL,
 	"slug_num" varchar(100) NOT NULL,
 	"current_skid_loc" varchar(255) NOT NULL,
+	"in_maintenance" boolean DEFAULT false NOT NULL,
 	CONSTRAINT "skids_skid_num_unique" UNIQUE("skid_num"),
 	CONSTRAINT "skids_slug_num_unique" UNIQUE("slug_num")
 );
@@ -101,15 +94,16 @@ CREATE TABLE "trucks" (
 	"truck_num" varchar(100) NOT NULL,
 	"slug_num" varchar(100) NOT NULL,
 	"current_truck_loc" varchar(255) NOT NULL,
+	"speed" integer NOT NULL,
+	"in_maintenance" boolean DEFAULT false NOT NULL,
 	CONSTRAINT "trucks_truck_num_unique" UNIQUE("truck_num"),
 	CONSTRAINT "trucks_slug_num_unique" UNIQUE("slug_num")
 );
 --> statement-breakpoint
-ALTER TABLE "customer_stations" ADD CONSTRAINT "customer_stations_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "drivers" ADD CONSTRAINT "drivers_current_truck_trucks_truck_num_fk" FOREIGN KEY ("current_truck") REFERENCES "public"."trucks"("truck_num") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "motormates" ADD CONSTRAINT "motormates_current_driver_drivers_name_fk" FOREIGN KEY ("current_driver") REFERENCES "public"."drivers"("name") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "movements" ADD CONSTRAINT "movements_truck_id_trucks_id_fk" FOREIGN KEY ("truck_id") REFERENCES "public"."trucks"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "movements" ADD CONSTRAINT "movements_customer_station_id_customer_stations_id_fk" FOREIGN KEY ("customer_station_id") REFERENCES "public"."customer_stations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "movements" ADD CONSTRAINT "movements_customer_station_id_customers_id_fk" FOREIGN KEY ("customer_station_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "movements" ADD CONSTRAINT "movements_skid_id_out_skids_id_fk" FOREIGN KEY ("skid_id_out") REFERENCES "public"."skids"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "movements" ADD CONSTRAINT "movements_skid_id_in_skids_id_fk" FOREIGN KEY ("skid_id_in") REFERENCES "public"."skids"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "trips" ADD CONSTRAINT "trips_movement_id_movements_id_fk" FOREIGN KEY ("movement_id") REFERENCES "public"."movements"("id") ON DELETE cascade ON UPDATE no action;

@@ -11,7 +11,8 @@
     "db:migrate": "npx drizzle-kit migrate",
     "db:generate": "npx drizzle-kit generate",
     "db:push": "pnpm db:generate && pnpm db:migrate",
-    "db:force": "npx drizzle-kit push --force"
+    "db:force": "npx drizzle-kit push --force",
+    "db:reset": "bash reset.sh"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

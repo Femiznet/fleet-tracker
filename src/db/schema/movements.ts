@@ -8,8 +8,8 @@ import {
 import { sql } from 'drizzle-orm';
 import { movementStatusEnum, movementTypeEnum } from './enums';
 import { trucks } from './trucks';
-import { customerStations } from './customers';
 import { skids } from './skids';
+import { customers } from './customers';
 
 
 export const movements = pgTable('movements', {
@@ -17,7 +17,7 @@ export const movements = pgTable('movements', {
   type: movementTypeEnum('type').notNull(),
   status: movementStatusEnum('status').notNull().default('in_progress'),
   truckId: uuid('truck_id').references(() => trucks.id).notNull(),
-  customerStationId: uuid('customer_station_id').references(() => customerStations.id),
+  customerId: uuid('customer_station_id').references(() => customers.id),
   skidIdOut: uuid('skid_id_out').references(() => skids.id), 
   skidIdIn: uuid('skid_id_in').references(() => skids.id), 
   completed: boolean('completed').default(false).notNull(),
@@ -29,11 +29,11 @@ export const movements = pgTable('movements', {
     sql`${table.type} != 'dispatch' 
     OR ${table.skidIdOut} IS NOT NULL`
   ),
-  // Rule 1B: If type is 'dispatch', customer_station MUST NOT be null
+  // Rule 1B: If type is 'dispatch', customer MUST NOT be null
   check(
-    'chk_dispatch_requires_customer_station',
+    'chk_dispatch_requires_customer',
     sql`${table.type} != 'dispatch' 
-    OR ${table.customerStationId} IS NOT NULL`
+    OR ${table.customerId} IS NOT NULL`
   ),
 
   // Rule 2: If type is 'dispatch' and completed is true, skidIdIn OR a non-empty note is required
