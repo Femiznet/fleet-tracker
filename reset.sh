@@ -30,9 +30,9 @@ psql "$DATABASE_URL" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT
 
 # 5. Generate and apply a clean, fresh Drizzle state
 echo "🏗️  Generating fresh Drizzle migration snapshots..."
-npx drizzle-kit generate
+pnpm db:generate
 
 echo "🚀 Applying migrations to the fresh database..."
-npx drizzle-kit migrate
+pnpm db:migrate
 
 echo "🎉 Database and migrations have been reset successfully!"

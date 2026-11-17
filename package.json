@@ -9,7 +9,7 @@
     "lint": "eslint",
     "typecheck": "npx tsc --noEmit",
     "db:migrate": "npx drizzle-kit migrate",
-    "db:generate": "npx drizzle-kit generate",
+    "db:generate": "npx drizzle-kit generate && npx tsx scripts/append-functions.ts",
     "db:push": "pnpm db:generate && pnpm db:migrate",
     "db:force": "npx drizzle-kit push --force",
     "db:reset": "bash reset.sh",
@@ -42,6 +42,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   },
   "packageManager": "pnpm@12.11.2"

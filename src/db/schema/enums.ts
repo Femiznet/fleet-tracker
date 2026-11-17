@@ -14,3 +14,17 @@ export const tripStatusEnum = pgEnum('trip_status', [
     'arrived',
     'cancelled',
 ]);
+
+export const truckStatusEnum = pgEnum('truck_status', [
+  'available',
+  'in_transit',
+  'at_customer',
+  'maintenance',
+]);
+
+export const skidStatusEnum = pgEnum('skid_status', [
+  'available',
+  'in_transit',
+  'at_customer',
+  'maintenance',
+]);

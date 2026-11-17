@@ -1,4 +1,5 @@
-import { boolean, doublePrecision, integer, pgTable, uuid, varchar } from 'drizzle-orm/pg-core';
+import { doublePrecision, integer, pgTable, uuid, varchar } from 'drizzle-orm/pg-core';
+import { truckStatusEnum } from './enums';
 
 export const trucks = pgTable('trucks', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -8,7 +9,7 @@ export const trucks = pgTable('trucks', {
   lon: doublePrecision('lon').notNull(),
   currentLoc: varchar('current_loc', { length: 255 }).notNull().default('pending'),
   speed: integer('speed').notNull(),
-  inMaintenance: boolean('in_maintenance').default(false).notNull()
+  status: truckStatusEnum('status').notNull().default('available'),
 });
 
 export type Truck = typeof trucks.$inferSelect;
