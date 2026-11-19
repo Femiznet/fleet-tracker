@@ -13,6 +13,7 @@ DECLARE
   v_truck_loc VARCHAR;
   v_skid_status skid_status;
   v_skid_loc VARCHAR;
+  v_customer_geofence VARCHAR;
   v_final_note TEXT;
   v_movement_id UUID;
 BEGIN
@@ -54,13 +55,22 @@ BEGIN
     RAISE EXCEPTION 'Skid location must be GASTECH PLANT to dispatch (Current location: %)', v_skid_loc;
   END IF;
 
-  -- 3. Tag the note if a sensor override was used
+  -- 3. Fetch customer geofence for the outbound trip destination
+  SELECT geofence_name INTO v_customer_geofence
+  FROM customers
+  WHERE id = p_customer_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Customer not found';
+  END IF;
+
+  -- 4. Tag the note if a sensor override was used
   v_final_note := p_note;
   IF p_force_override AND (v_truck_loc != 'GASTECH PLANT' OR v_skid_loc != 'GASTECH PLANT') THEN
     v_final_note := TRIM(COALESCE(p_note, '') || ' [Manual Sensor Override]');
   END IF;
 
-  -- 4. Create the movement record
+  -- 5. Create the parent movement record
   INSERT INTO movements (
     type,
     status,
@@ -78,7 +88,24 @@ BEGIN
   )
   RETURNING id INTO v_movement_id;
 
-  -- 5. Update truck and outgoing skid statuses to 'in_transit'
+  -- 6. Automatically create the 'outbound' trip leg
+  INSERT INTO trips (
+    movement_id,
+    status,
+    direction,
+    origin,
+    destination,
+    arrived
+  ) VALUES (
+    v_movement_id,
+    'in_transit',
+    'outbound',
+    'GASTECH PLANT',
+    COALESCE(v_customer_geofence, 'CUSTOMER SITE'),
+    FALSE
+  );
+
+  -- 7. Update truck and outgoing skid statuses to 'in_transit'
   UPDATE trucks
   SET status = 'in_transit'
   WHERE id = p_truck_id;

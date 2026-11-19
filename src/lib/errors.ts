@@ -17,3 +17,18 @@ export function returnValueDebugger(input: unknown) {
         console.log("DATA:", value.data);
     }
 }
+
+
+/**
+ * Helper to extract clean error messages thrown by PostgreSQL RAISE EXCEPTION
+ */
+export function formatPostgresError(error: unknown): Error {
+  if (error && typeof error === 'object') {
+    const pgError = error as { message?: string; cause?: { message?: string } };
+    const cleanMessage = pgError.cause?.message || pgError.message;
+    if (cleanMessage) {
+      return new Error(cleanMessage);
+    }
+  }
+  return new Error('An unexpected database error occurred');
+}

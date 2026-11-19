@@ -9,7 +9,6 @@ DECLARE
   v_movement movements%ROWTYPE;
   v_truck_loc VARCHAR;
 BEGIN
-  -- 1. Lock and fetch the movement
   SELECT * INTO v_movement
   FROM movements
   WHERE id = p_movement_id
@@ -23,28 +22,39 @@ BEGIN
     RAISE EXCEPTION 'Only in_progress movements can be cancelled (Current status: %)', v_movement.status;
   END IF;
 
-  -- 2. Get truck's current location so the skid reflects where it actually is
   SELECT current_loc INTO v_truck_loc
   FROM trucks
   WHERE id = v_movement.truck_id
   FOR UPDATE;
 
-  -- 3. Mark movement as cancelled
   UPDATE movements
   SET status = 'cancelled',
       note = COALESCE(NULLIF(TRIM(p_note), ''), note)
   WHERE id = p_movement_id;
 
-  -- 4. Reset truck and outgoing skid back to available
+  UPDATE trips
+  SET status = 'cancelled'
+  WHERE movement_id = p_movement_id
+    AND status = 'in_transit';
+
   UPDATE trucks
   SET status = 'available'
   WHERE id = v_movement.truck_id;
 
-  IF v_movement.skid_id_out IS NOT NULL THEN
+  -- If dispatch was cancelled, reset outgoing skid to available at truck's location
+  IF v_movement.type = 'dispatch' AND v_movement.skid_id_out IS NOT NULL THEN
     UPDATE skids
     SET status = 'available',
         current_loc = v_truck_loc
     WHERE id = v_movement.skid_id_out;
+  END IF;
+
+  -- If pickup was cancelled, return the skid back to 'at_customer' status
+  IF v_movement.type = 'pickup' AND v_movement.skid_id_in IS NOT NULL THEN
+    UPDATE skids
+    SET status = 'at_customer',
+        current_loc = v_truck_loc
+    WHERE id = v_movement.skid_id_in;
   END IF;
 END;
 $$;

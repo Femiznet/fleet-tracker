@@ -1,4 +1,5 @@
 import { db } from '@/db';
+import { formatPostgresError } from '@/lib/errors';
 import { sql } from 'drizzle-orm';
 
 export interface CreateDispatchInput {
@@ -9,34 +10,30 @@ export interface CreateDispatchInput {
   forceOverride?: boolean;
 }
 
-export interface CompleteDispatchInput {
+export interface CreatePickupInput {
+  truckId: string;
+  customerId: string;
+  skidIdIn?: string | null;
+  note?: string | null;
+  forceOverride?: boolean;
+}
+
+export interface CompleteMovementInput {
   movementId: string;
   skidIdIn?: string | null;
   note?: string | null;
   forceOverride?: boolean;
 }
 
-export interface CancelDispatchInput {
+export interface CancelMovementInput {
   movementId: string;
   note?: string | null;
 }
 
-/**
- * Helper to extract clean error messages thrown by PostgreSQL RAISE EXCEPTION
- */
-function formatPostgresError(error: unknown): Error {
-  if (error && typeof error === 'object') {
-    const pgError = error as { message?: string; cause?: { message?: string } };
-    const cleanMessage = pgError.cause?.message || pgError.message;
-    if (cleanMessage) {
-      return new Error(cleanMessage);
-    }
-  }
-  return new Error('An unexpected database error occurred');
-}
+
 
 /**
- * 1. Create a new dispatch movement
+ * 1. Create a new full roundtrip dispatch (GASTECH PLANT -> Customer -> GASTECH PLANT)
  */
 export async function createDispatch(input: CreateDispatchInput): Promise<string> {
   try {
@@ -50,19 +47,53 @@ export async function createDispatch(input: CreateDispatchInput): Promise<string
       ) AS movement_id
     `);
 
-    // Note: Depending on your Drizzle driver (node-postgres vs postgres.js),
-    // rows may be on `result.rows[0]` or `result[0]`
     const rows = Array.isArray(result) ? result : result.rows;
-    return rows[0].movement_id;
+    const movementId = rows[0]?.movement_id;
+
+    if (!movementId) {
+      throw new Error('Failed to retrieve movement ID from database');
+    }
+
+    return movementId;
+
   } catch (error) {
     throw formatPostgresError(error);
   }
 }
 
 /**
- * 2. Complete an active roundtrip dispatch
+ * 2. Create an inbound skid pickup (Customer -> GASTECH PLANT)
  */
-export async function completeDispatch(input: CompleteDispatchInput): Promise<void> {
+export async function createPickup(input: CreatePickupInput): Promise<string> {
+  try {
+    const result = await db.execute<{ movement_id: string }>(sql`
+      SELECT create_pickup(
+        ${input.truckId}::uuid,
+        ${input.customerId}::uuid,
+        ${input.skidIdIn ?? null}::uuid,
+        ${input.note ?? null}::text,
+        ${input.forceOverride ?? false}::boolean
+      ) AS movement_id
+    `);
+
+    const rows = Array.isArray(result) ? result : result.rows;
+    const movementId = rows[0]?.movement_id;
+
+    if (!movementId) {
+      throw new Error('Failed to retrieve movement ID from database');
+    }
+
+    return movementId;
+    
+  } catch (error) {
+    throw formatPostgresError(error);
+  }
+}
+
+/**
+ * 3. Complete an active 'dispatch' or 'pickup' movement
+ */
+export async function completeMovement(input: CompleteMovementInput): Promise<void> {
   try {
     await db.execute(sql`
       SELECT complete_dispatch(
@@ -78,9 +109,9 @@ export async function completeDispatch(input: CompleteDispatchInput): Promise<vo
 }
 
 /**
- * 3. Cancel an in-progress dispatch and reset truck/skid statuses
+ * 4. Cancel an in-progress 'dispatch' or 'pickup' and reset truck/skid statuses
  */
-export async function cancelDispatch(input: CancelDispatchInput): Promise<void> {
+export async function cancelMovement(input: CancelMovementInput): Promise<void> {
   try {
     await db.execute(sql`
       SELECT cancel_dispatch(

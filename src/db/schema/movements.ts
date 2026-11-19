@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, check } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, check, uniqueIndex } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { movementTypeEnum, movementStatusEnum } from './enums';
 import { trucks } from './trucks';
@@ -16,6 +16,11 @@ export const movements = pgTable('movements',{
   note: text('note'),
   },
   (table) => [
+    // Partial Unique Index: A truck can only have ONE 'in_progress' movement at a time
+    uniqueIndex('unq_active_movement_per_truck')
+      .on(table.truckId)
+      .where(sql`${table.status} = 'in_progress'`),
+    
     // Rule 1A: If type is 'dispatch', skidIdOut MUST NOT be null
     check(
       'chk_dispatch_requires_skid_out',
