@@ -42,6 +42,7 @@ drizzle/meta/*
 *.tsbuildinfo
 next-env.d.ts
 
+**/test/
 test.sh
-db-functions/
+db-functions/test/
 scripts/
