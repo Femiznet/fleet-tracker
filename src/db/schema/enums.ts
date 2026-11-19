@@ -18,6 +18,7 @@ export const tripStatusEnum = pgEnum('trip_status', [
 export const truckStatusEnum = pgEnum('truck_status', [
   'available',
   'in_transit',
+  'standby',
   'at_customer',
   'maintenance',
 ]);
@@ -27,4 +28,16 @@ export const skidStatusEnum = pgEnum('skid_status', [
   'in_transit',
   'at_customer',
   'maintenance',
+]);
+
+export const skidFillStateEnum = pgEnum('skid_fill_state', [
+  'empty',
+  'loading',
+  'loaded',
+]);
+
+export const skidBayStateEnum = pgEnum('skid_bay_state', [
+  'idle',
+  'on_hold',
+  'washing',
 ]);

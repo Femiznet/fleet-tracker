@@ -1,6 +1,4 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { PgTransaction } from 'drizzle-orm/pg-core';
-import { NodePgQueryResultHKT } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 
 const pool = new Pool({
@@ -10,11 +8,9 @@ const pool = new Pool({
 export const db = drizzle(pool);
 
 // Dynamically extract the specific Transaction type based on your db schema
-export type DbTransaction = PgTransaction<
-  NodePgQueryResultHKT, 
-  Record<string, never>, // Swap with 'typeof schema' if using a relational schema
-  Record<string, never>
->;
+export type DbTransaction = Parameters<
+  Parameters<typeof db.transaction>[0]
+>[0];
 
 // Seamless db + transaction helper.
 //
