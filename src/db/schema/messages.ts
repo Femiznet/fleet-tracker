@@ -5,6 +5,7 @@ import { CustomerUpdateMessage } from '@/services/messages/utils/parser';
 
 export const messages = pgTable('messages', {
   id: uuid('id').defaultRandom().primaryKey(),
+  externalId: text('external_id').notNull().unique(),
   customerId: uuid('customer_id').references(() => customers.id).notNull(),
   text: text('text').notNull(),
   metadata: jsonb('metadata').$type<GreenApiSenderData>().notNull(),

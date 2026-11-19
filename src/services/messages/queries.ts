@@ -1,28 +1,92 @@
-import { DbTransaction, dbtx } from '@/db'; // Adjust path to your Drizzle db instance
+import { and, eq } from 'drizzle-orm';
+import { db } from '@/db';
 import { messages, type Message } from '@/db/schema/messages';
-import { GreenApiSenderData } from './validator';
+import type {
+  GreenApiSenderData,
+} from '@/services/messages/validator';
 
-type SaveGreenApiMessageInput = {
-    tx?: DbTransaction;
+export type ProcessGreenApiMessageResult =
+  | { success: true; data: Message }
+  | { success: false; message: string };
+
+type BaseHandlerParams = {
   customerId: string;
-  textMessage: string;
+  messageId: string;
   senderData: GreenApiSenderData;
 };
 
+// 1. Create handler
 export async function saveGreenApiMessage({
   customerId,
+  messageId,
   textMessage,
-    senderData,
-  tx,
-}: SaveGreenApiMessageInput): Promise<Message> {
-  const [insertedMessage] = await dbtx(tx)
+  senderData,
+}: BaseHandlerParams & { textMessage: string }): Promise<ProcessGreenApiMessageResult> {
+  const [savedMessage] = await db
     .insert(messages)
     .values({
       customerId,
+      externalId: messageId,
       text: textMessage,
       metadata: senderData,
     })
     .returning();
 
-  return insertedMessage;
+  return { success: true, data: savedMessage };
+}
+
+// 2. Edit handler
+export async function editGreenApiMessage({
+  customerId,
+  messageId,
+  textMessage,
+  senderData,
+}: BaseHandlerParams & { textMessage: string }): Promise<ProcessGreenApiMessageResult> {
+  const [updatedMessage] = await db
+    .update(messages)
+    .set({
+      text: textMessage,
+      metadata: senderData,
+    })
+    .where(
+      and(
+        eq(messages.customerId, customerId),
+        eq(messages.externalId, messageId)
+      )
+    )
+    .returning();
+
+  if (!updatedMessage) {
+    return {
+      success: false,
+      message: `MESSAGE_NOT_FOUND_FOR_EDIT: ${messageId}`,
+    };
+  }
+
+  return { success: true, data: updatedMessage };
+}
+
+// 3. Delete handler
+export async function deleteGreenApiMessage({
+  customerId,
+  messageId,
+}: Omit<BaseHandlerParams, 'senderData'>): Promise<ProcessGreenApiMessageResult> {
+  const [deletedMessage] = await db
+    .delete(messages)
+    .where(
+      and(
+        eq(messages.customerId, customerId),
+        eq(messages.externalId, messageId)
+      )
+    )
+    .returning();
+
+  if (!deletedMessage) {
+    return {
+      success: false,
+      message: `MESSAGE_NOT_FOUND_FOR_DELETE: ${messageId}`,
+    };
+  }
+
+  return { success: true, data: deletedMessage };
 }

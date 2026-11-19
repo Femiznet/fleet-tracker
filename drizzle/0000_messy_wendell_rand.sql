@@ -54,10 +54,12 @@ CREATE TABLE "geofence_zones" (
 --> statement-breakpoint
 CREATE TABLE "messages" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"external_id" text NOT NULL,
 	"customer_id" uuid NOT NULL,
 	"text" text NOT NULL,
 	"metadata" jsonb NOT NULL,
-	"created_at" timestamp DEFAULT now()
+	"created_at" timestamp DEFAULT now(),
+	CONSTRAINT "messages_external_id_unique" UNIQUE("external_id")
 );
 --> statement-breakpoint
 CREATE TABLE "motormates" (

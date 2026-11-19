@@ -1,4 +1,4 @@
-import { processAndSaveGreenApiMessage } from "@/actions/messages";
+import { processGreenApiMessage } from "@/actions/messages";
 import { returnValueDebugger } from "@/lib/errors";
 import { parseGreenApiMessage, type BaseWebhook } from "@/services/messages/validator";
 import { NextRequest, NextResponse } from "next/server";
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
     
     if (messageResult.data) {
-        const result = await processAndSaveGreenApiMessage(messageResult.data);
+        const result = await processGreenApiMessage(messageResult.data);
         if (!result.success) returnValueDebugger(result);
     }
 

@@ -5,6 +5,8 @@ const ACCEPTED_MESSAGE_TYPES = new Set([
   'textMessage',
   'extendedTextMessage',
   'quotedMessage',
+  'editedMessage',
+  'deletedMessage',
 ]);
 
 const GreenApiSenderDataSchema = z.object({
@@ -15,22 +17,37 @@ const GreenApiSenderDataSchema = z.object({
   chatName: z.string().optional(),
 });
 
-// Stage 1 Schema: Validates the outer webhook and captures any typeMessage
+// Stage 1 Schema: Validates outer webhook; idMessage is optional because edits/deletes omit it
 const GreenApiBaseWebhookSchema = z.object({
   typeWebhook: z.literal('incomingMessageReceived'),
+  idMessage: z.string().optional(),
   senderData: GreenApiSenderDataSchema,
   messageData: z
     .object({
       typeMessage: z.string(),
     })
-    .passthrough(),
+    .loose(),
 });
 
 const GreenApiExtendedTextDataSchema = z.object({
   text: z.string(),
 });
 
-// Stage 2 Schema: Strictly parses only accepted text/quoted message structures
+// Handles both plain text edits and extended/quoted text edits
+const GreenApiEditedMessageDataSchema = z.union([
+  z.object({
+    stanzaId: z.string(),
+    textMessage: z.string(),
+    typeMessage: z.string().optional(),
+  }),
+  z.object({
+    stanzaId: z.string(),
+    extendedTextMessageData: GreenApiExtendedTextDataSchema,
+    typeMessage: z.string().optional(),
+  }),
+]);
+
+// Stage 2 Schema: Strictly parses all 5 accepted message structures
 const GreenApiMessageDataSchema = z.discriminatedUnion('typeMessage', [
   z.object({
     typeMessage: z.literal('textMessage'),
@@ -47,10 +64,19 @@ const GreenApiMessageDataSchema = z.discriminatedUnion('typeMessage', [
     extendedTextMessageData: GreenApiExtendedTextDataSchema,
     quotedMessage: z.record(z.string(), z.unknown()).optional(),
   }),
+  z.object({
+    typeMessage: z.literal('editedMessage'),
+    editedMessageData: GreenApiEditedMessageDataSchema,
+  }),
+  z.object({
+    typeMessage: z.literal('deletedMessage'),
+    deletedMessageData: z.object({
+      stanzaId: z.string(),
+    }),
+  }),
 ]);
 
 export type GreenApiSenderData = z.infer<typeof GreenApiSenderDataSchema>;
-
 export type BaseWebhook = z.infer<typeof GreenApiBaseWebhookSchema>;
 type MessageData = z.infer<typeof GreenApiMessageDataSchema>;
 
@@ -64,8 +90,10 @@ export type FailureReason =
   | 'ZOD_PARSER_FAILED';
 
 export type GreenApiParsedMessage = {
+  action: 'create' | 'edit' | 'delete';
+  messageId: string;
   geofenceName: string;
-  textMessage: string;
+  textMessage: string | null;
   senderData: GreenApiSenderData;
 };
 
@@ -79,7 +107,7 @@ export type GreenApiMessageResult =
     };
 
 export function parseGreenApiMessage(payload: unknown): GreenApiMessageResult {
-  // 1. Validate outer webhook shape (typeWebhook, senderData, and loose messageData)
+  // 1. Validate outer webhook shape
   const baseResult = GreenApiBaseWebhookSchema.safeParse(payload);
 
   if (!baseResult.success) {
@@ -91,7 +119,7 @@ export function parseGreenApiMessage(payload: unknown): GreenApiMessageResult {
     };
   }
 
-  const { senderData, messageData } = baseResult.data;
+  const { idMessage, senderData, messageData } = baseResult.data;
 
   // 2. Check chat allowlist
   if (!Object.hasOwn(ALLOWED_MESSAGE_LISTS, senderData.chatId)) {
@@ -125,15 +153,65 @@ export function parseGreenApiMessage(payload: unknown): GreenApiMessageResult {
     };
   }
 
+  const data = parsedMessage.data;
+  const geofenceName = ALLOWED_MESSAGE_LISTS[senderData.chatId];
+
+  // 5. Normalize action, target messageId, and textMessage
+  if (data.typeMessage === 'deletedMessage') {
+    return {
+      status: 'parsed',
+      data: {
+        action: 'delete',
+        messageId: data.deletedMessageData.stanzaId,
+        geofenceName,
+        textMessage: null,
+        senderData,
+      },
+      error: null,
+    };
+  }
+
+  if (data.typeMessage === 'editedMessage') {
+    const edited = data.editedMessageData;
+    const editedText =
+      'textMessage' in edited
+        ? edited.textMessage
+        : edited.extendedTextMessageData.text;
+
+    return {
+      status: 'parsed',
+      data: {
+        action: 'edit',
+        messageId: edited.stanzaId,
+        geofenceName,
+        textMessage: editedText,
+        senderData,
+      },
+      error: null,
+    };
+  }
+
+  // For new messages (textMessage, extendedTextMessage, quotedMessage), root idMessage is required
+  if (!idMessage) {
+    return {
+      status: 'invalid',
+      reason: 'ZOD_PARSER_FAILED',
+      data: null,
+      error: null,
+    };
+  }
+
   const textMessage =
-    parsedMessage.data.typeMessage === 'textMessage'
-      ? parsedMessage.data.textMessageData.textMessage
-      : parsedMessage.data.extendedTextMessageData.text;
+    data.typeMessage === 'textMessage'
+      ? data.textMessageData.textMessage
+      : data.extendedTextMessageData.text;
 
   return {
     status: 'parsed',
     data: {
-      geofenceName: ALLOWED_MESSAGE_LISTS[senderData.chatId],
+      action: 'create',
+      messageId: idMessage,
+      geofenceName,
       textMessage,
       senderData,
     },
