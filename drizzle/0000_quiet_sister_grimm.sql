@@ -281,6 +281,17 @@ BEGIN
     v_final_note := TRIM(COALESCE(v_final_note, '') || ' [Manual Completion Override]');
   END IF;
 
+  -- 3B. For full roundtrip dispatches, ensure the truck actually went out & started returning (unless overridden)
+  IF v_movement.type = 'dispatch' AND NOT p_force_override THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM trips
+      WHERE movement_id = p_movement_id
+        AND direction = 'inbound'
+    ) THEN
+      RAISE EXCEPTION 'Truck has not completed its outbound visit to the customer yet. Cancel the dispatch or use manual override.';
+    END IF;
+  END IF;
+
   -- 4. Fetch the customer's geofence name
   SELECT geofence_name INTO v_customer_geofence
   FROM customers
