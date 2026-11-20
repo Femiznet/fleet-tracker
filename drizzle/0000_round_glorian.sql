@@ -1,4 +1,5 @@
 CREATE TYPE "public"."customer_type" AS ENUM('waybill', 'meter', 'self-pick');--> statement-breakpoint
+CREATE TYPE "public"."message_type" AS ENUM('update', 'dispatch');--> statement-breakpoint
 CREATE TYPE "public"."movement_status" AS ENUM('in_progress', 'completed', 'cancelled');--> statement-breakpoint
 CREATE TYPE "public"."movement_type" AS ENUM('dispatch', 'service', 'others', 'pickup');--> statement-breakpoint
 CREATE TYPE "public"."processing_status" AS ENUM('needs review', 'pending', 'failed', 'processed');--> statement-breakpoint
@@ -58,6 +59,7 @@ CREATE TABLE "messages" (
 	"customer_id" uuid NOT NULL,
 	"text" text NOT NULL,
 	"metadata" jsonb NOT NULL,
+	"type" "message_type" NOT NULL,
 	"created_at" timestamp DEFAULT now(),
 	CONSTRAINT "messages_external_id_unique" UNIQUE("external_id")
 );

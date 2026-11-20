@@ -21,13 +21,15 @@ export async function saveGreenApiMessage({
   messageId,
   textMessage,
   senderData,
-}: BaseHandlerParams & { textMessage: string }): Promise<ProcessGreenApiMessageResult> {
+  messageType
+}: BaseHandlerParams & { textMessage: string, messageType: 'update' | 'dispatch' }): Promise<ProcessGreenApiMessageResult> {
   const [savedMessage] = await db
     .insert(messages)
     .values({
       customerId,
       externalId: messageId,
       text: textMessage,
+      type: messageType,
       metadata: senderData,
     })
     .returning();
@@ -41,12 +43,14 @@ export async function editGreenApiMessage({
   messageId,
   textMessage,
   senderData,
-}: BaseHandlerParams & { textMessage: string }): Promise<ProcessGreenApiMessageResult> {
+  messageType
+}: BaseHandlerParams & { textMessage: string, messageType: 'update' | 'dispatch' }): Promise<ProcessGreenApiMessageResult> {
   const [updatedMessage] = await db
     .update(messages)
     .set({
       text: textMessage,
       metadata: senderData,
+      type: messageType
     })
     .where(
       and(

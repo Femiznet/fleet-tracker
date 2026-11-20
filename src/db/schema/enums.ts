@@ -41,3 +41,8 @@ export const skidBayStateEnum = pgEnum('skid_bay_state', [
   'on_hold',
   'washing',
 ]);
+
+export const messageTypeEnum = pgEnum('message_type', [
+  'update',
+  'dispatch'
+]);

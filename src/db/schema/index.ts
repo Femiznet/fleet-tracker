@@ -11,7 +11,8 @@ export {
     truckStatusEnum,
     skidStatusEnum,
     skidBayStateEnum,
-    skidFillStateEnum
+    skidFillStateEnum,
+    messageTypeEnum,
 } from './enums';
 export { drivers } from './drivers';
 export { motormates } from './motormates';

@@ -1,7 +1,9 @@
 import { jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { customers } from './customers';
 import { type GreenApiSenderData } from '@/services/messages/validator';
-import { CustomerUpdateMessage } from '@/services/messages/utils/parser';
+import { CustomerUpdateMessage } from '@/services/messages/utils/updateParser';
+import { messageTypeEnum } from './enums';
+import { DispatchDetails } from '@/services/messages/utils/dispatchParser';
 
 export const messages = pgTable('messages', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -9,6 +11,7 @@ export const messages = pgTable('messages', {
   customerId: uuid('customer_id').references(() => customers.id).notNull(),
   text: text('text').notNull(),
   metadata: jsonb('metadata').$type<GreenApiSenderData>().notNull(),
+  type: messageTypeEnum('type').notNull(),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
@@ -20,7 +23,7 @@ export const processedMessages = pgTable('processed_messages', {
   customerId: uuid('customer_id').references(() => customers.id).notNull(),
   status: text('status', { enum: ['ok', 'needs_review', 'failed'] }).notNull(),
   warnings: jsonb('warnings').$type<string[]>().notNull().default([]),
-  data: jsonb('data').$type<CustomerUpdateMessage>(), // the clean JSON
+  data: jsonb('data').$type<CustomerUpdateMessage | DispatchDetails>(), // the clean JSON
   processedAt: timestamp('processed_at').defaultNow(),
   },
 );

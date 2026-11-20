@@ -1,6 +1,8 @@
 import { db } from "@/db";
 import { customers } from "@/db/schema";
 import { deleteGreenApiMessage, editGreenApiMessage, ProcessGreenApiMessageResult, saveGreenApiMessage } from "@/services/messages/queries";
+import { isDispatchDetails } from "@/services/messages/utils/dispatchParser";
+import { isUpdate } from "@/services/messages/utils/updateParser";
 import { GreenApiParsedMessage } from "@/services/messages/validator";
 import { eq } from "drizzle-orm";
 
@@ -29,10 +31,16 @@ export async function processGreenApiMessage(
   };
 
   if (parsed.textMessage) {
+    const type = isUpdate(parsed.textMessage) ? 'update'
+      : isDispatchDetails(parsed.textMessage) ? 'dispatch' : null;
+    
+    if (!type) return { success: false, message: 'Not an update or dispatch' };
+
     if (parsed.action === 'create') {
       return saveGreenApiMessage({
         ...baseParams,
         textMessage: parsed.textMessage,
+        messageType : type
       });
     }
   
@@ -40,6 +48,7 @@ export async function processGreenApiMessage(
       return editGreenApiMessage({
         ...baseParams,
         textMessage: parsed.textMessage,
+        messageType: type
       });
     }
   }

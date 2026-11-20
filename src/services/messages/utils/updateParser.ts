@@ -2,7 +2,8 @@ import { z } from "zod";
 
 /**
  * parseUpdate.ts  -  pure function, no DB, no framework.
- * text in -> { kind, status, data, warnings } out.
+ * isUpdate(text)    -> true / false
+ * parseUpdate(text)  -> { status, data, warnings }   (call it only when isUpdate is true)
  */
 
 const skids = z.union([z.string(), z.array(z.string())]).nullable();
@@ -21,20 +22,17 @@ export const CustomerUpdateMessageSchema = z.object({
   standbyskid: skids,
   emptyskid: skids,
   availabletrucks: z.union([z.number().int(), z.array(z.string())]).nullable(),
-  reportedAt: z.string().nullish().transform((v) => v ?? null),
+  reportedAt: z.string().nullish().transform((v) => v ?? null), // time written inside the message, if any
 });
 
 export type CustomerUpdateMessage = z.infer<typeof CustomerUpdateMessageSchema>;
 export type Skids = z.infer<typeof skids>;
 
-export type ParseResult =
-  | { kind: "ignored"; reason: string }
-  | {
-      kind: "update";
-      status: "ok" | "needs_review";
-      data: CustomerUpdateMessage;
-      warnings: string[];
-    };
+export interface ParseResult {
+  status: "ok" | "needs_review";
+  data: CustomerUpdateMessage;
+  warnings: string[];
+}
 
 export interface ParseOptions {
   /** last known totalflow for this station; enables the "meter went down" check */
@@ -56,8 +54,8 @@ const LABELS: [string, string][] = [
   ["gas_temp", String.raw`gas\s*temp\w*|temperature`],
   // only counts if a number follows (skips the "PRESSURE UPDATE" title)
   ["pressure", String.raw`(?:skid\s*|inlet\s*)?pressures?(?=\s*[:\-=]?\s*[\(\*]*\s*\d)`],
-  ["flowrate", String.raw`flow\s*-?\s*rate`],
-  ["totalflow", String.raw`total\s*flow|total(?=\s*[:(])`],
+  ["flowrate", String.raw`flow\s*-?\s*rate(?:\s*\d(?=\s*[:=]))?`],
+  ["totalflow", String.raw`total\s*flow(?:\s*\d(?=\s*[:=]))?|total(?=\s*[:(])`],
   ["skidinuse", String.raw`skid\s*in\s*use|in\s*use\s*skid|online\s*skid`],
   ["standbyskid", String.raw`\*?standby(?:\s*skid)?\*?`],
   ["emptyskid", String.raw`empty(?:\s*skid)?`],
@@ -111,13 +109,31 @@ function parseTrucks(v: string | undefined): { value: number | string[] | null; 
   return looksLikePlates ? { value: plates } : { value: null, warn: "trucks_unparsed" };
 }
 
+function reportedAt(text: string): string | null {
+  const d = /(\d{1,2})[/-](\d{1,2})[/-](\d{4})/.exec(text);
+  if (!d) return null;
+  const [day, mon, yr] = [+d[1], +d[2], +d[3]];
+  let hh = 0, mm = 0;
+  const t24 = /@\s*(\d{1,2}):(\d{2})\s*HRS/i.exec(text);
+  const t12 = /(\d{1,2}):(\d{2})\s*(AM|PM)/i.exec(text);
+  if (t24) { hh = +t24[1]; mm = +t24[2]; }
+  else if (t12) { hh = (+t12[1]) % 12 + (t12[3].toUpperCase() === "PM" ? 12 : 0); mm = +t12[2]; }
+  if (mon < 1 || mon > 12 || day < 1 || day > 31) return null;
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${yr}-${p(mon)}-${p(day)}T${p(hh)}:${p(mm)}:00`;
+}
 
 /** cut the message at every label; text between two labels is the value */
 function extractFields(text: string): Record<string, string> {
   const flat = text.replace(/\s+/g, " ");
   const hits: { name: string; start: number; end: number }[] = [];
   for (const m of flat.matchAll(LABEL_RE)) {
-    const name = LABEL_NAMES.find((n) => m.groups?.[n] !== undefined)!;
+    let name = LABEL_NAMES.find((n) => m.groups?.[n] !== undefined)!;
+    // "Flow Rate 2:" / "Total Flow2:" -> numbered PRMS reading, stored as "flowrate:2"
+    if (name === "flowrate" || name === "totalflow") {
+      const idx = /(\d)\s*$/.exec(m[0])?.[1];
+      if (idx) name = `${name}:${idx}`;
+    }
     hits.push({ name, start: m.index!, end: m.index! + m[0].length });
   }
   const fields: Record<string, string> = {};
@@ -129,58 +145,94 @@ function extractFields(text: string): Record<string, string> {
 }
 
 // ---------------------------------------------------------------- main
-export function parseUpdate(text: string, opts: ParseOptions = {}): ParseResult {
-  if (/skid\s*change\s*details/i.test(text)) {
-    return { kind: "ignored", reason: "skid_change_report" };
-  }
-  const f = extractFields(text);
-  const core = ["pressure", "flowrate", "totalflow"].filter((k) => k in f);
-  if (core.length < 2) return { kind: "ignored", reason: "not_a_station_update" };
+const hasField = (f: Record<string, string>, base: string) =>
+  Object.keys(f).some((k) => k === base || k.startsWith(`${base}:`));
 
+/** Step 1: is this message a station update at all? */
+export function isUpdate(text: string): boolean {
+  if (/skid\s*change\s*details/i.test(text)) return false; // a different report type
+  const f = extractFields(text);
+  // an update has at least two of: pressure, flow rate, total flow
+  return ["pressure", "flowrate", "totalflow"].filter((k) => hasField(f, k)).length >= 2;
+}
+
+/** Step 2: read the fields out of an update. */
+export function parseUpdate(text: string, opts: ParseOptions = {}): ParseResult {
+  const f = extractFields(text);
+
+  // PRMS numbers present in the message ("flowrate:1", "totalflow:2" ...). None = single PRMS.
+  const indices = [
+    ...new Set(
+      Object.keys(f)
+        .map((k) => /^(?:flowrate|totalflow):(\d)$/.exec(k)?.[1])
+        .filter((x): x is string => x !== undefined)
+        .map(Number)
+    ),
+  ].sort((a, b) => a - b);
+  const numbered = indices.length > 0;
+  const ids = numbered ? indices : [1];
+
+  // skid pressure and the skid in use are shared by every PRMS
   const inUse = skidIds(f.skidinuse);
-  const prms = {
-    id: 1,
-    pressure: toNumber(f.pressure),
-    flowrate: toNumber(f.flowrate),
-    totalflow: toNumber(f.totalflow),
-    skidinuse: oneOrMany(inUse),
-  };
+  const prmsList = ids.map((id) => {
+    const sfx = numbered ? `:${id}` : "";
+    return {
+      id,
+      pressure: toNumber(f.pressure),
+      flowrate: toNumber(f[`flowrate${sfx}`]),
+      totalflow: toNumber(f[`totalflow${sfx}`]),
+      skidinuse: oneOrMany(inUse),
+    };
+  });
   const trucks = parseTrucks(f.availabletrucks);
   const draft = {
-    PRMS: [prms],
+    PRMS: prmsList,
     outletpressure: toNumber(f.outletpressure),
     standbyskid: oneOrMany(skidIds(f.standbyskid)),
     emptyskid: oneOrMany(skidIds(f.emptyskid)),
     availabletrucks: trucks.value,
+    reportedAt: reportedAt(text),
   };
 
   // shape guard: throws if we ever build something that isn't the clean format
-  // (e.g. a NaN). The raw message is safe in `messages`, so it can be re-parsed.
   const data = CustomerUpdateMessageSchema.parse(draft);
 
   // ------------------------------------------------------------ validate
   const w: string[] = [];
   if (trucks.warn) w.push(trucks.warn);
-  const check = (key: keyof typeof RANGES, val: number | null, required: boolean) => {
-    if (val === null) { if (required) w.push(`missing_${key}`); return; }
+
+  // "0 100Scm/h" style values: two separate numbers, we can't know which one is right
+  for (const [k, v] of Object.entries(f)) {
+    if (/^(flowrate|totalflow)/.test(k) && /^\d[\d,.]*\s+\d/.test(v)) {
+      w.push(`ambiguous_${k.replace(":", "_prms")}`);
+    }
+  }
+
+  const check = (key: keyof typeof RANGES, val: number | null, required: boolean, sfx = "") => {
+    if (val === null) { if (required) w.push(`missing_${key}${sfx}`); return; }
     const [lo, hi] = RANGES[key];
-    if (val < lo || val > hi) w.push(`out_of_range_${key}=${val}`);
+    if (val < lo || val > hi) w.push(`out_of_range_${key}${sfx}=${val}`);
   };
-  check("pressure", prms.pressure, true);
-  check("flowrate", prms.flowrate, true);
-  check("totalflow", prms.totalflow, true);
+  for (const p of prmsList) {
+    const sfx = numbered ? `_prms${p.id}` : "";
+    check("pressure", p.pressure, true, sfx);
+    check("flowrate", p.flowrate, true, sfx);
+    check("totalflow", p.totalflow, true, sfx);
+  }
   check("outletpressure", data.outletpressure, false);
 
-  const idle = prms.flowrate === 0 && prms.pressure === 0;
+  const idle = prmsList.every((p) => p.flowrate === 0 && p.pressure === 0);
   if (inUse.length === 0 && !idle) w.push("missing_skidinuse");
 
   const standby = skidIds(f.standbyskid);
   if (inUse.some((s) => standby.includes(s))) w.push("skid_in_use_and_standby");
 
+  // "meter went down" check: only for single-PRMS messages (one previous value to compare to)
   const prev = opts.previousTotalFlow;
-  if (prev != null && prms.totalflow !== null && prms.totalflow < prev) {
-    w.push(`totalflow_decreased(${prev}->${prms.totalflow})`);
+  const tf = prmsList[0].totalflow;
+  if (!numbered && prev != null && tf !== null && tf < prev) {
+    w.push(`totalflow_decreased(${prev}->${tf})`);
   }
 
-  return { kind: "update", status: w.length ? "needs_review" : "ok", data, warnings: w };
+  return { status: w.length ? "needs_review" : "ok", data, warnings: w };
 }
