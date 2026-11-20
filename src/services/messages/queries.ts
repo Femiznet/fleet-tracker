@@ -50,7 +50,8 @@ export async function editGreenApiMessage({
     .set({
       text: textMessage,
       metadata: senderData,
-      type: messageType
+      type: messageType,
+      isProcessed: false
     })
     .where(
       and(

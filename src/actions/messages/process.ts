@@ -1,4 +1,4 @@
-import { asc, eq, isNull } from 'drizzle-orm';
+import { asc, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db';
 import { messages, processedMessages, type Message, type NewProcessedMessage } from '@/db/schema/messages';
 import { parseUpdate } from '@/services/messages/utils/updateParser';
@@ -28,8 +28,34 @@ function toRow(message: Message, parse: typeof parseUpdate | typeof parseDispatc
   }
 }
 
-const save = (rows: NewProcessedMessage[]) =>
-  db.insert(processedMessages).values(rows).onConflictDoNothing({ target: processedMessages.messageId });
+
+const save = async (rows: NewProcessedMessage[]) => {
+  if (rows.length === 0) return;
+
+  const messageIds = rows.map((row) => row.messageId);
+
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(processedMessages)
+      .values(rows)
+      .onConflictDoUpdate({
+        target: processedMessages.messageId,
+        set: {
+          data: processedMessages.data,
+          processedAt: processedMessages.processedAt,
+          status: processedMessages.status,
+          warnings: processedMessages.warnings
+        }
+      });
+
+    await tx
+      .update(messages)
+      .set({ isProcessed: true })
+      .where(inArray(messages.id, messageIds));
+  });
+};
+
+
 
 /** Process ONE message (e.g. right after inserting it). */
 export async function processOne(message: Message): Promise<Outcome> {
@@ -51,32 +77,53 @@ export async function processOne(message: Message): Promise<Outcome> {
 /** Process every message that has no processed_messages row yet. */
 export async function processPendingMessages() {
   const pending = await db
-    .select({ message: messages })
+    .select()
     .from(messages)
-    .leftJoin(processedMessages, eq(processedMessages.messageId, messages.id))
-    .where(isNull(processedMessages.id))
+    .where(eq(messages.isProcessed, false))
     .orderBy(asc(messages.createdAt));
 
-  // 1. parse everything in memory (fast, no database involved)
+  if (pending.length === 0) {
+    return { ok: 0, needs_review: 0, failed: 0, ignored: 0 };
+  }
+
   const summary: Record<Outcome, number> = { ok: 0, needs_review: 0, failed: 0, ignored: 0 };
   const rows: NewProcessedMessage[] = [];
-  let parse: typeof parseUpdate | typeof parseDispatchDetails;
+  const skippedIds: string[] = [];
 
-  for (const { message } of pending) {
+  for (const message of pending) {
+    let parse: typeof parseUpdate | typeof parseDispatchDetails;
+
     if (message.type === 'update') {
       parse = parseUpdate;
     } else if (message.type === 'dispatch') {
       parse = parseDispatchDetails;
+    } else {
+      summary.failed++;
+      skippedIds.push(message.id);
+      continue;
     }
-    else return {success: false, message: `Failed to process text. Wrong message type ${message.type}`}
+
     const row = toRow(message, parse);
-    if (row) { rows.push(row); summary[row.status]++; }
-    else summary.ignored++;
+    if (row) {
+      rows.push(row);
+      summary[row.status]++;
+    } else {
+      summary.ignored++;
+      skippedIds.push(message.id);
+    }
   }
 
-  // 2. write to the database in big batches instead of one insert per message
-  //    (Postgres caps a single query at 65,535 values, so a huge backlog is chunked)
-  for (let i = 0; i < rows.length; i += 1000) await save(rows.slice(i, i + 1000));
+  for (let i = 0; i < rows.length; i += 1000) {
+    await save(rows.slice(i, i + 1000));
+  }
+
+  // Mark ignored and unknown-type messages as processed so they don't loop forever
+  for (let i = 0; i < skippedIds.length; i += 1000) {
+    await db
+      .update(messages)
+      .set({ isProcessed: true })
+      .where(inArray(messages.id, skippedIds.slice(i, i + 1000)));
+  }
 
   return summary;
 }

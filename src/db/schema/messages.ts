@@ -1,4 +1,4 @@
-import { jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { customers } from './customers';
 import { type GreenApiSenderData } from '@/services/messages/validator';
 import { CustomerUpdateMessage } from '@/services/messages/utils/updateParser';
@@ -12,6 +12,7 @@ export const messages = pgTable('messages', {
   text: text('text').notNull(),
   metadata: jsonb('metadata').$type<GreenApiSenderData>().notNull(),
   type: messageTypeEnum('type').notNull(),
+  isProcessed: boolean('is_processed').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow(),
 });
 

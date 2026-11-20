@@ -60,6 +60,7 @@ CREATE TABLE "messages" (
 	"text" text NOT NULL,
 	"metadata" jsonb NOT NULL,
 	"type" "message_type" NOT NULL,
+	"is_processed" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp DEFAULT now(),
 	CONSTRAINT "messages_external_id_unique" UNIQUE("external_id")
 );
