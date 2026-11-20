@@ -1,6 +1,6 @@
 // app/api/cron/sync-locations/route.ts
 import { NextResponse } from 'next/server';
-import { processTruckLocationUpdate } from '@/lib/updateTruckGps';
+import { processBatchTruckLocations } from '@/lib/updateTruckGps';
 import { getCleanVehicles } from '@/lib/hcltracker/vehicles';
 
 export async function GET(request: Request) {
@@ -10,30 +10,22 @@ export async function GET(request: Request) {
   }
 
   try {
-
-    // Directly calls HCL Tracker without an internal localhost HTTP request
     const newTrucks = await getCleanVehicles('1', '100');
-    
-    // Filter out any trucks with missing GPS coordinates (lat === null || lon === null)
-    const data = newTrucks.filter(
+
+    const data = newTrucks
+    .filter(
       (truck): truck is typeof truck & { lat: number; lon: number } =>
         truck.lat !== null && truck.lon !== null
-    );
-        
-    const BATCH_SIZE = 5;
-    for (let i = 0; i < data.length; i += BATCH_SIZE) {
-      const batch = data.slice(i, i + BATCH_SIZE);
-      await Promise.all(
-        batch.map((truck) =>
-          processTruckLocationUpdate({
-            truckNum: truck.plateNumber.trim(),
-            newLat: truck.lat,
-            newLon: truck.lon,
-            speed: parseInt(String(truck.speed), 10) || 0
-}          )
-        )
-      );
-    }
+    )
+    .map((truck) => ({
+      truckNum: truck.plateNumber.trim(),
+      newLat: truck.lat,
+      newLon: truck.lon,
+      speed: parseInt(String(truck.speed), 10) || 0,
+    }));
+  
+  await processBatchTruckLocations(data);
+  
 
     return NextResponse.json({ processed: data.length });
   } catch (error) {

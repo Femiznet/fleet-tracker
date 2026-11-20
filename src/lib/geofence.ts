@@ -3,21 +3,20 @@ import { db } from '@/db';
 import { geofenceZones } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 
-const SAFETY_BUFFER_METERS = 500; // Extra margin around known points
-const MAX_CLUSTER_DISTANCE_METERS = 10000; // 10km guard against distant outliers
-const MIN_POINT_SPACING_METERS = 30; // Avoid saving clustered duplicate GPS pings
-const MAX_SAMPLE_POINTS = 50; // Cap stored points per zone
+const SAFETY_BUFFER_METERS = 500;
+const MAX_CLUSTER_DISTANCE_METERS = 10000;
+const MIN_POINT_SPACING_METERS = 30;
+const MAX_SAMPLE_POINTS = 50;
 
-/**
- * Calculates the great-circle distance in meters between two GPS coordinates.
- */
+export type GeofenceZone = typeof geofenceZones.$inferSelect;
+
 export function getDistanceMeters(
   lat1: number,
   lon1: number,
   lat2: number,
   lon2: number
 ): number {
-  const R = 6371e3; // Earth's radius in meters
+  const R = 6371e3;
   const toRad = (deg: number) => (deg * Math.PI) / 180;
 
   const dLat = toRad(lat2 - lat1);
@@ -34,74 +33,103 @@ export function getDistanceMeters(
 }
 
 /**
- * Updates a pre-seeded geofence zone when your API confirms a truck is inside it.
- * Ignores any geofenceName not present in the geofenceZones whitelist table.
+ * Checks in memory if (lat, lon) falls inside any already-learned geofence zone.
+ * Returns the closest matching zone name, or null if outside all known zones.
  */
-export async function learnGeofencePoint(
-  geofenceName: string,
+export function findMatchingGeofence(
+  zones: GeofenceZone[],
   lat: number,
   lon: number
-): Promise<void> {
-  // 1. Check if this geofenceName is in your pre-seeded whitelist
-    const [zone] = await db
-        .select()
-        .from(geofenceZones)
-        .where(eq(geofenceZones.geofenceName, geofenceName));
+): string | null {
+  let closestZone: string | null = null;
+  let minDistance = Infinity;
 
-  // Ignore highway addresses or unknown locations
-  if (!zone) return;
+  for (const zone of zones) {
+    if (
+      zone.centerLat === null ||
+      zone.centerLon === null ||
+      zone.radiusMeters === null
+    ) {
+      continue;
+    }
 
-  // 2. First time a truck ever visits this zone: initialize center & radius
-  if (zone.centerLat === null || zone.centerLon === null) {
-    await db
-      .update(geofenceZones)
-      .set({
-        centerLat: lat,
-        centerLon: lon,
-        radiusMeters: SAFETY_BUFFER_METERS,
-        samplePoints: [{ lat, lon }],
-        updatedAt: new Date(),
-      })
-      .where(eq(geofenceZones.id, zone.id));
-    return;
+    const dist = getDistanceMeters(zone.centerLat, zone.centerLon, lat, lon);
+    if (dist <= zone.radiusMeters && dist < minDistance) {
+      minDistance = dist;
+      closestZone = zone.geofenceName;
+    }
   }
 
-  // 3. Outlier guard: ignore points >10km from the existing center
-  const distFromCenter = getDistanceMeters(zone.centerLat, zone.centerLon, lat, lon);
-  if (distFromCenter > MAX_CLUSTER_DISTANCE_METERS) return;
+  return closestZone;
+}
 
-  // 4. Stop adding points once we have 50 well-spaced samples
-  if (zone.samplePoints.length >= MAX_SAMPLE_POINTS) return;
+/**
+ * Updates pre-seeded geofence zones in batch without race conditions.
+ */
+export async function learnGeofencePointsBatch(
+  zones: GeofenceZone[],
+  observations: Array<{ geofenceName: string; lat: number; lon: number }>
+): Promise<void> {
+  if (observations.length === 0) return;
 
-  // 5. Only add this coordinate if it's at least 30m away from existing sample points
-  const isTooClose = zone.samplePoints.some(
-    (p) => getDistanceMeters(p.lat, p.lon, lat, lon) < MIN_POINT_SPACING_METERS
-  );
-  if (isTooClose) return;
+  const zoneMap = new Map(zones.map((z) => [z.geofenceName, { ...z }]));
+  const dirtyZoneIds = new Set<string>();
 
-  const updatedPoints = [...zone.samplePoints, { lat, lon }];
+  for (const { geofenceName, lat, lon } of observations) {
+    const zone = zoneMap.get(geofenceName);
+    if (!zone) continue;
 
-  // 6. Recalculate true center (average lat & lon of all sample points)
-  const newCenterLat =
-    updatedPoints.reduce((sum, p) => sum + p.lat, 0) / updatedPoints.length;
-  const newCenterLon =
-    updatedPoints.reduce((sum, p) => sum + p.lon, 0) / updatedPoints.length;
+    if (zone.centerLat === null || zone.centerLon === null) {
+      zone.centerLat = lat;
+      zone.centerLon = lon;
+      zone.radiusMeters = SAFETY_BUFFER_METERS;
+      zone.samplePoints = [{ lat, lon }];
+      dirtyZoneIds.add(zone.id);
+      continue;
+    }
 
-  // 7. Recalculate radius (farthest sample point from new center + safety buffer)
-  const maxDist = Math.max(
-    ...updatedPoints.map((p) =>
-      getDistanceMeters(newCenterLat, newCenterLon, p.lat, p.lon)
-    )
-  );
+    const distFromCenter = getDistanceMeters(zone.centerLat, zone.centerLon, lat, lon);
+    if (distFromCenter > MAX_CLUSTER_DISTANCE_METERS) continue;
+    if (zone.samplePoints.length >= MAX_SAMPLE_POINTS) continue;
 
-  await db
-    .update(geofenceZones)
-    .set({
-      centerLat: newCenterLat,
-      centerLon: newCenterLon,
-      radiusMeters: maxDist + SAFETY_BUFFER_METERS,
-      samplePoints: updatedPoints,
-      updatedAt: new Date(),
+    const isTooClose = zone.samplePoints.some(
+      (p) => getDistanceMeters(p.lat, p.lon, lat, lon) < MIN_POINT_SPACING_METERS
+    );
+    if (isTooClose) continue;
+
+    const updatedPoints = [...zone.samplePoints, { lat, lon }];
+    const newCenterLat =
+      updatedPoints.reduce((sum, p) => sum + p.lat, 0) / updatedPoints.length;
+    const newCenterLon =
+      updatedPoints.reduce((sum, p) => sum + p.lon, 0) / updatedPoints.length;
+    const maxDist = Math.max(
+      ...updatedPoints.map((p) =>
+        getDistanceMeters(newCenterLat, newCenterLon, p.lat, p.lon)
+      )
+    );
+
+    zone.centerLat = newCenterLat;
+    zone.centerLon = newCenterLon;
+    zone.radiusMeters = maxDist + SAFETY_BUFFER_METERS;
+    zone.samplePoints = updatedPoints;
+    dirtyZoneIds.add(zone.id);
+  }
+
+  if (dirtyZoneIds.size === 0) return;
+
+  await Promise.all(
+    Array.from(dirtyZoneIds).map((id) => {
+      const z = Array.from(zoneMap.values()).find((item) => item.id === id)!;
+      return db
+        .update(geofenceZones)
+        .set({
+          centerLat: z.centerLat,
+          centerLon: z.centerLon,
+          radiusMeters: z.radiusMeters,
+          samplePoints: z.samplePoints,
+          updatedAt: new Date(),
+        })
+        .where(eq(geofenceZones.id, id));
     })
-    .where(eq(geofenceZones.id, zone.id));
+  );
 }
