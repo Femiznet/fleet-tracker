@@ -10,7 +10,6 @@ export type Outcome = 'ok' | 'needs_review' | 'failed' | 'ignored';
 function toRow(message: Message, parse: typeof parseUpdate | typeof parseDispatchDetails): NewProcessedMessage | null {
   try {
     const result = parse(message.text);
-    console.log("new:", result);
     return {
       messageId: message.id,
       customerId: message.customerId,
@@ -35,7 +34,7 @@ const save = async (rows: NewProcessedMessage[]) => {
   const messageIds = rows.map((row) => row.messageId);
 
   await db.transaction(async (tx) => {
-    const updated = await tx
+    await tx
       .insert(processedMessages)
       .values(rows)
       .onConflictDoUpdate({
@@ -48,8 +47,6 @@ const save = async (rows: NewProcessedMessage[]) => {
         },
       })
       .returning({ data: processedMessages.data });
-
-    console.log(updated);
 
     await tx
       .update(messages)
