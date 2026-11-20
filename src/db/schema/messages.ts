@@ -20,7 +20,7 @@ export const messages = pgTable('messages', {
 export const processedMessages = pgTable('processed_messages', {
   id: uuid('id').defaultRandom().primaryKey(),
   // one parsed update per message; UNIQUE is what makes webhook retries harmless
-  messageId: uuid('message_id').references(() => messages.id).notNull().unique(),
+  messageId: uuid('message_id').references(() => messages.id, {onDelete:'cascade'}).notNull().unique(),
   customerId: uuid('customer_id').references(() => customers.id).notNull(),
   status: text('status', { enum: ['ok', 'needs_review', 'failed'] }).notNull(),
   warnings: jsonb('warnings').$type<string[]>().notNull().default([]),

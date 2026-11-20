@@ -1,4 +1,4 @@
-import { asc, eq, inArray } from 'drizzle-orm';
+import { asc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { messages, processedMessages, type Message, type NewProcessedMessage } from '@/db/schema/messages';
 import { parseUpdate } from '@/services/messages/utils/updateParser';
@@ -10,6 +10,7 @@ export type Outcome = 'ok' | 'needs_review' | 'failed' | 'ignored';
 function toRow(message: Message, parse: typeof parseUpdate | typeof parseDispatchDetails): NewProcessedMessage | null {
   try {
     const result = parse(message.text);
+    console.log("new:", result);
     return {
       messageId: message.id,
       customerId: message.customerId,
@@ -28,25 +29,27 @@ function toRow(message: Message, parse: typeof parseUpdate | typeof parseDispatc
   }
 }
 
-
 const save = async (rows: NewProcessedMessage[]) => {
   if (rows.length === 0) return;
 
   const messageIds = rows.map((row) => row.messageId);
 
   await db.transaction(async (tx) => {
-    await tx
+    const updated = await tx
       .insert(processedMessages)
       .values(rows)
       .onConflictDoUpdate({
         target: processedMessages.messageId,
         set: {
-          data: processedMessages.data,
-          processedAt: processedMessages.processedAt,
-          status: processedMessages.status,
-          warnings: processedMessages.warnings
-        }
-      });
+          data: sql`excluded.data`,
+          processedAt: sql`excluded.processed_at`,
+          status: sql`excluded.status`,
+          warnings: sql`excluded.warnings`,
+        },
+      })
+      .returning({ data: processedMessages.data });
+
+    console.log(updated);
 
     await tx
       .update(messages)
