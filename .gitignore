@@ -44,5 +44,5 @@ next-env.d.ts
 
 **/test/
 test.sh
-db-functions/test/
+src/backend/db-functions/test/
 scripts/
