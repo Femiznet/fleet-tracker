@@ -1,1 +1,1 @@
-export { POST } from '@/backend/api/messages/route';
+export { GET, POST } from '@/backend/api/messages/route';

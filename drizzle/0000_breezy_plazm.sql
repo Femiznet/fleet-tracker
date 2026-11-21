@@ -24,7 +24,7 @@ CREATE TABLE "customers" (
 	"name" varchar(255) NOT NULL,
 	"geofence_name" varchar(100),
 	"location" varchar(255),
-	"customer_type" "customer_type" NOT NULL,
+	"customer_type" "customer_type",
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,

@@ -6,7 +6,7 @@ export const customers = pgTable('customers', {
   name: varchar('name', { length: 255 }).notNull().unique(),
   geofenceName: varchar('geofence_name', { length: 100 }).unique(),
   location: varchar('location', { length: 255 }),
-  type: customerType('customer_type').notNull(),
+  type: customerType('customer_type'),
   isActive: boolean('is_active').default(true).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true })

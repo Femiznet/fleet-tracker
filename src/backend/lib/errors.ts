@@ -4,7 +4,8 @@ interface ValueInputType {
     success?: boolean;
     data?: object;
     message?: string;
-    error?: Error;
+  error?: Error;
+  reason?: string;
 }
 
 export interface DbErrorInfo {
@@ -35,11 +36,12 @@ export function returnValueDebugger(input: unknown) {
     const value = input as ValueInputType;
 
     if (!value.success) {
-        console.log("FAILURE MESSAGE:", value.message);
-        console.error("ERROR:", value.error);
+      console.log("FAILURE MESSAGE:", value.message);
+      console.log("FAILURE REASON:", value.reason);
+      console.error("ERROR:", value.error);
     } else {
-        console.log("SUCCESSFUL MESSAGE:", value.message);
-        console.log("DATA:", value.data);
+      console.log("SUCCESSFUL MESSAGE:", value.message);
+      console.log("DATA:", value.data);
     }
 }
 
