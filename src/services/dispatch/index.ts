@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { formatPostgresError } from '@/lib/errors';
+import { formatDbError } from '@/lib/errors';
 import { sql } from 'drizzle-orm';
 
 export interface CreateDispatchInput {
@@ -57,7 +57,7 @@ export async function createDispatch(input: CreateDispatchInput): Promise<string
     return movementId;
 
   } catch (error) {
-    throw formatPostgresError(error);
+    throw formatDbError(error);
   }
 }
 
@@ -86,7 +86,7 @@ export async function createPickup(input: CreatePickupInput): Promise<string> {
     return movementId;
     
   } catch (error) {
-    throw formatPostgresError(error);
+    throw formatDbError(error);
   }
 }
 
@@ -104,7 +104,7 @@ export async function completeMovement(input: CompleteMovementInput): Promise<vo
       )
     `);
   } catch (error) {
-    throw formatPostgresError(error);
+    throw formatDbError(error);
   }
 }
 
@@ -120,6 +120,6 @@ export async function cancelMovement(input: CancelMovementInput): Promise<void> 
       )
     `);
   } catch (error) {
-    throw formatPostgresError(error);
+    throw formatDbError(error);
   }
 }

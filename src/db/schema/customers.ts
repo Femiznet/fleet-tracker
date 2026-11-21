@@ -6,34 +6,15 @@ export const customers = pgTable('customers', {
   name: varchar('name', { length: 255 }).notNull().unique(),
   geofenceName: varchar('geofence_name', { length: 100 }).unique(),
   location: varchar('location', { length: 255 }),
-  type: customerType("customer_type"),
-  is_active: boolean('is_active').default(true),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
+  type: customerType('customer_type').notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
 });
-
-// export interface ProcessedTextData {
-//   name: string;
-//   flowRate: number;
-//   pressure: number;
-// }
-
-// export const customerUpdates = pgTable('customer_updates', {
-//   id: uuid('id').primaryKey().defaultRandom(),
-//   customer_id: uuid('customer_id').notNull().references(() => customers.id),
-//   raw_text: text('raw_text').notNull(),
-//   processing_status: processingStatus("processing_status"),
-//   review_text: text('review_text'),
-//   processed_text: json('processed_text').$type<ProcessedTextData>(),  
-//   error_text: text('error_text'),
-//   created_at: timestamp('created_at').defaultNow(),
-//   updated_at: timestamp('updated_at').defaultNow(),
-// });
-
-
-// export type CustomerUpdate = typeof customerUpdates.$inferSelect;
-// export type NewCustomerUpdate = typeof customerUpdates.$inferInsert;
 
 export type Customer = typeof customers.$inferSelect;
 export type NewCustomer = typeof customers.$inferInsert;
-export type CustomerType = typeof customerType.enumValues[number];
+export type CustomerType = (typeof customerType.enumValues)[number];
