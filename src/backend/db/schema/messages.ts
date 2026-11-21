@@ -1,9 +1,11 @@
-import { boolean, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { customers } from './customers';
 import { type GreenApiSenderData } from '@/backend/services/messages/validator';
 import { CustomerUpdateMessage } from '@/backend/services/messages/utils/updateParser';
 import { messageTypeEnum } from './enums';
 import { DispatchDetails } from '@/backend/services/messages/utils/dispatchParser';
+import { movements } from './movements';
 
 export const messages = pgTable('messages', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -26,7 +28,26 @@ export const processedMessages = pgTable('processed_messages', {
   warnings: jsonb('warnings').$type<string[]>().notNull().default([]),
   data: jsonb('data').$type<CustomerUpdateMessage | DispatchDetails>(), // the clean JSON
   processedAt: timestamp('processed_at').defaultNow(),
+  reviewStatus: text('review_status', {
+    enum: ['pending', 'duplicate', 'approved', 'rejected'],
+  }),
+  dispatchFingerprint: text('dispatch_fingerprint'),
+  duplicateOfMessageId: uuid('duplicate_of_message_id'),
+  movementId: uuid('movement_id').references(() => movements.id),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+  notificationDueAt: timestamp('notification_due_at', { withTimezone: true }),
+  notificationText: text('notification_text'),
+  notifiedAt: timestamp('notified_at', { withTimezone: true }),
+  notificationMessageId: text('notification_message_id'),
   },
+  (table) => [
+    uniqueIndex('unq_approved_dispatch_fingerprint')
+      .on(table.dispatchFingerprint)
+      .where(sql`${table.reviewStatus} = 'approved' AND ${table.dispatchFingerprint} IS NOT NULL`),
+    uniqueIndex('unq_dispatch_notification_message_id')
+      .on(table.notificationMessageId)
+      .where(sql`${table.notificationMessageId} IS NOT NULL`),
+  ]
 );
 
 // Inferred TypeScript types for inserts and queries

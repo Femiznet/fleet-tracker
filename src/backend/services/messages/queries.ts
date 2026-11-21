@@ -1,6 +1,6 @@
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/backend/db';
-import { messages, type Message } from '@/backend/db/schema/messages';
+import { messages, processedMessages, type Message } from '@/backend/db/schema/messages';
 import type {
   GreenApiSenderData,
 } from '@/backend/services/messages/validator';
@@ -8,6 +8,24 @@ import type {
 export type ProcessGreenApiMessageResult =
   | { success: true; data: Message }
   | { success: false; message: string };
+
+export async function getLatestProcessedCustomerUpdate(customerId: string) {
+  const [result] = await db
+    .select({
+      messageId: messages.id,
+      receivedAt: messages.createdAt,
+      status: processedMessages.status,
+      warnings: processedMessages.warnings,
+      data: processedMessages.data,
+    })
+    .from(messages)
+    .innerJoin(processedMessages, eq(processedMessages.messageId, messages.id))
+    .where(and(eq(messages.customerId, customerId), eq(messages.type, 'update')))
+    .orderBy(desc(messages.createdAt))
+    .limit(1);
+
+  return result ?? null;
+}
 
 type BaseHandlerParams = {
   customerId: string;

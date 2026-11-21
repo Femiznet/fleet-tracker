@@ -1,8 +1,9 @@
-import { asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, ne, or, sql } from 'drizzle-orm';
 import { db } from '@/backend/db';
 import { messages, processedMessages, type Message, type NewProcessedMessage } from '@/backend/db/schema/messages';
 import { parseUpdate } from '@/backend/services/messages/utils/updateParser';
-import { parseDispatchDetails } from '@/backend/services/messages/utils/dispatchParser';
+import { DispatchDetailsSchema, parseDispatchDetails } from '@/backend/services/messages/utils/dispatchParser';
+import { createDispatchFingerprint } from '@/backend/services/messages/dispatch-review';
 
 export type Outcome = 'ok' | 'needs_review' | 'failed' | 'ignored';
 
@@ -16,6 +17,16 @@ function toRow(message: Message, parse: typeof parseUpdate | typeof parseDispatc
       status: result.status,
       warnings: result.warnings,
       data: result.data,
+      reviewStatus: message.type === 'dispatch' ? 'pending' : null,
+      dispatchFingerprint: message.type === 'dispatch'
+        ? (() => {
+            const parsedDetails = DispatchDetailsSchema.safeParse(result.data);
+            return parsedDetails.success
+              ? createDispatchFingerprint(message.customerId, parsedDetails.data)
+              : null;
+          })()
+        : null,
+      duplicateOfMessageId: null,
     };
   } catch (err) {
     return {
@@ -31,27 +42,54 @@ function toRow(message: Message, parse: typeof parseUpdate | typeof parseDispatc
 const save = async (rows: NewProcessedMessage[]) => {
   if (rows.length === 0) return;
 
-  const messageIds = rows.map((row) => row.messageId);
-
   await db.transaction(async (tx) => {
-    await tx
-      .insert(processedMessages)
-      .values(rows)
-      .onConflictDoUpdate({
-        target: processedMessages.messageId,
-        set: {
-          data: sql`excluded.data`,
-          processedAt: sql`excluded.processed_at`,
-          status: sql`excluded.status`,
-          warnings: sql`excluded.warnings`,
-        },
-      })
-      .returning({ data: processedMessages.data });
+    for (const row of rows) {
+      let rowToSave = row;
 
-    await tx
-      .update(messages)
-      .set({ isProcessed: true })
-      .where(inArray(messages.id, messageIds));
+      if (row.reviewStatus === 'pending' && row.dispatchFingerprint) {
+        const [duplicate] = await tx
+          .select({ messageId: processedMessages.messageId })
+          .from(processedMessages)
+          .where(and(
+            eq(processedMessages.dispatchFingerprint, row.dispatchFingerprint),
+            ne(processedMessages.messageId, row.messageId),
+            or(
+              eq(processedMessages.reviewStatus, 'pending'),
+              eq(processedMessages.reviewStatus, 'approved')
+            )
+          ))
+          .limit(1);
+
+        if (duplicate) {
+          rowToSave = {
+            ...row,
+            reviewStatus: 'duplicate',
+            duplicateOfMessageId: duplicate.messageId,
+          };
+        }
+      }
+
+      await tx
+        .insert(processedMessages)
+        .values(rowToSave)
+        .onConflictDoUpdate({
+          target: processedMessages.messageId,
+          set: {
+            data: sql`excluded.data`,
+            processedAt: sql`excluded.processed_at`,
+            status: sql`excluded.status`,
+            warnings: sql`excluded.warnings`,
+            reviewStatus: sql`excluded.review_status`,
+            dispatchFingerprint: sql`excluded.dispatch_fingerprint`,
+            duplicateOfMessageId: sql`excluded.duplicate_of_message_id`,
+          },
+        });
+
+      await tx
+        .update(messages)
+        .set({ isProcessed: true })
+        .where(eq(messages.id, row.messageId));
+    }
   });
 };
 

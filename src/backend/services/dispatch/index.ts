@@ -1,4 +1,4 @@
-import { db } from '@/backend/db';
+import { db, dbtx, type DbTransaction } from '@/backend/db';
 import { formatDbError } from '@/backend/lib/errors';
 import { sql } from 'drizzle-orm';
 
@@ -35,9 +35,12 @@ export interface CancelMovementInput {
 /**
  * 1. Create a new full roundtrip dispatch (GASTECH PLANT -> Customer -> GASTECH PLANT)
  */
-export async function createDispatch(input: CreateDispatchInput): Promise<string> {
+export async function createDispatch(
+  input: CreateDispatchInput,
+  tx?: DbTransaction
+): Promise<string> {
   try {
-    const result = await db.execute<{ movement_id: string }>(sql`
+    const result = await dbtx(tx).execute<{ movement_id: string }>(sql`
       SELECT create_dispatch(
         ${input.truckId}::uuid,
         ${input.customerId}::uuid,

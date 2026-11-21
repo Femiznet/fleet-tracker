@@ -29,6 +29,25 @@ const GreenApiBaseWebhookSchema = z.object({
     .loose(),
 });
 
+const GreenApiOutgoingWebhookSchema = z.object({
+  typeWebhook: z.literal('outgoingMessageReceived'),
+  idMessage: z.string().min(1),
+  timestamp: z.number().int().positive(),
+  senderData: z.object({
+    chatId: z.string().min(1),
+  }),
+  messageData: z.discriminatedUnion('typeMessage', [
+    z.object({
+      typeMessage: z.literal('textMessage'),
+      textMessageData: z.object({ textMessage: z.string() }),
+    }),
+    z.object({
+      typeMessage: z.literal('extendedTextMessage'),
+      extendedTextMessageData: z.object({ text: z.string() }),
+    }),
+  ]),
+});
+
 const GreenApiExtendedTextDataSchema = z.object({
   text: z.string(),
 });
@@ -78,6 +97,7 @@ const GreenApiMessageDataSchema = z.discriminatedUnion('typeMessage', [
 
 export type GreenApiSenderData = z.infer<typeof GreenApiSenderDataSchema>;
 export type BaseWebhook = z.infer<typeof GreenApiBaseWebhookSchema>;
+export type GreenApiOutgoingWebhook = z.infer<typeof GreenApiOutgoingWebhookSchema>;
 type MessageData = z.infer<typeof GreenApiMessageDataSchema>;
 
 type BaseTreeError = ReturnType<typeof z.treeifyError<BaseWebhook>>;
@@ -105,6 +125,20 @@ export type GreenApiMessageResult =
       data: null;
       error: BaseTreeError | MessageDataTreeError | null;
     };
+
+export function parseGreenApiOutgoingMessage(payload: unknown) {
+  const parsed = GreenApiOutgoingWebhookSchema.safeParse(payload);
+  if (!parsed.success) return null;
+
+  return {
+    messageId: parsed.data.idMessage,
+    chatId: parsed.data.senderData.chatId,
+    sentAt: new Date(parsed.data.timestamp * 1000),
+    text: parsed.data.messageData.typeMessage === 'textMessage'
+      ? parsed.data.messageData.textMessageData.textMessage
+      : parsed.data.messageData.extendedTextMessageData.text,
+  };
+}
 
 export function parseGreenApiMessage(payload: unknown): GreenApiMessageResult {
   // 1. Validate outer webhook shape

@@ -24,10 +24,10 @@ CREATE TABLE "customers" (
 	"name" varchar(255) NOT NULL,
 	"geofence_name" varchar(100),
 	"location" varchar(255),
-	"customer_type" "customer_type",
-	"is_active" boolean DEFAULT true,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now(),
+	"customer_type" "customer_type" NOT NULL,
+	"is_active" boolean DEFAULT true NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "customers_name_unique" UNIQUE("name"),
 	CONSTRAINT "customers_geofence_name_unique" UNIQUE("geofence_name")
 );
@@ -108,6 +108,15 @@ CREATE TABLE "processed_messages" (
 	"warnings" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"data" jsonb,
 	"processed_at" timestamp DEFAULT now(),
+	"review_status" text,
+	"dispatch_fingerprint" text,
+	"duplicate_of_message_id" uuid,
+	"movement_id" uuid,
+	"approved_at" timestamp with time zone,
+	"notification_due_at" timestamp with time zone,
+	"notification_text" text,
+	"notified_at" timestamp with time zone,
+	"notification_message_id" text,
 	CONSTRAINT "processed_messages_message_id_unique" UNIQUE("message_id")
 );
 --> statement-breakpoint
@@ -158,9 +167,55 @@ ALTER TABLE "movements" ADD CONSTRAINT "movements_skid_id_out_skids_id_fk" FOREI
 ALTER TABLE "movements" ADD CONSTRAINT "movements_skid_id_in_skids_id_fk" FOREIGN KEY ("skid_id_in") REFERENCES "public"."skids"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "processed_messages" ADD CONSTRAINT "processed_messages_message_id_messages_id_fk" FOREIGN KEY ("message_id") REFERENCES "public"."messages"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "processed_messages" ADD CONSTRAINT "processed_messages_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "processed_messages" ADD CONSTRAINT "processed_messages_movement_id_movements_id_fk" FOREIGN KEY ("movement_id") REFERENCES "public"."movements"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "skids" ADD CONSTRAINT "skids_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "trips" ADD CONSTRAINT "trips_movement_id_movements_id_fk" FOREIGN KEY ("movement_id") REFERENCES "public"."movements"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-CREATE UNIQUE INDEX "unq_active_movement_per_truck" ON "movements" USING btree ("truck_id") WHERE "movements"."status" = 'in_progress';
+CREATE UNIQUE INDEX "unq_active_movement_per_truck" ON "movements" USING btree ("truck_id") WHERE "movements"."status" = 'in_progress';--> statement-breakpoint
+CREATE UNIQUE INDEX "unq_approved_dispatch_fingerprint" ON "processed_messages" USING btree ("dispatch_fingerprint") WHERE "processed_messages"."review_status" = 'approved' AND "processed_messages"."dispatch_fingerprint" IS NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "unq_dispatch_notification_message_id" ON "processed_messages" USING btree ("notification_message_id") WHERE "processed_messages"."notification_message_id" IS NOT NULL;
+--> statement-breakpoint
+-- Migration SQL: dispatch-review-backfill.sql
+WITH dispatch_messages AS (
+	SELECT
+		p."message_id",
+		CASE
+			WHEN NULLIF(TRIM(p."data" ->> 'truckNumber'), '') IS NOT NULL
+				AND NULLIF(TRIM(p."data" ->> 'skidNumber'), '') IS NOT NULL
+				AND NULLIF(TRIM(p."data" ->> 'dateOut'), '') IS NOT NULL
+			THEN CONCAT(
+				p."customer_id"::text, ':',
+				UPPER(REGEXP_REPLACE(TRIM(p."data" ->> 'truckNumber'), '\s+', '', 'g')), ':',
+				UPPER(REGEXP_REPLACE(TRIM(p."data" ->> 'skidNumber'), '\s+', '', 'g')), ':',
+				TRIM(p."data" ->> 'dateOut')
+			)
+			ELSE NULL
+		END AS fingerprint,
+		p."processed_at"
+	FROM "processed_messages" p
+	INNER JOIN "messages" m ON m."id" = p."message_id"
+	WHERE m."type" = 'dispatch'
+),
+ranked_dispatches AS (
+	SELECT
+		"message_id",
+		fingerprint,
+		ROW_NUMBER() OVER (PARTITION BY fingerprint ORDER BY "processed_at", "message_id") AS duplicate_rank,
+		FIRST_VALUE("message_id") OVER (PARTITION BY fingerprint ORDER BY "processed_at", "message_id") AS first_message_id
+	FROM dispatch_messages
+)
+UPDATE "processed_messages" p
+SET
+	"review_status" = CASE
+		WHEN ranked.fingerprint IS NOT NULL AND ranked.duplicate_rank > 1 THEN 'duplicate'
+		ELSE 'pending'
+	END,
+	"dispatch_fingerprint" = ranked.fingerprint,
+	"duplicate_of_message_id" = CASE
+		WHEN ranked.fingerprint IS NOT NULL AND ranked.duplicate_rank > 1 THEN ranked.first_message_id
+		ELSE NULL
+	END
+FROM ranked_dispatches ranked
+WHERE p."message_id" = ranked."message_id";
 --> statement-breakpoint
 -- Function: cancel-dispatch.sql
 CREATE OR REPLACE FUNCTION cancel_dispatch(

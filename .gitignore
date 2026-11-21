@@ -45,4 +45,6 @@ next-env.d.ts
 **/test/
 test.sh
 src/backend/db-functions/test/
-scripts/
+!scripts/
+scripts/*
+!scripts/append-db-sql.ts
