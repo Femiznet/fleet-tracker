@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { HCL_URL, queryHclTracker } from '@/lib/hcltracker/utils';
+import { apiError, apiSuccess } from '@/lib/api-response';
 
 async function fetchAddress({lat, lon, cookies}:{lat: string, lon: string, cookies: string}) {
   return fetch(
@@ -23,15 +24,12 @@ export async function GET(request: NextRequest) {
   const lon = searchParams.get('lon');
 
   if (!lat || !lon) {
-    return NextResponse.json(
-      { error: 'Both lat and lon query parameters are required.' },
-      { status: 400 }
-    );
+    return apiError({ code: 'VALIDATION_ERROR', message: 'Both lat and lon query parameters are required.' }, 400);
   }
 
   try {
     const fetchAddressTask = (cookies: string) => fetchAddress({ lat, lon, cookies });
-    return queryHclTracker({
+    const data = await queryHclTracker({
       fetchApiWithCookies: fetchAddressTask,
       parseResponse: async (res) => ({
         lat,
@@ -39,9 +37,10 @@ export async function GET(request: NextRequest) {
         address: (await res.text()).trim(),
       }),
     });
+    return apiSuccess(data);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiError({ code: 'UPSTREAM_ERROR', message }, 502);
   }
 }
 

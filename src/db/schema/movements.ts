@@ -43,3 +43,6 @@ export const movements = pgTable('movements',{
     ),
   ]
 );
+
+export type Movement = typeof movements.$inferSelect;
+export type NewMovement = typeof movements.$inferInsert;

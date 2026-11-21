@@ -1,6 +1,7 @@
 // app/api/cron/process-messages/route.ts
 
 import { processPendingMessages } from "@/actions/messages/process";
+import { apiError, apiSuccess } from "@/lib/api-response";
 
 // export const dynamic = 'force-dynamic'; // never cache this route
 // export const maxDuration = 60;          // seconds; raise if your backlog can be large
@@ -8,17 +9,17 @@ import { processPendingMessages } from "@/actions/messages/process";
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
-    return Response.json({ ok: false, error: 'CRON_SECRET is not set' }, { status: 500 });
+    return apiError({ code: 'CONFIG_ERROR', message: 'CRON_SECRET is not set' }, 500);
   }
   if (request.headers.get('authorization') !== `Bearer ${secret}`) {
-    return Response.json({ ok: false, error: 'unauthorized' }, { status: 401 });
+    return apiError({ code: 'UNAUTHORIZED', message: 'Unauthorized' }, 401);
   }
 
   try {
     const summary = await processPendingMessages();
-    return Response.json({ ok: true, summary });
+    return apiSuccess({ summary });
   } catch (err) {
     console.error('process-messages cron failed', err);
-    return Response.json({ ok: false, error: 'processing failed' }, { status: 500 });
+    return apiError({ code: 'PROCESSING_FAILED', message: 'Processing failed' }, 500);
   }
 }

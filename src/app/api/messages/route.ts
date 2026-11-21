@@ -1,7 +1,8 @@
 import { processGreenApiMessage } from "@/actions/messages";
 import { returnValueDebugger } from "@/lib/errors";
 import { parseGreenApiMessage, type BaseWebhook } from "@/services/messages/validator";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { apiSuccess } from "@/lib/api-response";
 
 export async function POST(request: NextRequest) {
     const body = (await request.json()) as BaseWebhook;
@@ -9,7 +10,7 @@ export async function POST(request: NextRequest) {
  
     if (messageResult.error) {
         returnValueDebugger(messageResult);
-        return NextResponse.json({ ok: true });
+        return apiSuccess({ ok: true });
     }
     
     if (messageResult.data) {
@@ -17,5 +18,5 @@ export async function POST(request: NextRequest) {
         if (!result.success) returnValueDebugger(result);
     }
 
-    return NextResponse.json({ ok: true });
+    return apiSuccess({ ok: true });
 }

@@ -92,16 +92,8 @@ export async function getCleanVehicles(
   limit = '100',
   filterGroup?: string
 ): Promise<CleanVehicle[]> {
-  const result = await queryHclTracker({
+  return queryHclTracker({
     fetchApiWithCookies: (cookies: string) => fetchVehiclesPage(page, limit, cookies),
     parseResponse: (res) => parseVehicles(res, filterGroup),
   });
-
-  // Note: If your queryHclTracker returns a NextResponse, extract its JSON data:
-  if (result instanceof Response) {
-    const json = await result.json();
-    return Array.isArray(json) ? json : json.data ?? [];
-  }
-
-  return result as CleanVehicle[];
 }

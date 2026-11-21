@@ -1,14 +1,18 @@
-import { NextResponse } from 'next/server';
-import { getCustomers } from '@/services/customers/query';
+import { listCustomers } from '@/services/customers/query';
 import { createCustomerAction } from '@/actions/customers';
+import { apiDbError, apiError, apiSuccess } from '@/lib/api-response';
+import { getPagination, getPaginationMeta } from '@/lib/pagination';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const data = await getCustomers();
-    return NextResponse.json({ data });
+    const pagination = getPagination(request);
+    const search = new URL(request.url).searchParams.get('search')?.trim() || undefined;
+    const result = await listCustomers(pagination.page, pagination.limit, search);
+    return apiSuccess(result.rows, {
+      pagination: getPaginationMeta(pagination.page, pagination.limit, result.total),
+    });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to fetch customers' }, { status: 500 });
+    return apiDbError(error);
   }
 }
 
@@ -18,16 +22,15 @@ export async function POST(req: Request) {
     const result = await createCustomerAction(body);
 
     if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: 400 });
+      return apiError({ code: 'VALIDATION_ERROR', message: 'Invalid customer data', details: result.error }, 400);
     }
 
     if (!result.data) {
-      return NextResponse.json({ error: 'Customer not created' }, { status: 404 });
+      return apiError({ code: 'CREATE_FAILED', message: 'Customer not created' }, 500);
     }
 
-    return NextResponse.json({ data: result.data }, { status: 201 });
+    return apiSuccess(result.data, { status: 201 });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to create customer' }, { status: 500 });
+    return apiDbError(error);
   }
 }

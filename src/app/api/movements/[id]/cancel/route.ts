@@ -1,5 +1,6 @@
 import { cancelMovement } from '@/services/dispatch';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+import { apiError, apiSuccess } from '@/lib/api-response';
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -15,11 +16,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
       note: body.note ?? null,
     });
 
-    return NextResponse.json({ movementId: id, status: 'cancelled' });
+    return apiSuccess({ movementId: id, status: 'cancelled' });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Failed to cancel movement';
 
-    return NextResponse.json({ error: message }, { status: 400 });
+    return apiError({ code: 'MOVEMENT_FAILED', message }, 400);
   }
 }

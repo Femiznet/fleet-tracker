@@ -1,12 +1,12 @@
 // app/api/cron/sync-locations/route.ts
-import { NextResponse } from 'next/server';
 import { processBatchTruckLocations } from '@/lib/updateTruckGps';
 import { getCleanVehicles } from '@/lib/hcltracker/vehicles';
+import { apiError, apiSuccess } from '@/lib/api-response';
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization');
   if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return apiError({ code: 'UNAUTHORIZED', message: 'Unauthorized' }, 401);
   }
 
   try {
@@ -27,9 +27,9 @@ export async function GET(request: Request) {
   await processBatchTruckLocations(data);
   
 
-    return NextResponse.json({ processed: data.length });
+    return apiSuccess({ processed: data.length });
   } catch (error) {
     console.error('Sync locations cron error:', error);
-    return NextResponse.json({ error: 'Sync failed' }, { status: 500 });
+    return apiError({ code: 'SYNC_FAILED', message: 'Sync failed' }, 500);
   }
 }

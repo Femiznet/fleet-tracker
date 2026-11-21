@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server';
 import { getCustomerById } from '@/services/customers/query';
 import {
   deleteCustomerAction,
   updateCustomerAction,
 } from '@/actions/customers';
+import { apiDbError, apiError, apiSuccess } from '@/lib/api-response';
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -15,13 +15,12 @@ export async function GET(_req: Request, { params }: RouteContext) {
     const data = await getCustomerById(id);
 
     if (!data) {
-      return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+      return apiError({ code: 'NOT_FOUND', message: 'Customer not found' }, 404);
     }
 
-    return NextResponse.json({ data });
+    return apiSuccess(data);
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to fetch customer' }, { status: 500 });
+    return apiDbError(error);
   }
 }
 
@@ -32,17 +31,16 @@ export async function PATCH(req: Request, { params }: RouteContext) {
     const result = await updateCustomerAction(id, body);
 
     if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: 400 });
+      return apiError({ code: 'VALIDATION_ERROR', message: 'Invalid customer data', details: result.error }, 400);
     }
 
     if (!result.data) {
-      return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+      return apiError({ code: 'NOT_FOUND', message: 'Customer not found' }, 404);
     }
 
-    return NextResponse.json({ data: result.data });
+    return apiSuccess(result.data);
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to update customer' }, { status: 500 });
+    return apiDbError(error);
   }
 }
 
@@ -52,12 +50,11 @@ export async function DELETE(_req: Request, { params }: RouteContext) {
     const result = await deleteCustomerAction(id);
 
     if (!result.data) {
-      return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+      return apiError({ code: 'NOT_FOUND', message: 'Customer not found' }, 404);
     }
 
-    return NextResponse.json({ data: result.data });
+    return apiSuccess(result.data);
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to delete customer' }, { status: 500 });
+    return apiDbError(error);
   }
 }

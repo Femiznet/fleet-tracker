@@ -1,15 +1,13 @@
 import { createDispatch } from '@/services/dispatch';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+import { apiError, apiSuccess } from '@/lib/api-response';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
     if (!body.truckId || !body.customerId || !body.skidIdOut) {
-      return NextResponse.json(
-        { error: 'truckId, customerId, and skidIdOut are required' },
-        { status: 400 }
-      );
+      return apiError({ code: 'VALIDATION_ERROR', message: 'truckId, customerId, and skidIdOut are required' }, 400);
     }
 
     const movementId = await createDispatch({
@@ -20,15 +18,12 @@ export async function POST(req: NextRequest) {
       forceOverride: Boolean(body.forceOverride),
     });
 
-    return NextResponse.json({ movementId }, { status: 201 });
+    return apiSuccess({ movementId }, { status: 201 });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Failed to create dispatch';
     const requiresOverride = message.includes('Use manual override');
 
-    return NextResponse.json(
-      { error: message, requiresOverride },
-      { status: requiresOverride ? 409 : 400 }
-    );
+    return apiError({ code: requiresOverride ? 'OVERRIDE_REQUIRED' : 'MOVEMENT_FAILED', message, field: requiresOverride ? 'forceOverride' : undefined }, requiresOverride ? 409 : 400);
   }
 }

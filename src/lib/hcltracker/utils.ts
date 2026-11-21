@@ -1,5 +1,3 @@
-import { NextResponse } from 'next/server';
-
 export const HCL_URL = process.env.HCL_BASE_URL!;
 
 let cachedCookieHeader: string | null = null;
@@ -108,10 +106,7 @@ export async function queryHclTracker<T = unknown>({
       }
   
       if (!returnValue.ok) {
-        return NextResponse.json(
-          { error: `Upstream server returned ${returnValue.status}` },
-          { status: returnValue.status }
-        );
+        throw new Error(`Upstream server returned ${returnValue.status}`);
       }
   
       // Parse the Response stream (defaults to JSON if no custom parser is provided)
@@ -119,9 +114,8 @@ export async function queryHclTracker<T = unknown>({
         ? await parseResponse(returnValue)
         : await returnValue.json();
   
-      return NextResponse.json({ data });
+      return data;
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Internal server error';
-      return NextResponse.json({ error: message }, { status: 500 });
+      throw error instanceof Error ? error : new Error('Internal server error');
     }
 }

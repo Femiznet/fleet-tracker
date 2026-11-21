@@ -1,5 +1,6 @@
 import { completeMovement } from '@/services/dispatch';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+import { apiError, apiSuccess } from '@/lib/api-response';
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -17,15 +18,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
       forceOverride: Boolean(body.forceOverride),
     });
 
-    return NextResponse.json({ movementId: id, status: 'completed' });
+    return apiSuccess({ movementId: id, status: 'completed' });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Failed to complete movement';
     const requiresOverride = message.includes('manual override');
 
-    return NextResponse.json(
-      { error: message, requiresOverride },
-      { status: requiresOverride ? 409 : 400 }
-    );
+    return apiError({ code: requiresOverride ? 'OVERRIDE_REQUIRED' : 'MOVEMENT_FAILED', message, field: requiresOverride ? 'forceOverride' : undefined }, requiresOverride ? 409 : 400);
   }
 }

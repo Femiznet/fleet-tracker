@@ -1,8 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { plantReports, PlantReportMetrics } from '@/db/schema/plant-report';
 import { formatPlantReportMessage } from '@/services/plant/report';
+import { apiDbError, apiError, apiSuccess } from '@/lib/api-response';
+import { updatePlantReportSchema } from '@/services/schema/validators';
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -23,7 +25,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
       .limit(1);
 
     if (!report) {
-      return NextResponse.json({ error: 'Plant report not found' }, { status: 404 });
+      return apiError({ code: 'NOT_FOUND', message: 'Plant report not found' }, 404);
     }
 
     const formattedMessage = report.fleetSnapshot
@@ -34,11 +36,9 @@ export async function GET(_req: NextRequest, context: RouteContext) {
         )
       : null;
 
-    return NextResponse.json({ report, formattedMessage });
+    return apiSuccess({ report, formattedMessage });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Failed to fetch plant report';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiDbError(error);
   }
 }
 
@@ -49,7 +49,14 @@ export async function GET(_req: NextRequest, context: RouteContext) {
 export async function PATCH(req: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
-    const body = await req.json();
+    const parsed = updatePlantReportSchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return apiError({
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid plant report data',
+        details: parsed.error.flatten(),
+      }, 400);
+    }
 
     const [existing] = await db
       .select()
@@ -58,35 +65,33 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       .limit(1);
 
     if (!existing) {
-      return NextResponse.json({ error: 'Plant report not found' }, { status: 404 });
+      return apiError({ code: 'NOT_FOUND', message: 'Plant report not found' }, 404);
     }
 
     const updatedOfficers =
-      body.officersOnDuty !== undefined
-        ? String(body.officersOnDuty).trim()
+      parsed.data.officersOnDuty !== undefined
+        ? parsed.data.officersOnDuty
         : existing.officersOnDuty;
 
     if (!updatedOfficers) {
-      return NextResponse.json(
-        { error: 'Officers on duty cannot be empty' },
-        { status: 400 }
-      );
+      return apiError({ code: 'VALIDATION_ERROR', message: 'Officers on duty cannot be empty' }, 400);
     }
 
     // Merge existing metrics with incoming changes so partial edits don't wipe other fields
     const updatedMetrics: PlantReportMetrics =
-      body.metrics !== undefined
-        ? { ...existing.metrics, ...body.metrics }
+      parsed.data.metrics !== undefined
+        ? { ...existing.metrics, ...parsed.data.metrics }
         : existing.metrics;
+    const typedMetrics = updatedMetrics as PlantReportMetrics;
 
     const updatedNotes =
-      body.notes !== undefined ? body.notes : existing.notes;
+      parsed.data.notes !== undefined ? parsed.data.notes : existing.notes;
 
     const [updatedReport] = await db
       .update(plantReports)
       .set({
         officersOnDuty: updatedOfficers,
-        metrics: updatedMetrics,
+        metrics: typedMetrics,
         notes: updatedNotes,
       })
       .where(eq(plantReports.id, id))
@@ -100,14 +105,9 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         )
       : null;
 
-    return NextResponse.json({
-      report: updatedReport,
-      formattedMessage,
-    });
+    return apiSuccess({ report: updatedReport, formattedMessage });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Failed to update plant report';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiDbError(error);
   }
 }
 
@@ -125,13 +125,11 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
       .returning({ id: plantReports.id });
 
     if (!deleted) {
-      return NextResponse.json({ error: 'Plant report not found' }, { status: 404 });
+      return apiError({ code: 'NOT_FOUND', message: 'Plant report not found' }, 404);
     }
 
-    return NextResponse.json({ deletedId: deleted.id, success: true });
+    return apiSuccess({ deletedId: deleted.id });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Failed to delete plant report';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiDbError(error);
   }
 }

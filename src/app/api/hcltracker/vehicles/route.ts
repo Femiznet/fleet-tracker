@@ -1,6 +1,7 @@
 // app/api/hcltracker/vehicles/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getCleanVehicles } from '@/lib/hcltracker/vehicles';
+import { apiError, apiSuccess } from '@/lib/api-response';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -8,17 +9,14 @@ export async function GET(request: NextRequest) {
   const limit = searchParams.get('per_page');
 
   if (!page || !limit) {
-    return NextResponse.json(
-      { error: 'Both page and per_page query parameters are required.' },
-      { status: 400 }
-    );
+    return apiError({ code: 'VALIDATION_ERROR', message: 'Both page and per_page query parameters are required.' }, 400);
   }
 
   try {
     const vehicles = await getCleanVehicles(page, limit);
-    return NextResponse.json({ data: vehicles });
+    return apiSuccess(vehicles);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiError({ code: 'UPSTREAM_ERROR', message }, 502);
   }
 }
