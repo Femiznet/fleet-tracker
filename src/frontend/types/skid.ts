@@ -13,7 +13,7 @@ export const SkidSchema = z.object({
   status: SkidStatusSchema,
   isNew: z.boolean(),
   owner: SkidOwnerSchema,
-  isOnMaintenance: z.boolean(),
+  isOnMaintenance: z.boolean().optional(),
 });
 
 export type SkidStatus = z.infer<typeof SkidStatusSchema>;
