@@ -14,6 +14,7 @@ DECLARE
   v_customer_geofence VARCHAR;
   v_skid_status skid_status;
   v_skid_loc VARCHAR;
+  v_track_skid_location BOOLEAN;
   v_final_note TEXT;
   v_movement_id UUID;
 BEGIN
@@ -47,8 +48,8 @@ BEGIN
 
   -- 3. Validate skid_id_in if already known at pickup time
   IF p_skid_id_in IS NOT NULL THEN
-    SELECT status, current_loc
-    INTO v_skid_status, v_skid_loc
+    SELECT status, current_loc, owner != 'customer' AND customer_id IS NULL
+    INTO v_skid_status, v_skid_loc, v_track_skid_location
     FROM skids
     WHERE id = p_skid_id_in
     FOR UPDATE;
@@ -61,7 +62,7 @@ BEGIN
       RAISE EXCEPTION 'Skid must be at a customer site for pickup (Current status: %)', v_skid_status;
     END IF;
 
-    IF NOT p_force_override AND TRIM(v_skid_loc) != TRIM(v_customer_geofence) THEN
+    IF v_track_skid_location AND NOT p_force_override AND TRIM(v_skid_loc) != TRIM(v_customer_geofence) THEN
       RAISE EXCEPTION 'Skid is recorded at %, not at this customer (%)', v_skid_loc, v_customer_geofence;
     END IF;
   END IF;
@@ -113,10 +114,16 @@ BEGIN
   WHERE id = p_truck_id;
 
   IF p_skid_id_in IS NOT NULL THEN
-    UPDATE skids
-    SET status = 'in_transit',
-        current_loc = v_truck_loc
-    WHERE id = p_skid_id_in;
+    IF v_track_skid_location THEN
+      UPDATE skids
+      SET status = 'in_transit',
+          current_loc = v_truck_loc
+      WHERE id = p_skid_id_in;
+    ELSE
+      UPDATE skids
+      SET status = 'in_transit'
+      WHERE id = p_skid_id_in;
+    END IF;
   END IF;
 
   RETURN v_movement_id;

@@ -49,7 +49,7 @@ export async function getLivePlantFleetSnapshot(tx?: DbTransaction): Promise<Pla
       .leftJoin(plantSkidStatuses, eq(plantSkidStatuses.skidId, skids.id))
       .where(
         or(
-          eq(plantSkidStatuses.isOnMaintenance, true),
+          and(eq(skids.owner, 'gastech'), eq(plantSkidStatuses.isOnMaintenance, true)),
           and(eq(skids.status, 'available'), sql`TRIM(${skids.currentLoc}) = 'GASTECH PLANT'`)
         )
       ),

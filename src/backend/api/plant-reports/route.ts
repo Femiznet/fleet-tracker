@@ -87,7 +87,11 @@ export async function GET(request: NextRequest) {
 
     return apiSuccess({
       fleetSnapshot,
-      plantSkids,
+      plantSkids: plantSkids.map((skid) =>
+        skid.owner === 'customer'
+          ? { ...skid, isOnMaintenance: false, maintenanceNote: null }
+          : skid
+      ),
       plantTrucks,
       latestReport: latestReport
         ? {

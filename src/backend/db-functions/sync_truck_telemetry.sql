@@ -71,7 +71,9 @@ BEGIN
         UPDATE skids
         SET current_loc = NEW.current_loc
         WHERE id = v_active_skid_id
-          AND status = 'in_transit';
+          AND status = 'in_transit'
+          AND owner != 'customer'
+          AND customer_id IS NULL;
       END IF;
     END IF;
 

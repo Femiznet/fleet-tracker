@@ -37,10 +37,46 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
           400
         );
       }
+      if (parsed.data.currentLoc !== undefined) {
+        const existingSkid = await getSkidById(id);
+        if (!existingSkid) {
+          return apiError({ code: 'NOT_FOUND', message: 'Skid not found' }, 404);
+        }
+        if (
+          (existingSkid.owner === 'customer' || existingSkid.customerId) &&
+          parsed.data.currentLoc !== 'pending'
+        ) {
+          return apiError(
+            {
+              code: 'CUSTOMER_SKID_LOCATION_UNTRACKED',
+              message: 'Customer skid locations are not tracked and must remain pending.',
+            },
+            400
+          );
+        }
+      }
       const skid = await updateSkid(id, parsed.data);
       return skid
         ? apiSuccess(skid)
         : apiError({ code: 'NOT_FOUND', message: 'Skid not found' }, 404);
+    }
+
+    const existingSkid = await getSkidById(id);
+    if (!existingSkid) {
+      return apiError({ code: 'NOT_FOUND', message: 'Skid not found' }, 404);
+    }
+    if (
+      (existingSkid.owner === 'customer' || existingSkid.customerId) &&
+      (statusParsed.data.isOnMaintenance === true ||
+        Boolean(statusParsed.data.maintenanceNote?.trim()))
+    ) {
+      return apiError(
+        {
+          code: 'CUSTOMER_SKID_MAINTENANCE_UNSUPPORTED',
+          message: 'Maintenance tracking is only available for Gastech-owned skids.',
+        },
+        400
+      );
     }
 
     const [status] = await db
@@ -50,8 +86,14 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
         fillState: statusParsed.data.fillState,
         bay: statusParsed.data.fillState === 'loading' ? 'loading_bay' : statusParsed.data.bay,
         note: statusParsed.data.note?.trim() || null,
-        isOnMaintenance: statusParsed.data.isOnMaintenance,
-        maintenanceNote: statusParsed.data.maintenanceNote?.trim() || null,
+        isOnMaintenance:
+          existingSkid.owner === 'customer' || existingSkid.customerId
+            ? false
+            : statusParsed.data.isOnMaintenance,
+        maintenanceNote:
+          existingSkid.owner === 'customer' || existingSkid.customerId
+            ? null
+            : statusParsed.data.maintenanceNote?.trim() || null,
       })
       .onConflictDoUpdate({
         target: plantSkidStatuses.skidId,
@@ -59,12 +101,16 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
           fillState: statusParsed.data.fillState,
           bay: statusParsed.data.fillState === 'loading' ? 'loading_bay' : statusParsed.data.bay,
           note: statusParsed.data.note?.trim() || null,
-          ...(statusParsed.data.isOnMaintenance !== undefined && {
-            isOnMaintenance: statusParsed.data.isOnMaintenance,
-          }),
-          ...(statusParsed.data.maintenanceNote !== undefined && {
-            maintenanceNote: statusParsed.data.maintenanceNote?.trim() || null,
-          }),
+          ...(existingSkid.owner === 'customer' || existingSkid.customerId
+            ? { isOnMaintenance: false, maintenanceNote: null }
+            : {
+                ...(statusParsed.data.isOnMaintenance !== undefined && {
+                  isOnMaintenance: statusParsed.data.isOnMaintenance,
+                }),
+                ...(statusParsed.data.maintenanceNote !== undefined && {
+                  maintenanceNote: statusParsed.data.maintenanceNote?.trim() || null,
+                }),
+              }),
           updatedAt: new Date(),
         },
       })

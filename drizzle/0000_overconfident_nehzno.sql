@@ -297,7 +297,10 @@ BEGIN
   IF v_movement.type = 'dispatch' AND v_movement.skid_id_out IS NOT NULL THEN
     UPDATE skids
     SET status = 'available',
-        current_loc = v_truck_loc
+        current_loc = CASE
+          WHEN owner = 'customer' OR customer_id IS NOT NULL THEN current_loc
+          ELSE v_truck_loc
+        END
     WHERE id = v_movement.skid_id_out;
   END IF;
 
@@ -305,7 +308,10 @@ BEGIN
   IF v_movement.type = 'pickup' AND v_movement.skid_id_in IS NOT NULL THEN
     UPDATE skids
     SET status = 'at_customer',
-        current_loc = v_truck_loc
+        current_loc = CASE
+          WHEN owner = 'customer' OR customer_id IS NOT NULL THEN current_loc
+          ELSE v_truck_loc
+        END
     WHERE id = v_movement.skid_id_in;
   END IF;
 END;
@@ -328,6 +334,7 @@ DECLARE
   v_skid_in_id UUID;
   v_skid_in_status skid_status;
   v_skid_in_loc VARCHAR;
+  v_track_skid_in_location BOOLEAN;
   v_final_note TEXT;
 BEGIN
   -- 1. Lock and fetch the movement
@@ -389,8 +396,8 @@ BEGIN
 
   -- 5. Validate skid_id_in (if provided and different from skid_id_out)
   IF v_skid_in_id IS NOT NULL AND (v_movement.skid_id_out IS NULL OR v_skid_in_id != v_movement.skid_id_out) THEN
-    SELECT status, current_loc
-    INTO v_skid_in_status, v_skid_in_loc
+    SELECT status, current_loc, owner != 'customer' AND customer_id IS NULL
+    INTO v_skid_in_status, v_skid_in_loc, v_track_skid_in_location
     FROM skids
     WHERE id = v_skid_in_id
     FOR UPDATE;
@@ -415,7 +422,11 @@ BEGIN
       END IF;
     END IF;
 
-    IF NOT p_force_override AND v_skid_in_status = 'at_customer' AND TRIM(v_skid_in_loc) != TRIM(v_customer_geofence) THEN
+    IF NOT p_force_override
+      AND v_track_skid_in_location
+      AND v_skid_in_status = 'at_customer'
+      AND TRIM(v_skid_in_loc) != TRIM(v_customer_geofence)
+    THEN
       RAISE EXCEPTION 'Returned skid is recorded at %, not at this customer (%). Use manual override if transferred.', v_skid_in_loc, v_customer_geofence;
     END IF;
   END IF;
@@ -426,18 +437,27 @@ BEGIN
     IF v_skid_in_id IS NOT NULL AND v_skid_in_id = v_movement.skid_id_out THEN
       UPDATE skids
       SET status = 'available',
-          current_loc = 'GASTECH PLANT'
+          current_loc = CASE
+            WHEN owner = 'customer' OR customer_id IS NOT NULL THEN current_loc
+            ELSE 'GASTECH PLANT'
+          END
       WHERE id = v_movement.skid_id_out;
     ELSE
       UPDATE skids
       SET status = 'at_customer',
-          current_loc = COALESCE(v_customer_geofence, 'AT CUSTOMER')
+          current_loc = CASE
+            WHEN owner = 'customer' OR customer_id IS NOT NULL THEN current_loc
+            ELSE COALESCE(v_customer_geofence, 'AT CUSTOMER')
+          END
       WHERE id = v_movement.skid_id_out;
 
       IF v_skid_in_id IS NOT NULL THEN
         UPDATE skids
         SET status = 'available',
-            current_loc = 'GASTECH PLANT'
+            current_loc = CASE
+              WHEN owner = 'customer' OR customer_id IS NOT NULL THEN current_loc
+              ELSE 'GASTECH PLANT'
+            END
         WHERE id = v_skid_in_id;
       END IF;
     END IF;
@@ -446,7 +466,10 @@ BEGIN
     IF v_skid_in_id IS NOT NULL THEN
       UPDATE skids
       SET status = 'available',
-          current_loc = 'GASTECH PLANT'
+          current_loc = CASE
+            WHEN owner = 'customer' OR customer_id IS NOT NULL THEN current_loc
+            ELSE 'GASTECH PLANT'
+          END
       WHERE id = v_skid_in_id;
     END IF;
   END IF;
@@ -487,6 +510,7 @@ DECLARE
   v_truck_loc VARCHAR;
   v_skid_status skid_status;
   v_skid_loc VARCHAR;
+  v_track_skid_location BOOLEAN;
   v_customer_geofence VARCHAR;
   v_final_note TEXT;
   v_movement_id UUID;
@@ -511,8 +535,8 @@ BEGIN
   END IF;
 
   -- 2. Lock and validate the outgoing skid
-  SELECT status, current_loc
-  INTO v_skid_status, v_skid_loc
+  SELECT status, current_loc, owner != 'customer' AND customer_id IS NULL
+  INTO v_skid_status, v_skid_loc, v_track_skid_location
   FROM skids
   WHERE id = p_skid_id_out
   FOR UPDATE;
@@ -525,7 +549,7 @@ BEGIN
     RAISE EXCEPTION 'Skid is not available for dispatch (Current status: %)', v_skid_status;
   END IF;
 
-  IF NOT p_force_override AND v_skid_loc != 'GASTECH PLANT' THEN
+  IF v_track_skid_location AND NOT p_force_override AND v_skid_loc != 'GASTECH PLANT' THEN
     RAISE EXCEPTION 'Skid location must be GASTECH PLANT to dispatch (Current location: %)', v_skid_loc;
   END IF;
 
@@ -540,7 +564,10 @@ BEGIN
 
   -- 4. Tag the note if a sensor override was used
   v_final_note := p_note;
-  IF p_force_override AND (v_truck_loc != 'GASTECH PLANT' OR v_skid_loc != 'GASTECH PLANT') THEN
+  IF p_force_override AND (
+    v_truck_loc != 'GASTECH PLANT'
+    OR (v_track_skid_location AND v_skid_loc != 'GASTECH PLANT')
+  ) THEN
     v_final_note := TRIM(COALESCE(p_note, '') || ' [Manual Sensor Override]');
   END IF;
 
@@ -584,10 +611,16 @@ BEGIN
   SET status = 'in_transit'
   WHERE id = p_truck_id;
 
-  UPDATE skids
-  SET status = 'in_transit',
-      current_loc = v_truck_loc
-  WHERE id = p_skid_id_out;
+  IF v_track_skid_location THEN
+    UPDATE skids
+    SET status = 'in_transit',
+        current_loc = v_truck_loc
+    WHERE id = p_skid_id_out;
+  ELSE
+    UPDATE skids
+    SET status = 'in_transit'
+    WHERE id = p_skid_id_out;
+  END IF;
 
   RETURN v_movement_id;
 END;
@@ -610,6 +643,7 @@ DECLARE
   v_customer_geofence VARCHAR;
   v_skid_status skid_status;
   v_skid_loc VARCHAR;
+  v_track_skid_location BOOLEAN;
   v_final_note TEXT;
   v_movement_id UUID;
 BEGIN
@@ -643,8 +677,8 @@ BEGIN
 
   -- 3. Validate skid_id_in if already known at pickup time
   IF p_skid_id_in IS NOT NULL THEN
-    SELECT status, current_loc
-    INTO v_skid_status, v_skid_loc
+    SELECT status, current_loc, owner != 'customer' AND customer_id IS NULL
+    INTO v_skid_status, v_skid_loc, v_track_skid_location
     FROM skids
     WHERE id = p_skid_id_in
     FOR UPDATE;
@@ -657,7 +691,7 @@ BEGIN
       RAISE EXCEPTION 'Skid must be at a customer site for pickup (Current status: %)', v_skid_status;
     END IF;
 
-    IF NOT p_force_override AND TRIM(v_skid_loc) != TRIM(v_customer_geofence) THEN
+    IF v_track_skid_location AND NOT p_force_override AND TRIM(v_skid_loc) != TRIM(v_customer_geofence) THEN
       RAISE EXCEPTION 'Skid is recorded at %, not at this customer (%)', v_skid_loc, v_customer_geofence;
     END IF;
   END IF;
@@ -709,15 +743,114 @@ BEGIN
   WHERE id = p_truck_id;
 
   IF p_skid_id_in IS NOT NULL THEN
-    UPDATE skids
-    SET status = 'in_transit',
-        current_loc = v_truck_loc
-    WHERE id = p_skid_id_in;
+    IF v_track_skid_location THEN
+      UPDATE skids
+      SET status = 'in_transit',
+          current_loc = v_truck_loc
+      WHERE id = p_skid_id_in;
+    ELSE
+      UPDATE skids
+      SET status = 'in_transit'
+      WHERE id = p_skid_id_in;
+    END IF;
   END IF;
 
   RETURN v_movement_id;
 END;
 $$;
+--> statement-breakpoint
+-- Function: customer-skid-guards.sql
+CREATE OR REPLACE FUNCTION prevent_customer_skid_maintenance()
+RETURNS trigger AS $$
+BEGIN
+  IF (NEW.is_on_maintenance OR NULLIF(TRIM(NEW.maintenance_note), '') IS NOT NULL) AND EXISTS (
+    SELECT 1
+    FROM skids
+    WHERE id = NEW.skid_id
+      AND (owner = 'customer' OR customer_id IS NOT NULL)
+  ) THEN
+    RAISE EXCEPTION 'Maintenance tracking is only available for Gastech-owned skids'
+      USING ERRCODE = '23514';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+--> statement-breakpoint
+CREATE TRIGGER plant_skid_customer_maintenance_guard
+BEFORE INSERT OR UPDATE OF is_on_maintenance, maintenance_note, skid_id ON plant_skid_statuses
+FOR EACH ROW
+EXECUTE FUNCTION prevent_customer_skid_maintenance();
+--> statement-breakpoint
+CREATE OR REPLACE FUNCTION prevent_customer_assignment_with_maintenance()
+RETURNS trigger AS $$
+BEGIN
+  IF (NEW.owner = 'customer' OR NEW.customer_id IS NOT NULL) AND EXISTS (
+    SELECT 1
+    FROM plant_skid_statuses
+    WHERE skid_id = NEW.id
+      AND (
+        is_on_maintenance
+        OR NULLIF(TRIM(maintenance_note), '') IS NOT NULL
+      )
+  ) THEN
+    RAISE EXCEPTION 'A skid in maintenance cannot be assigned to a customer'
+      USING ERRCODE = '23514';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+--> statement-breakpoint
+CREATE TRIGGER skid_customer_assignment_maintenance_guard
+BEFORE UPDATE OF owner, customer_id ON skids
+FOR EACH ROW
+EXECUTE FUNCTION prevent_customer_assignment_with_maintenance();
+--> statement-breakpoint
+UPDATE plant_skid_statuses
+SET is_on_maintenance = FALSE,
+    maintenance_note = NULL
+WHERE (is_on_maintenance OR maintenance_note IS NOT NULL)
+  AND EXISTS (
+    SELECT 1
+    FROM skids
+    WHERE skids.id = plant_skid_statuses.skid_id
+      AND (owner = 'customer' OR customer_id IS NOT NULL)
+  );
+--> statement-breakpoint
+UPDATE skids
+SET current_loc = 'pending'
+WHERE owner = 'customer' OR customer_id IS NOT NULL;
+--> statement-breakpoint
+CREATE OR REPLACE FUNCTION prevent_customer_skid_location_tracking()
+RETURNS trigger AS $$
+BEGIN
+  IF NEW.owner = 'customer' OR NEW.customer_id IS NOT NULL THEN
+    IF TG_OP = 'INSERT' THEN
+      IF NEW.current_loc IS DISTINCT FROM 'pending' THEN
+        RAISE EXCEPTION 'Customer skid locations are not tracked; location must remain pending'
+          USING ERRCODE = '23514';
+      END IF;
+    ELSIF OLD.owner != 'customer' AND OLD.customer_id IS NULL THEN
+      IF NEW.current_loc IS DISTINCT FROM OLD.current_loc
+        AND NEW.current_loc IS DISTINCT FROM 'pending'
+      THEN
+        RAISE EXCEPTION 'Customer skid locations are not tracked; location must remain pending'
+          USING ERRCODE = '23514';
+      END IF;
+      NEW.current_loc := 'pending';
+    ELSIF NEW.current_loc IS DISTINCT FROM OLD.current_loc THEN
+      RAISE EXCEPTION 'Customer skid locations are not tracked; location must remain pending'
+        USING ERRCODE = '23514';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+--> statement-breakpoint
+CREATE TRIGGER skid_customer_location_guard
+BEFORE INSERT OR UPDATE OF current_loc, owner, customer_id ON skids
+FOR EACH ROW
+EXECUTE FUNCTION prevent_customer_skid_location_tracking();
 --> statement-breakpoint
 -- Function: sync_truck_telemetry.sql
 CREATE OR REPLACE FUNCTION handle_truck_location_update()
@@ -793,7 +926,9 @@ BEGIN
         UPDATE skids
         SET current_loc = NEW.current_loc
         WHERE id = v_active_skid_id
-          AND status = 'in_transit';
+          AND status = 'in_transit'
+          AND owner != 'customer'
+          AND customer_id IS NULL;
       END IF;
     END IF;
 

@@ -26,6 +26,18 @@ export async function POST(request: NextRequest) {
         400
       );
     }
+    if (
+      (parsed.data.owner === 'customer' || parsed.data.customerId) &&
+      parsed.data.currentLoc !== 'pending'
+    ) {
+      return apiError(
+        {
+          code: 'CUSTOMER_SKID_LOCATION_UNTRACKED',
+          message: 'Customer skid locations are not tracked and must remain pending.',
+        },
+        400
+      );
+    }
     return apiSuccess(await createSkid(parsed.data), { status: 201 });
   } catch (error) {
     return apiDbError(error);

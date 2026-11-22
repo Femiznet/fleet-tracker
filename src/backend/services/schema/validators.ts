@@ -42,6 +42,76 @@ export const createSkidSchema = z.object({
   owner: z.enum(skidOwnerEnum.enumValues).default('gastech'),
 });
 
+const skidRegistrationUnitSchema = z.object({
+  skidNum: z
+    .string()
+    .trim()
+    .min(1)
+    .transform((value) => value.toUpperCase()),
+  slugNum: z
+    .string()
+    .trim()
+    .nullish()
+    .transform((value) => value || null),
+});
+
+export const registerSkidsSchema = z
+  .object({
+    skids: z.array(skidRegistrationUnitSchema).min(1).max(200),
+    owner: z.enum(skidOwnerEnum.enumValues),
+    customerId: z.string().uuid().optional(),
+    customerName: z.string().trim().min(1).max(255).optional(),
+    fillState: z.enum(skidFillStateEnum.enumValues).optional(),
+    bay: z.enum(skidBayEnum.enumValues).optional(),
+  })
+  .superRefine((data, context) => {
+    const skidNumbers = new Set<string>();
+    const slugNumbers = new Set<string>();
+    data.skids.forEach((skid, index) => {
+      const normalizedNumber = skid.skidNum.toUpperCase();
+      if (skidNumbers.has(normalizedNumber)) {
+        context.addIssue({
+          code: 'custom',
+          path: ['skids', index, 'skidNum'],
+          message: 'Skid numbers must be unique within the registration.',
+        });
+      }
+      skidNumbers.add(normalizedNumber);
+
+      const normalizedSlug = skid.slugNum?.toUpperCase();
+      if (normalizedSlug && slugNumbers.has(normalizedSlug)) {
+        context.addIssue({
+          code: 'custom',
+          path: ['skids', index, 'slugNum'],
+          message: 'Slug numbers must be unique within the registration.',
+        });
+      }
+      if (normalizedSlug) slugNumbers.add(normalizedSlug);
+    });
+
+    if (data.owner === 'customer' && !data.customerId && !data.customerName) {
+      context.addIssue({
+        code: 'custom',
+        path: ['customerName'],
+        message: 'Select or enter a customer for customer-owned skids.',
+      });
+    }
+    if (data.owner === 'customer' && data.customerId && data.customerName) {
+      context.addIssue({
+        code: 'custom',
+        path: ['customerName'],
+        message: 'Choose an existing customer or enter a new customer name.',
+      });
+    }
+    if (data.owner === 'gastech' && (data.customerId || data.customerName)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['customerId'],
+        message: 'Gastech-owned skids cannot be assigned to a customer.',
+      });
+    }
+  });
+
 export const updateSkidSchema = createSkidSchema.partial();
 
 export const createDriverSchema = z.object({

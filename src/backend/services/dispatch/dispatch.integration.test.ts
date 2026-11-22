@@ -60,7 +60,8 @@ databaseTest('dispatch and pickup lifecycle operations enforce movement rules', 
       async function addSkid(
         name: string,
         currentLoc: string,
-        status: 'available' | 'at_customer' = 'available'
+        status: 'available' | 'at_customer' = 'available',
+        owner: 'gastech' | 'customer' = 'gastech'
       ) {
         const [skid] = await tx
           .insert(skids)
@@ -68,6 +69,8 @@ databaseTest('dispatch and pickup lifecycle operations enforce movement rules', 
             skidNum: `S-${suffix}-${name}`,
             currentLoc,
             status,
+            owner,
+            customerId: owner === 'customer' ? customer.id : null,
           })
           .returning();
         return skid;
@@ -284,6 +287,69 @@ databaseTest('dispatch and pickup lifecycle operations enforce movement rules', 
       assert.equal(cancelledPickup.status, 'cancelled');
       assert.equal(cancelledPickupSkid.status, 'at_customer');
       assert.equal(cancelledPickupSkid.currentLoc, 'REMOTE YARD');
+
+      const customerSkidTruck = await addTruck('CUSTOMER-SKID', 'GASTECH PLANT');
+      const customerSkid = await addSkid('CUSTOMER-SKID', 'pending', 'available', 'customer');
+      const customerSkidDispatch = await createDirectDispatch(
+        {
+          truckId: customerSkidTruck.id,
+          customerId: customer.id,
+          skidIdOut: customerSkid.id,
+        },
+        tx
+      );
+      const [inTransitCustomerSkid] = await tx
+        .select({ status: skids.status, currentLoc: skids.currentLoc })
+        .from(skids)
+        .where(eq(skids.id, customerSkid.id));
+      assert.equal(inTransitCustomerSkid.status, 'in_transit');
+      assert.equal(inTransitCustomerSkid.currentLoc, 'pending');
+
+      await tx
+        .update(trucks)
+        .set({ currentLoc: customer.geofenceName ?? '' })
+        .where(eq(trucks.id, customerSkidTruck.id));
+      await tx
+        .update(trucks)
+        .set({ currentLoc: 'GASTECH PLANT' })
+        .where(eq(trucks.id, customerSkidTruck.id));
+      await completeMovement(
+        { movementId: customerSkidDispatch.movementId, note: 'Customer skid delivered' },
+        tx
+      );
+      const [deliveredCustomerSkid] = await tx
+        .select({ status: skids.status, currentLoc: skids.currentLoc })
+        .from(skids)
+        .where(eq(skids.id, customerSkid.id));
+      assert.equal(deliveredCustomerSkid.status, 'at_customer');
+      assert.equal(deliveredCustomerSkid.currentLoc, 'pending');
+
+      const customerPickupTruck = await addTruck('CUSTOMER-PICKUP', customer.geofenceName ?? '');
+      const customerPickupId = await createPickup(
+        {
+          truckId: customerPickupTruck.id,
+          customerId: customer.id,
+          skidIdIn: customerSkid.id,
+        },
+        tx
+      );
+      await tx
+        .update(trucks)
+        .set({ currentLoc: 'GASTECH PLANT' })
+        .where(eq(trucks.id, customerPickupTruck.id));
+      await completeMovement({ movementId: customerPickupId, skidIdIn: customerSkid.id }, tx);
+      const [returnedCustomerSkid] = await tx
+        .select({ status: skids.status, currentLoc: skids.currentLoc })
+        .from(skids)
+        .where(eq(skids.id, customerSkid.id));
+      assert.equal(returnedCustomerSkid.status, 'available');
+      assert.equal(returnedCustomerSkid.currentLoc, 'pending');
+      await expectFailure((nested) =>
+        nested
+          .update(skids)
+          .set({ currentLoc: 'GASTECH PLANT' })
+          .where(eq(skids.id, customerSkid.id))
+      );
 
       const invalidGroupTruck = await addTruck(
         'INVALID-GROUP',

@@ -439,10 +439,277 @@
 }
 
 .skidListPanel {
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--surface);
+}
+
+.registrationPanel {
+  padding: 14px;
+  border-bottom: 1px solid var(--line);
+  background: #fbfdfb;
+}
+
+.registrationHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 13px;
+}
+
+.registrationHeader > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.registrationHeader strong {
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.registrationHeader span,
+.registrationField small,
+.bulkPreviewHeader span,
+.registrationOptions > span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.registrationModes {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #f0f4f1;
+}
+
+.registrationModes button {
+  min-height: 32px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 7px;
+  color: #647268;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.registrationModes .registrationModeActive {
+  color: var(--ink);
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(23 35 30 / 9%);
+}
+
+.registrationForm {
+  display: grid;
+  gap: 13px;
+}
+
+.registrationFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 12px;
+}
+
+.registrationField {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.registrationField > span,
+.registrationField > label {
+  color: #58675e;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.registrationField input,
+.registrationField select,
+.registrationField textarea,
+.bulkSkidRow input {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 9px 11px;
+  border: 1px solid #d8e2db;
+  border-radius: 8px;
+  color: var(--ink);
+  background: #fff;
+  font: inherit;
+  font-size: 14px;
+}
+
+.registrationField textarea {
+  min-height: 94px;
+  resize: vertical;
+}
+
+.bulkSkidInput {
+  grid-column: 1 / -1;
+}
+
+.customerRegistrationField {
+  z-index: 3;
+}
+
+.customerRegistrationInput {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid #d8e2db;
+  border-radius: 8px;
+  color: #718078;
+  background: #fff;
+}
+
+.customerRegistrationInput:focus-within {
+  border-color: #69a47b;
+  box-shadow: 0 0 0 3px rgb(65 132 85 / 12%);
+}
+
+.customerRegistrationInput input {
+  min-height: 38px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+}
+
+.customerRegistrationInput button {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  color: #65756b;
+  background: transparent;
+  cursor: pointer;
+}
+
+.customerOptions {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 4px);
+  right: 0;
+  left: 0;
+  display: grid;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid #d9e3dc;
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgb(24 43 32 / 15%);
+}
+
+.customerOptions button {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid #edf1ee;
+  color: var(--ink);
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.customerOptions button:hover,
+.customerOptions button[aria-selected='true'] {
+  background: #f3f8f4;
+}
+
+.customerOptions button strong {
+  font-size: 13px;
+}
+
+.customerOptions button span,
+.newCustomerOption {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.newCustomerOption {
+  padding: 10px 12px;
+  line-height: 1.4;
+}
+
+.registrationError {
+  color: #a33f37 !important;
+}
+
+.bulkSkidPreview {
+  display: grid;
+  max-height: 280px;
+  gap: 6px;
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fff;
+}
+
+.bulkPreviewHeader {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding-bottom: 5px;
+}
+
+.bulkPreviewHeader strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.bulkSkidRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(110px, 0.6fr);
+  align-items: center;
+  gap: 10px;
+  padding-top: 6px;
+  border-top: 1px solid #edf1ee;
+}
+
+.bulkSkidRow strong {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+
+.bulkSkidRow input {
+  min-height: 36px;
+  padding: 7px 9px;
+}
+
+.bulkSkidPreview > p {
+  margin: 0;
+  font-size: 12px;
+}
+
+.registrationFooter,
+.registrationOptions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px 16px;
+}
+
+.registrationFooter {
+  justify-content: space-between;
+  padding-top: 11px;
+  border-top: 1px solid var(--line);
 }
 
 .skidListHeader {

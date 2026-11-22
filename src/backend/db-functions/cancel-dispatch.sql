@@ -45,7 +45,10 @@ BEGIN
   IF v_movement.type = 'dispatch' AND v_movement.skid_id_out IS NOT NULL THEN
     UPDATE skids
     SET status = 'available',
-        current_loc = v_truck_loc
+        current_loc = CASE
+          WHEN owner = 'customer' OR customer_id IS NOT NULL THEN current_loc
+          ELSE v_truck_loc
+        END
     WHERE id = v_movement.skid_id_out;
   END IF;
 
@@ -53,7 +56,10 @@ BEGIN
   IF v_movement.type = 'pickup' AND v_movement.skid_id_in IS NOT NULL THEN
     UPDATE skids
     SET status = 'at_customer',
-        current_loc = v_truck_loc
+        current_loc = CASE
+          WHEN owner = 'customer' OR customer_id IS NOT NULL THEN current_loc
+          ELSE v_truck_loc
+        END
     WHERE id = v_movement.skid_id_in;
   END IF;
 END;

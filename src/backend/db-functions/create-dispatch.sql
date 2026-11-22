@@ -13,6 +13,7 @@ DECLARE
   v_truck_loc VARCHAR;
   v_skid_status skid_status;
   v_skid_loc VARCHAR;
+  v_track_skid_location BOOLEAN;
   v_customer_geofence VARCHAR;
   v_final_note TEXT;
   v_movement_id UUID;
@@ -37,8 +38,8 @@ BEGIN
   END IF;
 
   -- 2. Lock and validate the outgoing skid
-  SELECT status, current_loc
-  INTO v_skid_status, v_skid_loc
+  SELECT status, current_loc, owner != 'customer' AND customer_id IS NULL
+  INTO v_skid_status, v_skid_loc, v_track_skid_location
   FROM skids
   WHERE id = p_skid_id_out
   FOR UPDATE;
@@ -51,7 +52,7 @@ BEGIN
     RAISE EXCEPTION 'Skid is not available for dispatch (Current status: %)', v_skid_status;
   END IF;
 
-  IF NOT p_force_override AND v_skid_loc != 'GASTECH PLANT' THEN
+  IF v_track_skid_location AND NOT p_force_override AND v_skid_loc != 'GASTECH PLANT' THEN
     RAISE EXCEPTION 'Skid location must be GASTECH PLANT to dispatch (Current location: %)', v_skid_loc;
   END IF;
 
@@ -66,7 +67,10 @@ BEGIN
 
   -- 4. Tag the note if a sensor override was used
   v_final_note := p_note;
-  IF p_force_override AND (v_truck_loc != 'GASTECH PLANT' OR v_skid_loc != 'GASTECH PLANT') THEN
+  IF p_force_override AND (
+    v_truck_loc != 'GASTECH PLANT'
+    OR (v_track_skid_location AND v_skid_loc != 'GASTECH PLANT')
+  ) THEN
     v_final_note := TRIM(COALESCE(p_note, '') || ' [Manual Sensor Override]');
   END IF;
 
@@ -110,10 +114,16 @@ BEGIN
   SET status = 'in_transit'
   WHERE id = p_truck_id;
 
-  UPDATE skids
-  SET status = 'in_transit',
-      current_loc = v_truck_loc
-  WHERE id = p_skid_id_out;
+  IF v_track_skid_location THEN
+    UPDATE skids
+    SET status = 'in_transit',
+        current_loc = v_truck_loc
+    WHERE id = p_skid_id_out;
+  ELSE
+    UPDATE skids
+    SET status = 'in_transit'
+    WHERE id = p_skid_id_out;
+  END IF;
 
   RETURN v_movement_id;
 END;

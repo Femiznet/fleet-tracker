@@ -14,6 +14,7 @@ DECLARE
   v_skid_in_id UUID;
   v_skid_in_status skid_status;
   v_skid_in_loc VARCHAR;
+  v_track_skid_in_location BOOLEAN;
   v_final_note TEXT;
 BEGIN
   -- 1. Lock and fetch the movement
@@ -75,8 +76,8 @@ BEGIN
 
   -- 5. Validate skid_id_in (if provided and different from skid_id_out)
   IF v_skid_in_id IS NOT NULL AND (v_movement.skid_id_out IS NULL OR v_skid_in_id != v_movement.skid_id_out) THEN
-    SELECT status, current_loc
-    INTO v_skid_in_status, v_skid_in_loc
+    SELECT status, current_loc, owner != 'customer' AND customer_id IS NULL
+    INTO v_skid_in_status, v_skid_in_loc, v_track_skid_in_location
     FROM skids
     WHERE id = v_skid_in_id
     FOR UPDATE;
@@ -101,7 +102,11 @@ BEGIN
       END IF;
     END IF;
 
-    IF NOT p_force_override AND v_skid_in_status = 'at_customer' AND TRIM(v_skid_in_loc) != TRIM(v_customer_geofence) THEN
+    IF NOT p_force_override
+      AND v_track_skid_in_location
+      AND v_skid_in_status = 'at_customer'
+      AND TRIM(v_skid_in_loc) != TRIM(v_customer_geofence)
+    THEN
       RAISE EXCEPTION 'Returned skid is recorded at %, not at this customer (%). Use manual override if transferred.', v_skid_in_loc, v_customer_geofence;
     END IF;
   END IF;
@@ -112,18 +117,27 @@ BEGIN
     IF v_skid_in_id IS NOT NULL AND v_skid_in_id = v_movement.skid_id_out THEN
       UPDATE skids
       SET status = 'available',
-          current_loc = 'GASTECH PLANT'
+          current_loc = CASE
+            WHEN owner = 'customer' OR customer_id IS NOT NULL THEN current_loc
+            ELSE 'GASTECH PLANT'
+          END
       WHERE id = v_movement.skid_id_out;
     ELSE
       UPDATE skids
       SET status = 'at_customer',
-          current_loc = COALESCE(v_customer_geofence, 'AT CUSTOMER')
+          current_loc = CASE
+            WHEN owner = 'customer' OR customer_id IS NOT NULL THEN current_loc
+            ELSE COALESCE(v_customer_geofence, 'AT CUSTOMER')
+          END
       WHERE id = v_movement.skid_id_out;
 
       IF v_skid_in_id IS NOT NULL THEN
         UPDATE skids
         SET status = 'available',
-            current_loc = 'GASTECH PLANT'
+            current_loc = CASE
+              WHEN owner = 'customer' OR customer_id IS NOT NULL THEN current_loc
+              ELSE 'GASTECH PLANT'
+            END
         WHERE id = v_skid_in_id;
       END IF;
     END IF;
@@ -132,7 +146,10 @@ BEGIN
     IF v_skid_in_id IS NOT NULL THEN
       UPDATE skids
       SET status = 'available',
-          current_loc = 'GASTECH PLANT'
+          current_loc = CASE
+            WHEN owner = 'customer' OR customer_id IS NOT NULL THEN current_loc
+            ELSE 'GASTECH PLANT'
+          END
       WHERE id = v_skid_in_id;
     END IF;
   END IF;

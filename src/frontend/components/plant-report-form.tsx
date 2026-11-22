@@ -1,12 +1,17 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Copy, Filter, Plus, RefreshCw, Save, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { Copy, Filter, Plus, RefreshCw, Save, Search, Trash2, X } from 'lucide-react';
 import {
   getPlantDashboard,
   submitPlantReport,
   updateSkidStatus,
 } from '@/frontend/actions/plant-reports';
+import {
+  registerSkids,
+  searchSkidCustomers,
+  type SkidCustomerOption,
+} from '@/frontend/actions/skids';
 import { updateTruckPlantStatus } from '@/frontend/actions/trucks';
 import type {
   PlantDashboardData,
@@ -88,6 +93,387 @@ function formatReportDate(value: string) {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value));
+}
+
+function suggestSlugNumber(skidNumber: string) {
+  return (skidNumber.match(/\d/g) ?? []).join('').slice(-4);
+}
+
+function parseSkidNumbers(value: string) {
+  return value
+    .split(/[\n,]+/)
+    .map((skidNum) => skidNum.trim())
+    .filter(Boolean);
+}
+
+function SkidRegistrationForm({ onRegistered }: { onRegistered: () => Promise<void> }) {
+  const [mode, setMode] = useState<'single' | 'bulk'>('single');
+  const [skidNumber, setSkidNumber] = useState('');
+  const [slugNumber, setSlugNumber] = useState('');
+  const [bulkInput, setBulkInput] = useState('');
+  const [bulkSlugNumbers, setBulkSlugNumbers] = useState<Record<string, string>>({});
+  const [owner, setOwner] = useState<'gastech' | 'customer'>('gastech');
+  const [customerQuery, setCustomerQuery] = useState('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [customerOptions, setCustomerOptions] = useState<SkidCustomerOption[]>([]);
+  const [searchingCustomers, setSearchingCustomers] = useState(false);
+  const [customerSearchError, setCustomerSearchError] = useState('');
+  const [customerPickerOpen, setCustomerPickerOpen] = useState(false);
+  const [fillState, setFillState] = useState<SkidFill | ''>('');
+  const [bay, setBay] = useState<SkidBay | ''>('');
+  const [savingRegistration, setSavingRegistration] = useState(false);
+  const showToast = useToast();
+
+  const skidUnits = useMemo(() => {
+    if (mode === 'single') {
+      const number = skidNumber.trim();
+      return number ? [{ skidNum: number, slugNum: slugNumber.trim() || null }] : [];
+    }
+
+    return parseSkidNumbers(bulkInput).map((number) => ({
+      skidNum: number,
+      slugNum: (bulkSlugNumbers[number.toUpperCase()] ?? suggestSlugNumber(number)) || null,
+    }));
+  }, [bulkInput, bulkSlugNumbers, mode, skidNumber, slugNumber]);
+
+  const normalizedSkidNumbers = skidUnits.map((unit) => unit.skidNum.toUpperCase());
+  const hasDuplicateSkidNumbers =
+    new Set(normalizedSkidNumbers).size !== normalizedSkidNumbers.length;
+  const customerName = customerQuery.trim();
+  const hasExactCustomer = customerOptions.some(
+    (customer) => customer.name.toLowerCase() === customerName.toLowerCase()
+  );
+  const canRegister =
+    skidUnits.length > 0 &&
+    !hasDuplicateSkidNumbers &&
+    skidUnits.length <= 200 &&
+    !savingRegistration &&
+    (owner === 'gastech' || Boolean(selectedCustomerId || customerName));
+
+  useEffect(() => {
+    if (owner !== 'customer' || customerQuery.trim().length < 2) {
+      return;
+    }
+
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      setSearchingCustomers(true);
+      setCustomerSearchError('');
+      try {
+        const options = await searchSkidCustomers(customerQuery.trim());
+        if (active) setCustomerOptions(options);
+      } catch (error) {
+        if (active) {
+          setCustomerSearchError(
+            error instanceof Error ? error.message : 'Customer search failed.'
+          );
+        }
+      } finally {
+        if (active) setSearchingCustomers(false);
+      }
+    }, 250);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [customerQuery, owner]);
+
+  function clearCustomerSearch() {
+    setCustomerOptions([]);
+    setSearchingCustomers(false);
+    setCustomerSearchError('');
+  }
+
+  async function submitRegistration(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!canRegister) return;
+    setSavingRegistration(true);
+    try {
+      const result = await registerSkids({
+        skids: skidUnits,
+        owner,
+        ...(owner === 'customer'
+          ? selectedCustomerId
+            ? { customerId: selectedCustomerId }
+            : { customerName }
+          : {}),
+        ...(fillState ? { fillState } : {}),
+        ...(bay ? { bay } : {}),
+      });
+      await onRegistered();
+      showToast({
+        tone: 'success',
+        title: `${result.skids.length} skid${result.skids.length === 1 ? '' : 's'} registered`,
+        description: result.customerCreated ? `Customer added: ${customerName}` : undefined,
+      });
+      setSkidNumber('');
+      setSlugNumber('');
+      setBulkInput('');
+      setBulkSlugNumbers({});
+    } catch (error) {
+      showToast({
+        tone: 'error',
+        title: 'Unable to register skids',
+        description: error instanceof Error ? error.message : 'Registration failed. Try again.',
+      });
+    } finally {
+      setSavingRegistration(false);
+    }
+  }
+
+  return (
+    <section className={styles.registrationPanel}>
+      <header className={styles.registrationHeader}>
+        <div>
+          <strong>Register skids</strong>
+          <span>Add individual skids or up to 200 at once.</span>
+        </div>
+        <div className={styles.registrationModes} aria-label="Registration mode">
+          <button
+            type="button"
+            className={mode === 'single' ? styles.registrationModeActive : ''}
+            aria-pressed={mode === 'single'}
+            onClick={() => setMode('single')}
+          >
+            Single
+          </button>
+          <button
+            type="button"
+            className={mode === 'bulk' ? styles.registrationModeActive : ''}
+            aria-pressed={mode === 'bulk'}
+            onClick={() => setMode('bulk')}
+          >
+            Bulk
+          </button>
+        </div>
+      </header>
+
+      <form className={styles.registrationForm} onSubmit={submitRegistration}>
+        <div className={styles.registrationFields}>
+          <label className={styles.registrationField}>
+            <span>Ownership</span>
+            <select
+              value={owner}
+              onChange={(event) => {
+                const nextOwner = event.target.value as 'gastech' | 'customer';
+                setOwner(nextOwner);
+                if (nextOwner === 'gastech') {
+                  setCustomerQuery('');
+                  setSelectedCustomerId('');
+                  setCustomerPickerOpen(false);
+                  clearCustomerSearch();
+                }
+              }}
+              disabled={savingRegistration}
+            >
+              <option value="gastech">Gastech</option>
+              <option value="customer">Customer-owned</option>
+            </select>
+          </label>
+
+          {owner === 'customer' ? (
+            <div className={`${styles.registrationField} ${styles.customerRegistrationField}`}>
+              <label htmlFor="registration-customer">Customer</label>
+              <div className={styles.customerRegistrationInput}>
+                <Search size={15} aria-hidden="true" />
+                <input
+                  id="registration-customer"
+                  value={customerQuery}
+                  onFocus={() => setCustomerPickerOpen(true)}
+                  onChange={(event) => {
+                    setCustomerQuery(event.target.value);
+                    setSelectedCustomerId('');
+                    setCustomerPickerOpen(true);
+                    clearCustomerSearch();
+                  }}
+                  placeholder="Search or enter a customer name"
+                  autoComplete="off"
+                  disabled={savingRegistration}
+                />
+                {customerQuery ? (
+                  <button
+                    type="button"
+                    aria-label="Clear customer"
+                    onClick={() => {
+                      setCustomerQuery('');
+                      setSelectedCustomerId('');
+                      setCustomerPickerOpen(false);
+                      clearCustomerSearch();
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                ) : null}
+              </div>
+              {selectedCustomerId ? (
+                <small>Existing customer selected.</small>
+              ) : customerName && !hasExactCustomer && !searchingCustomers ? (
+                <small>New customer will be added when these skids are registered.</small>
+              ) : null}
+              {customerSearchError ? (
+                <small className={styles.registrationError}>{customerSearchError}</small>
+              ) : null}
+              {customerPickerOpen && customerName ? (
+                <div className={styles.customerOptions} role="listbox" aria-label="Customers">
+                  {customerOptions.map((customer) => (
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={selectedCustomerId === customer.id}
+                      key={customer.id}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => {
+                        setCustomerQuery(customer.name);
+                        setSelectedCustomerId(customer.id);
+                        setCustomerPickerOpen(false);
+                      }}
+                    >
+                      <strong>{customer.name}</strong>
+                      {customer.location ? <span>{customer.location}</span> : null}
+                    </button>
+                  ))}
+                  {customerName.length >= 2 && !hasExactCustomer && !searchingCustomers ? (
+                    <div className={styles.newCustomerOption}>
+                      {customerOptions.length
+                        ? `No exact match. “${customerName}” will be added as a new customer.`
+                        : `Add “${customerName}” as a new customer.`}
+                    </div>
+                  ) : null}
+                  {searchingCustomers ? (
+                    <div className={styles.newCustomerOption}>Searching customers…</div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {mode === 'single' ? (
+            <>
+              <label className={styles.registrationField}>
+                <span>Skid number</span>
+                <input
+                  value={skidNumber}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setSkidNumber(value);
+                    setSlugNumber(suggestSlugNumber(value));
+                  }}
+                  placeholder="Enter skid number"
+                  maxLength={100}
+                  required
+                  disabled={savingRegistration}
+                />
+              </label>
+              <label className={styles.registrationField}>
+                <span>Slug number</span>
+                <input
+                  value={slugNumber}
+                  onChange={(event) => setSlugNumber(event.target.value)}
+                  placeholder="Last four digits"
+                  maxLength={100}
+                  disabled={savingRegistration}
+                />
+                <small>Suggested from the last four digits; editable.</small>
+              </label>
+            </>
+          ) : (
+            <label className={`${styles.registrationField} ${styles.bulkSkidInput}`}>
+              <span>Skid numbers</span>
+              <textarea
+                value={bulkInput}
+                onChange={(event) => setBulkInput(event.target.value)}
+                placeholder={'Enter one skid number per line or separate with commas'}
+                rows={4}
+                disabled={savingRegistration}
+              />
+            </label>
+          )}
+        </div>
+
+        {mode === 'bulk' && skidUnits.length ? (
+          <div className={styles.bulkSkidPreview}>
+            <div className={styles.bulkPreviewHeader}>
+              <strong>
+                {skidUnits.length} skid{skidUnits.length === 1 ? '' : 's'} detected
+              </strong>
+              <span>Review or edit each suggested slug.</span>
+            </div>
+            {skidUnits.map((unit, index) => (
+              <label className={styles.bulkSkidRow} key={`${unit.skidNum.toUpperCase()}-${index}`}>
+                <strong>{unit.skidNum}</strong>
+                <input
+                  value={
+                    bulkSlugNumbers[unit.skidNum.toUpperCase()] ?? suggestSlugNumber(unit.skidNum)
+                  }
+                  onChange={(event) =>
+                    setBulkSlugNumbers((current) => ({
+                      ...current,
+                      [unit.skidNum.toUpperCase()]: event.target.value,
+                    }))
+                  }
+                  aria-label={`Slug number for ${unit.skidNum}`}
+                  placeholder="Slug number"
+                  maxLength={100}
+                  disabled={savingRegistration}
+                />
+              </label>
+            ))}
+            {hasDuplicateSkidNumbers ? (
+              <p className={styles.registrationError}>
+                Remove duplicate skid numbers before registering.
+              </p>
+            ) : null}
+            {skidUnits.length > 200 ? (
+              <p className={styles.registrationError}>Register no more than 200 skids per batch.</p>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div className={styles.registrationFields}>
+          <label className={styles.registrationField}>
+            <span>Initial fill state (optional)</span>
+            <select
+              value={fillState}
+              onChange={(event) => setFillState(event.target.value as SkidFill | '')}
+              disabled={savingRegistration}
+            >
+              <option value="">Database default: Empty</option>
+              <option value="empty">Empty</option>
+              <option value="loading">Loading</option>
+              <option value="loaded">Loaded</option>
+              <option value="on_hold">On hold</option>
+            </select>
+          </label>
+          <label className={styles.registrationField}>
+            <span>Initial bay (optional)</span>
+            <select
+              value={fillState === 'loading' ? 'loading_bay' : bay}
+              onChange={(event) => setBay(event.target.value as SkidBay | '')}
+              disabled={savingRegistration || fillState === 'loading'}
+            >
+              <option value="">Database default: Parking</option>
+              <option value="washing_bay">Washing</option>
+              <option value="loading_bay">Loading</option>
+              <option value="parking_bay">Parking</option>
+            </select>
+          </label>
+        </div>
+
+        <div className={styles.registrationFooter}>
+          <div className={styles.registrationOptions}>
+            <span>Initial location defaults to pending.</span>
+          </div>
+          <button type="submit" className={styles.button} disabled={!canRegister}>
+            <Plus size={14} />
+            {savingRegistration
+              ? 'Registering…'
+              : `Register ${skidUnits.length || ''} skid${skidUnits.length === 1 ? '' : 's'}`}
+          </button>
+        </div>
+      </form>
+    </section>
+  );
 }
 
 export default function PlantReportForm() {
@@ -689,6 +1075,7 @@ export default function PlantReportForm() {
           </section>
         ) : activeSection === 'skids' ? (
           <section className={styles.skidListPanel}>
+            <SkidRegistrationForm onRegistered={loadStatus} />
             <div className={styles.skidListHeader}>
               <strong>Plant skids</strong>
               <span>{filteredSkids.length} found</span>
@@ -855,28 +1242,30 @@ export default function PlantReportForm() {
                             placeholder="Add skid notes"
                           />
                         </div>
-                        <div className={styles.skidMaintenance}>
-                          <span>Maintenance</span>
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={status.isOnMaintenance}
-                            aria-label={`${skid.skidNum} maintenance`}
-                            disabled={saving || loading}
-                            className={`${styles.toggle} ${status.isOnMaintenance ? styles.toggleOn : ''}`}
-                            onClick={() =>
-                              setSkidStatuses((current) => ({
-                                ...current,
-                                [skid.id]: {
-                                  ...status,
-                                  isOnMaintenance: !status.isOnMaintenance,
-                                },
-                              }))
-                            }
-                          >
-                            <span />
-                          </button>
-                        </div>
+                        {skid.owner === 'gastech' ? (
+                          <div className={styles.skidMaintenance}>
+                            <span>Maintenance</span>
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked={status.isOnMaintenance}
+                              aria-label={`${skid.skidNum} maintenance`}
+                              disabled={saving || loading}
+                              className={`${styles.toggle} ${status.isOnMaintenance ? styles.toggleOn : ''}`}
+                              onClick={() =>
+                                setSkidStatuses((current) => ({
+                                  ...current,
+                                  [skid.id]: {
+                                    ...status,
+                                    isOnMaintenance: !status.isOnMaintenance,
+                                  },
+                                }))
+                              }
+                            >
+                              <span />
+                            </button>
+                          </div>
+                        ) : null}
                         <button
                           type="button"
                           className={`${styles.recordButton} ${styles.skidRecordButton}`}
@@ -886,7 +1275,7 @@ export default function PlantReportForm() {
                           <Save size={13} /> Save status
                         </button>
                       </div>
-                      {status.isOnMaintenance ? (
+                      {skid.owner === 'gastech' && status.isOnMaintenance ? (
                         <textarea
                           className={styles.skidMaintenanceNote}
                           aria-label={`${skid.skidNum} maintenance note`}
