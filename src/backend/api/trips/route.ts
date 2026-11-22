@@ -20,7 +20,10 @@ export async function POST(request: NextRequest) {
   try {
     const parsed = createTripSchema.safeParse(await request.json());
     if (!parsed.success) {
-      return apiError({ code: 'VALIDATION_ERROR', message: 'Invalid trip data', details: parsed.error.flatten() }, 400);
+      return apiError(
+        { code: 'VALIDATION_ERROR', message: 'Invalid trip data', details: parsed.error.flatten() },
+        400
+      );
     }
     return apiSuccess(await createTrip(parsed.data), { status: 201 });
   } catch (error) {

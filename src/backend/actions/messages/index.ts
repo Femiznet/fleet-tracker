@@ -1,11 +1,15 @@
-import { db } from "@/backend/db";
-import { customers } from "@/backend/db/schema";
-import { deleteGreenApiMessage, editGreenApiMessage, ProcessGreenApiMessageResult, saveGreenApiMessage } from "@/backend/services/messages/queries";
-import { isDispatchDetails } from "@/backend/services/messages/utils/dispatchParser";
-import { isUpdate } from "@/backend/services/messages/utils/updateParser";
-import { GreenApiParsedMessage } from "@/backend/services/messages/validator";
-import { eq } from "drizzle-orm";
-
+import { db } from '@/backend/db';
+import { customers } from '@/backend/db/schema';
+import {
+  deleteGreenApiMessage,
+  editGreenApiMessage,
+  ProcessGreenApiMessageResult,
+  saveGreenApiMessage,
+} from '@/backend/services/messages/queries';
+import { isDispatchDetails } from '@/backend/services/messages/utils/dispatchParser';
+import { isUpdate } from '@/backend/services/messages/utils/updateParser';
+import { GreenApiParsedMessage } from '@/backend/services/messages/validator';
+import { eq } from 'drizzle-orm';
 
 // 4. Thin entry point called by your webhook route
 export async function processGreenApiMessage(
@@ -31,24 +35,27 @@ export async function processGreenApiMessage(
   };
 
   if (parsed.textMessage) {
-    const type = isUpdate(parsed.textMessage) ? 'update'
-      : isDispatchDetails(parsed.textMessage) ? 'dispatch' : null;
-    
+    const type = isUpdate(parsed.textMessage)
+      ? 'update'
+      : isDispatchDetails(parsed.textMessage)
+        ? 'dispatch'
+        : null;
+
     if (!type) return { success: false, message: 'Not an update or dispatch' };
 
     if (parsed.action === 'create') {
       return saveGreenApiMessage({
         ...baseParams,
         textMessage: parsed.textMessage,
-        messageType : type
+        messageType: type,
       });
     }
-  
+
     if (parsed.action === 'edit') {
       return editGreenApiMessage({
         ...baseParams,
         textMessage: parsed.textMessage,
-        messageType: type
+        messageType: type,
       });
     }
   }

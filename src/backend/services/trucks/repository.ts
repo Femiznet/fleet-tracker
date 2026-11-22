@@ -13,7 +13,13 @@ export async function listTrucks(page: number, limit: number, search?: string) {
     : undefined;
 
   const [rows, totalRows] = await Promise.all([
-    db.select().from(trucks).where(searchFilter).orderBy(desc(trucks.truckNum)).limit(limit).offset(offset),
+    db
+      .select()
+      .from(trucks)
+      .where(searchFilter)
+      .orderBy(desc(trucks.truckNum))
+      .limit(limit)
+      .offset(offset),
     db.select({ value: count() }).from(trucks).where(searchFilter),
   ]);
 

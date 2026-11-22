@@ -27,8 +27,7 @@ export function createDispatchFingerprint(
 }
 
 export function formatDispatchNotification(details: DispatchDetails): string {
-  return DISPATCH_NOTIFICATION_TEMPLATE
-    .replaceAll('{{truckNumber}}', details.truckNumber ?? '')
+  return DISPATCH_NOTIFICATION_TEMPLATE.replaceAll('{{truckNumber}}', details.truckNumber ?? '')
     .replaceAll('{{skidNumber}}', details.skidNumber ?? '')
     .replaceAll('{{driverName}}', details.driverName ?? '')
     .replaceAll('{{driverContact}}', details.driverContact ?? '')
@@ -36,18 +35,13 @@ export function formatDispatchNotification(details: DispatchDetails): string {
     .replaceAll('{{timeOut}}', details.timeOut ?? '');
 }
 
-export function matchesDispatchNotification(
-  text: string,
-  details: DispatchDetails
-): boolean {
+export function matchesDispatchNotification(text: string, details: DispatchDetails): boolean {
   if (!details.truckNumber || !details.skidNumber) return false;
 
-  const normalized = text
-    .normalize('NFKC')
-    .replace(/\*/g, '')
-    .replace(/\s+/g, ' ')
-    .toLowerCase();
+  const normalized = text.normalize('NFKC').replace(/\*/g, '').replace(/\s+/g, ' ').toLowerCase();
 
-  return normalized.includes(`truck number: ${details.truckNumber.toLowerCase()}`)
-    && normalized.includes(`skid number: ${details.skidNumber.toLowerCase()}`);
+  return (
+    normalized.includes(`truck number: ${details.truckNumber.toLowerCase()}`) &&
+    normalized.includes(`skid number: ${details.skidNumber.toLowerCase()}`)
+  );
 }

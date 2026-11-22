@@ -15,11 +15,11 @@ export async function GET(request: Request) {
     });
     if (!res.ok) throw new Error('Failed to fetch fleet feed');
 
-    const json = await res.json() as HclTruckData;
+    const json = (await res.json()) as HclTruckData;
     const newTrucks = json.data || [];
 
     if (newTrucks.length > 0) {
-          await insertTrucks(newTrucks);
+      await insertTrucks(newTrucks);
     }
 
     return apiSuccess({ seededCount: newTrucks.length });

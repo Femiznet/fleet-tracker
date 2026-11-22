@@ -69,11 +69,16 @@ function displayDate(value: string | null, includeTime = false) {
 
 function statusClass(status: string | null) {
   switch (status) {
-    case 'pending': return styles.badgePending;
-    case 'approved': return styles.badgeApproved;
-    case 'rejected': return styles.badgeRejected;
-    case 'duplicate': return styles.badgeDuplicate;
-    default: return '';
+    case 'pending':
+      return styles.badgePending;
+    case 'approved':
+      return styles.badgeApproved;
+    case 'rejected':
+      return styles.badgeRejected;
+    case 'duplicate':
+      return styles.badgeDuplicate;
+    default:
+      return '';
   }
 }
 
@@ -105,42 +110,50 @@ export default function DispatchInbox() {
   const [busyAction, setBusyAction] = useState<'approve' | 'reject' | null>(null);
   const selectedIdRef = useRef<string | null>(null);
 
-  const refresh = useCallback(async (showLoading = false) => {
-    if (showLoading) setLoading(true);
-    const [inboxResult, reminderResult] = await Promise.allSettled([
-      listDispatchMessages({ reviewStatus: filter, page, limit: PAGE_SIZE }),
-      listDispatchNotifications(),
-    ]);
+  const refresh = useCallback(
+    async (showLoading = false) => {
+      if (showLoading) setLoading(true);
+      const [inboxResult, reminderResult] = await Promise.allSettled([
+        listDispatchMessages({ reviewStatus: filter, page, limit: PAGE_SIZE }),
+        listDispatchNotifications(),
+      ]);
 
-    if (inboxResult.status === 'fulfilled') {
-      setMessages(inboxResult.value.messages);
-      setPagination(inboxResult.value.pagination);
-      setLoadError(null);
+      if (inboxResult.status === 'fulfilled') {
+        setMessages(inboxResult.value.messages);
+        setPagination(inboxResult.value.pagination);
+        setLoadError(null);
 
-      const selected = inboxResult.value.messages.find(
-        (message) => message.id === selectedIdRef.current
-      ) ?? inboxResult.value.messages[0] ?? null;
-      if (selected?.id !== selectedIdRef.current) {
-        selectedIdRef.current = selected?.id ?? null;
-        setSelectedId(selected?.id ?? null);
-        setDetails(selected?.parsedData ?? EMPTY_DETAILS);
+        const selected =
+          inboxResult.value.messages.find((message) => message.id === selectedIdRef.current) ??
+          inboxResult.value.messages[0] ??
+          null;
+        if (selected?.id !== selectedIdRef.current) {
+          selectedIdRef.current = selected?.id ?? null;
+          setSelectedId(selected?.id ?? null);
+          setDetails(selected?.parsedData ?? EMPTY_DETAILS);
+        }
+      } else {
+        setLoadError(
+          inboxResult.reason instanceof Error
+            ? inboxResult.reason.message
+            : 'Unable to load dispatch messages.'
+        );
       }
-    } else {
-      setLoadError(inboxResult.reason instanceof Error
-        ? inboxResult.reason.message
-        : 'Unable to load dispatch messages.');
-    }
 
-    if (reminderResult.status === 'fulfilled') {
-      setNotifications(reminderResult.value);
-      setReminderError(null);
-    } else {
-      setReminderError(reminderResult.reason instanceof Error
-        ? reminderResult.reason.message
-        : 'Unable to load dispatch reminders.');
-    }
-    if (showLoading) setLoading(false);
-  }, [filter, page]);
+      if (reminderResult.status === 'fulfilled') {
+        setNotifications(reminderResult.value);
+        setReminderError(null);
+      } else {
+        setReminderError(
+          reminderResult.reason instanceof Error
+            ? reminderResult.reason.message
+            : 'Unable to load dispatch reminders.'
+        );
+      }
+      if (showLoading) setLoading(false);
+    },
+    [filter, page]
+  );
 
   useEffect(() => {
     const initialTimer = window.setTimeout(() => void refresh(true), 0);
@@ -154,9 +167,7 @@ export default function DispatchInbox() {
   const selectedMessage = messages.find((message) => message.id === selectedId) ?? null;
   const overdueCount = notifications.filter((notification) => notification.overdue).length;
   const canApprove = Boolean(
-    details.truckNumber?.trim()
-    && details.skidNumber?.trim()
-    && details.dateOut?.trim()
+    details.truckNumber?.trim() && details.skidNumber?.trim() && details.dateOut?.trim()
   );
   const canReview = selectedMessage?.reviewStatus === 'pending';
 
@@ -233,12 +244,13 @@ export default function DispatchInbox() {
   function changeFilter(event: ChangeEvent<HTMLSelectElement>) {
     const value = event.target.value;
     if (
-      value !== 'pending'
-      && value !== 'duplicate'
-      && value !== 'approved'
-      && value !== 'rejected'
-      && value !== 'all'
-    ) return;
+      value !== 'pending' &&
+      value !== 'duplicate' &&
+      value !== 'approved' &&
+      value !== 'rejected' &&
+      value !== 'all'
+    )
+      return;
     setFilter(value);
     setPage(1);
     selectedIdRef.current = null;
@@ -256,30 +268,54 @@ export default function DispatchInbox() {
 
       <main className={styles.main}>
         <div className={styles.topbar}>
-          <div className={styles.breadcrumb}><span>Operations</span><span>/</span><strong>Dispatch</strong></div>
-          <div className={styles.topbarRight}><span className={styles.liveDot} /> Inbox refreshes every 30 seconds</div>
+          <div className={styles.breadcrumb}>
+            <span>Operations</span>
+            <span>/</span>
+            <strong>Dispatch</strong>
+          </div>
+          <div className={styles.topbarRight}>
+            <span className={styles.liveDot} /> Inbox refreshes every 30 seconds
+          </div>
         </div>
 
         <header className={styles.pageHeading}>
           <div>
             <p className={styles.eyebrow}>Operations / Messaging</p>
             <h1 className={styles.title}>Dispatch review</h1>
-            <p className={styles.subtitle}>Review incoming dispatch details before they change fleet movements.</p>
+            <p className={styles.subtitle}>
+              Review incoming dispatch details before they change fleet movements.
+            </p>
           </div>
           <div className={styles.headingActions}>
-            <button className={styles.buttonSecondary} type="button" onClick={() => void refresh(true)} disabled={loading}>
+            <button
+              className={styles.buttonSecondary}
+              type="button"
+              onClick={() => void refresh(true)}
+              disabled={loading}
+            >
               <RefreshCw size={14} className={loading ? 'animate-spin' : undefined} />
               Refresh
             </button>
           </div>
         </header>
 
-        {loadError ? <div className={styles.errorBanner} role="alert">{loadError}</div> : null}
+        {loadError ? (
+          <div className={styles.errorBanner} role="alert">
+            {loadError}
+          </div>
+        ) : null}
         {feedback ? (
-          <div className={`${styles.feedback} ${feedback.tone === 'error' ? styles.feedbackError : ''}`} role={feedback.tone === 'error' ? 'alert' : 'status'}>
+          <div
+            className={`${styles.feedback} ${feedback.tone === 'error' ? styles.feedbackError : ''}`}
+            role={feedback.tone === 'error' ? 'alert' : 'status'}
+          >
             <span>{feedback.text}</span>
             {feedback.copyText ? (
-              <button className={styles.copyButton} type="button" onClick={() => void copyNotice(feedback.copyText ?? '')}>
+              <button
+                className={styles.copyButton}
+                type="button"
+                onClick={() => void copyNotice(feedback.copyText ?? '')}
+              >
                 <Copy size={12} /> Copy notice
               </button>
             ) : null}
@@ -288,27 +324,52 @@ export default function DispatchInbox() {
 
         <section className={styles.stats} aria-label="Dispatch inbox summary">
           <div className={styles.statCard}>
-            <div className={styles.statIcon}><Inbox size={17} /></div>
-            <div><p className={styles.statLabel}>Messages in this view</p><p className={styles.statValue}>{pagination?.total ?? '—'}</p></div>
+            <div className={styles.statIcon}>
+              <Inbox size={17} />
+            </div>
+            <div>
+              <p className={styles.statLabel}>Messages in this view</p>
+              <p className={styles.statValue}>{pagination?.total ?? '—'}</p>
+            </div>
           </div>
           <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.statIconAmber}`}><BellRing size={17} /></div>
-            <div><p className={styles.statLabel}>Reminders waiting</p><p className={styles.statValue}>{notifications.length}</p></div>
+            <div className={`${styles.statIcon} ${styles.statIconAmber}`}>
+              <BellRing size={17} />
+            </div>
+            <div>
+              <p className={styles.statLabel}>Reminders waiting</p>
+              <p className={styles.statValue}>{notifications.length}</p>
+            </div>
           </div>
           <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.statIconRed}`}><Clock3 size={17} /></div>
-            <div><p className={styles.statLabel}>Overdue reminders</p><p className={styles.statValue}>{overdueCount}</p></div>
+            <div className={`${styles.statIcon} ${styles.statIconRed}`}>
+              <Clock3 size={17} />
+            </div>
+            <div>
+              <p className={styles.statLabel}>Overdue reminders</p>
+              <p className={styles.statValue}>{overdueCount}</p>
+            </div>
           </div>
         </section>
 
         <section className={styles.reminders} aria-labelledby="reminders-title">
           <div className={styles.remindersHeader}>
-            <h2 className={styles.remindersHeading} id="reminders-title"><BellRing size={15} /> Dispatch reminders</h2>
-            <span className={styles.remindersHint}>A matching message from the connected phone or customer group clears a reminder.</span>
+            <h2 className={styles.remindersHeading} id="reminders-title">
+              <BellRing size={15} /> Dispatch reminders
+            </h2>
+            <span className={styles.remindersHint}>
+              A matching message from the connected phone or customer group clears a reminder.
+            </span>
           </div>
-          {reminderError ? <div className={styles.errorBanner} role="alert">{reminderError}</div> : null}
+          {reminderError ? (
+            <div className={styles.errorBanner} role="alert">
+              {reminderError}
+            </div>
+          ) : null}
           {notifications.length === 0 ? (
-            <div className={styles.emptyReminders}><CheckCircle2 size={15} /> No dispatch reminders waiting.</div>
+            <div className={styles.emptyReminders}>
+              <CheckCircle2 size={15} /> No dispatch reminders waiting.
+            </div>
           ) : (
             <div className={styles.reminderList}>
               {notifications.map((notification) => (
@@ -318,7 +379,9 @@ export default function DispatchInbox() {
                 >
                   <div>
                     <p className={styles.reminderCustomer}>{notification.customerName}</p>
-                    <p className={`${styles.reminderMeta} ${notification.overdue ? styles.reminderOverdue : ''}`}>
+                    <p
+                      className={`${styles.reminderMeta} ${notification.overdue ? styles.reminderOverdue : ''}`}
+                    >
                       <Clock3 size={12} />
                       {notification.overdue ? 'Overdue · ' : 'Due · '}
                       {displayDate(notification.dueAt, true)}
@@ -361,37 +424,50 @@ export default function DispatchInbox() {
 
             <div className={styles.messageList}>
               {loading ? (
-                <div className={styles.centerState}><RefreshCw size={18} className="animate-spin" /><span>Loading dispatch messages…</span></div>
+                <div className={styles.centerState}>
+                  <RefreshCw size={18} className="animate-spin" />
+                  <span>Loading dispatch messages…</span>
+                </div>
               ) : messages.length === 0 ? (
                 <div className={styles.centerState}>
                   <CheckCircle2 size={19} />
                   <strong>Queue is clear</strong>
                   <span>No {filter === 'all' ? '' : `${filter} `}dispatch messages to show.</span>
                 </div>
-              ) : messages.map((message) => (
-                <button
-                  className={`${styles.messageRow} ${message.id === selectedId ? styles.messageRowSelected : ''}`}
-                  key={message.id}
-                  type="button"
-                  onClick={() => selectMessage(message)}
-                  aria-pressed={message.id === selectedId}
-                >
-                  <span className={styles.messageRowTop}>
-                    <span className={styles.messageCustomer}>{message.customerName}</span>
-                    <span className={styles.messageTime}>{displayDate(message.createdAt, true)}</span>
-                  </span>
-                  <span className={styles.messagePreview}>{message.text}</span>
-                  <span className={styles.messageRowBottom}>
-                    <span className={`${styles.badge} ${statusClass(message.reviewStatus)}`}>{statusLabel(message.reviewStatus)}</span>
-                    {message.parsedData?.truckNumber ? <span className={styles.messageTime}>{message.parsedData.truckNumber}</span> : null}
-                  </span>
-                </button>
-              ))}
+              ) : (
+                messages.map((message) => (
+                  <button
+                    className={`${styles.messageRow} ${message.id === selectedId ? styles.messageRowSelected : ''}`}
+                    key={message.id}
+                    type="button"
+                    onClick={() => selectMessage(message)}
+                    aria-pressed={message.id === selectedId}
+                  >
+                    <span className={styles.messageRowTop}>
+                      <span className={styles.messageCustomer}>{message.customerName}</span>
+                      <span className={styles.messageTime}>
+                        {displayDate(message.createdAt, true)}
+                      </span>
+                    </span>
+                    <span className={styles.messagePreview}>{message.text}</span>
+                    <span className={styles.messageRowBottom}>
+                      <span className={`${styles.badge} ${statusClass(message.reviewStatus)}`}>
+                        {statusLabel(message.reviewStatus)}
+                      </span>
+                      {message.parsedData?.truckNumber ? (
+                        <span className={styles.messageTime}>{message.parsedData.truckNumber}</span>
+                      ) : null}
+                    </span>
+                  </button>
+                ))
+              )}
             </div>
 
             <div className={styles.inboxFooter}>
               <span>
-                {pagination?.total ? `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, pagination.total)} of ${pagination.total}` : 'No results'}
+                {pagination?.total
+                  ? `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, pagination.total)} of ${pagination.total}`
+                  : 'No results'}
               </span>
               <div className={styles.paginationButtons}>
                 <button
@@ -400,14 +476,18 @@ export default function DispatchInbox() {
                   onClick={() => setPage((current) => Math.max(1, current - 1))}
                   disabled={!pagination?.hasPrevious || loading}
                   aria-label="Previous page"
-                ><ChevronLeft size={15} /></button>
+                >
+                  <ChevronLeft size={15} />
+                </button>
                 <button
                   className={styles.iconButton}
                   type="button"
                   onClick={() => setPage((current) => current + 1)}
                   disabled={!pagination?.hasNext || loading}
                   aria-label="Next page"
-                ><ChevronRight size={15} /></button>
+                >
+                  <ChevronRight size={15} />
+                </button>
               </div>
             </div>
           </div>
@@ -415,9 +495,14 @@ export default function DispatchInbox() {
           <div className={styles.detail}>
             {!selectedMessage ? (
               <div className={styles.emptyDetail}>
-                <div className={styles.emptyDetailIcon}><ClipboardCheck size={21} /></div>
+                <div className={styles.emptyDetailIcon}>
+                  <ClipboardCheck size={21} />
+                </div>
                 <h2>Select a dispatch message</h2>
-                <p>Parsed details and review actions will appear here. New messages are checked automatically.</p>
+                <p>
+                  Parsed details and review actions will appear here. New messages are checked
+                  automatically.
+                </p>
               </div>
             ) : (
               <>
@@ -425,7 +510,9 @@ export default function DispatchInbox() {
                   <div>
                     <p className={styles.eyebrow}>Dispatch details</p>
                     <h2 className={styles.detailTitle}>{selectedMessage.customerName}</h2>
-                    <p className={styles.detailMeta}>Received {displayDate(selectedMessage.createdAt, true)}</p>
+                    <p className={styles.detailMeta}>
+                      Received {displayDate(selectedMessage.createdAt, true)}
+                    </p>
                   </div>
                   <span className={`${styles.badge} ${statusClass(selectedMessage.reviewStatus)}`}>
                     {statusLabel(selectedMessage.reviewStatus)}
@@ -434,15 +521,21 @@ export default function DispatchInbox() {
 
                 {selectedMessage.warnings?.length ? (
                   <div className={styles.warnings} role="note">
-                    <p className={styles.warningsTitle}><AlertTriangle size={14} /> Check these parser warnings</p>
+                    <p className={styles.warningsTitle}>
+                      <AlertTriangle size={14} /> Check these parser warnings
+                    </p>
                     <ul className={styles.warningList}>
-                      {selectedMessage.warnings.map((warning) => <li key={warning}>{warning.replaceAll('_', ' ')}</li>)}
+                      {selectedMessage.warnings.map((warning) => (
+                        <li key={warning}>{warning.replaceAll('_', ' ')}</li>
+                      ))}
                     </ul>
                   </div>
                 ) : null}
 
                 <div className={styles.originalMessage}>
-                  <p className={styles.originalLabel}><MessageSquareText size={13} /> Original WhatsApp message</p>
+                  <p className={styles.originalLabel}>
+                    <MessageSquareText size={13} /> Original WhatsApp message
+                  </p>
                   <p className={styles.originalText}>{selectedMessage.text}</p>
                 </div>
 
@@ -450,48 +543,103 @@ export default function DispatchInbox() {
                 <div className={styles.formGrid}>
                   <div className={styles.field}>
                     <label htmlFor="truck-number">Truck number *</label>
-                    <input id="truck-number" value={details.truckNumber ?? ''} onChange={updateField('truckNumber')} disabled={!canReview || busyAction !== null} autoComplete="off" />
+                    <input
+                      id="truck-number"
+                      value={details.truckNumber ?? ''}
+                      onChange={updateField('truckNumber')}
+                      disabled={!canReview || busyAction !== null}
+                      autoComplete="off"
+                    />
                   </div>
                   <div className={styles.field}>
                     <label htmlFor="skid-number">Skid number *</label>
-                    <input id="skid-number" value={details.skidNumber ?? ''} onChange={updateField('skidNumber')} disabled={!canReview || busyAction !== null} autoComplete="off" />
+                    <input
+                      id="skid-number"
+                      value={details.skidNumber ?? ''}
+                      onChange={updateField('skidNumber')}
+                      disabled={!canReview || busyAction !== null}
+                      autoComplete="off"
+                    />
                   </div>
                   <div className={styles.field}>
                     <label htmlFor="driver-name">Driver name</label>
-                    <input id="driver-name" value={details.driverName ?? ''} onChange={updateField('driverName')} disabled={!canReview || busyAction !== null} autoComplete="name" />
+                    <input
+                      id="driver-name"
+                      value={details.driverName ?? ''}
+                      onChange={updateField('driverName')}
+                      disabled={!canReview || busyAction !== null}
+                      autoComplete="name"
+                    />
                   </div>
                   <div className={styles.field}>
                     <label htmlFor="driver-contact">Driver contact</label>
-                    <input id="driver-contact" type="tel" value={details.driverContact ?? ''} onChange={updateField('driverContact')} disabled={!canReview || busyAction !== null} autoComplete="tel" />
+                    <input
+                      id="driver-contact"
+                      type="tel"
+                      value={details.driverContact ?? ''}
+                      onChange={updateField('driverContact')}
+                      disabled={!canReview || busyAction !== null}
+                      autoComplete="tel"
+                    />
                   </div>
                   <div className={styles.field}>
                     <label htmlFor="date-out">Date out *</label>
-                    <input id="date-out" type="date" value={details.dateOut ?? ''} onChange={updateField('dateOut')} disabled={!canReview || busyAction !== null} />
+                    <input
+                      id="date-out"
+                      type="date"
+                      value={details.dateOut ?? ''}
+                      onChange={updateField('dateOut')}
+                      disabled={!canReview || busyAction !== null}
+                    />
                   </div>
                   <div className={styles.field}>
                     <label htmlFor="time-out">Time out</label>
-                    <input id="time-out" type="time" value={details.timeOut ?? ''} onChange={updateField('timeOut')} disabled={!canReview || busyAction !== null} />
+                    <input
+                      id="time-out"
+                      type="time"
+                      value={details.timeOut ?? ''}
+                      onChange={updateField('timeOut')}
+                      disabled={!canReview || busyAction !== null}
+                    />
                   </div>
                 </div>
 
                 <p className={styles.approvalNote}>
                   <ShieldCheck size={14} />
-                  Approval records the dispatch and schedules an in-app reminder for 10 minutes later. WhatsApp is never sent automatically.
+                  Approval records the dispatch and schedules an in-app reminder for 10 minutes
+                  later. WhatsApp is never sent automatically.
                 </p>
 
                 {canReview ? (
                   <div className={styles.detailActions}>
-                    <button className={styles.buttonDanger} type="button" onClick={() => void handleReject()} disabled={busyAction !== null}>
+                    <button
+                      className={styles.buttonDanger}
+                      type="button"
+                      onClick={() => void handleReject()}
+                      disabled={busyAction !== null}
+                    >
                       <X size={14} /> {busyAction === 'reject' ? 'Rejecting…' : 'Reject'}
                     </button>
-                    <button className={styles.button} type="button" onClick={() => void handleApprove()} disabled={!canApprove || busyAction !== null}>
-                      <Check size={14} /> {busyAction === 'approve' ? 'Approving…' : 'Approve dispatch'}
+                    <button
+                      className={styles.button}
+                      type="button"
+                      onClick={() => void handleApprove()}
+                      disabled={!canApprove || busyAction !== null}
+                    >
+                      <Check size={14} />{' '}
+                      {busyAction === 'approve' ? 'Approving…' : 'Approve dispatch'}
                     </button>
                   </div>
                 ) : selectedMessage.reviewStatus === 'duplicate' ? (
-                  <div className={styles.approvalNote}><AlertTriangle size={14} /> This message is marked as a duplicate and cannot create another movement.</div>
+                  <div className={styles.approvalNote}>
+                    <AlertTriangle size={14} /> This message is marked as a duplicate and cannot
+                    create another movement.
+                  </div>
                 ) : selectedMessage.reviewStatus === 'approved' ? (
-                  <div className={styles.approvalNote}><CheckCircle2 size={14} /> Dispatch approved; the reminder clears when a matching group or phone message is observed.</div>
+                  <div className={styles.approvalNote}>
+                    <CheckCircle2 size={14} /> Dispatch approved; the reminder clears when a
+                    matching group or phone message is observed.
+                  </div>
                 ) : null}
               </>
             )}

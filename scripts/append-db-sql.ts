@@ -84,7 +84,9 @@ function appendDbSqlToLatestMigration() {
   const updatedSql = `${existingSql}\n--> statement-breakpoint\n${appendedSql}\n`;
   fs.writeFileSync(targetSqlPath, updatedSql, 'utf-8');
 
-  console.log(`Appended ${pendingSql.length} SQL files from db-migrations/ and db-functions/ into ${latestEntry.tag}.sql`);
+  console.log(
+    `Appended ${pendingSql.length} SQL files from db-migrations/ and db-functions/ into ${latestEntry.tag}.sql`
+  );
 }
 
 console.log('Appending database SQL...');

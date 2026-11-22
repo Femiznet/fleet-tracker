@@ -42,10 +42,7 @@ interface HCLVehiclePayload {
   };
 }
 
-export async function parseVehicles(
-  res: Response,
-  filterGroup?: string
-): Promise<CleanVehicle[]> {
+export async function parseVehicles(res: Response, filterGroup?: string): Promise<CleanVehicle[]> {
   const payload = (await res.json()) as HCLVehiclePayload;
   const list = payload?.data?.data?.data ?? [];
 

@@ -38,10 +38,18 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
         .onConflictDoUpdate({
           target: plantTruckStatuses.truckId,
           set: {
-            ...(statusParsed.data.isStandby !== undefined && { isStandby: statusParsed.data.isStandby }),
-            ...(statusParsed.data.isOnMaintenance !== undefined && { isOnMaintenance: statusParsed.data.isOnMaintenance }),
-            ...(statusParsed.data.maintenanceNote !== undefined && { maintenanceNote: statusParsed.data.maintenanceNote?.trim() || null }),
-            ...(statusParsed.data.note !== undefined && { note: statusParsed.data.note?.trim() || null }),
+            ...(statusParsed.data.isStandby !== undefined && {
+              isStandby: statusParsed.data.isStandby,
+            }),
+            ...(statusParsed.data.isOnMaintenance !== undefined && {
+              isOnMaintenance: statusParsed.data.isOnMaintenance,
+            }),
+            ...(statusParsed.data.maintenanceNote !== undefined && {
+              maintenanceNote: statusParsed.data.maintenanceNote?.trim() || null,
+            }),
+            ...(statusParsed.data.note !== undefined && {
+              note: statusParsed.data.note?.trim() || null,
+            }),
             updatedAt: new Date(),
           },
         });
@@ -49,14 +57,30 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 
     const parsed = updateTruckSchema.safeParse(body);
     if (!parsed.success && !statusParsed.success) {
-      return apiError({ code: 'VALIDATION_ERROR', message: 'Invalid truck data', details: parsed.error.flatten() }, 400);
+      return apiError(
+        {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid truck data',
+          details: parsed.error.flatten(),
+        },
+        400
+      );
     }
     if (statusParsed.success && Object.keys(statusParsed.data).length) {
       const truck = await getTruckById(id);
-      return truck ? apiSuccess(truck) : apiError({ code: 'NOT_FOUND', message: 'Truck not found' }, 404);
+      return truck
+        ? apiSuccess(truck)
+        : apiError({ code: 'NOT_FOUND', message: 'Truck not found' }, 404);
     }
     if (!parsed.success) {
-      return apiError({ code: 'VALIDATION_ERROR', message: 'Invalid truck data', details: parsed.error.flatten() }, 400);
+      return apiError(
+        {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid truck data',
+          details: parsed.error.flatten(),
+        },
+        400
+      );
     }
     const truck = await updateTruck(id, parsed.data);
     return truck

@@ -71,10 +71,7 @@ export async function listDispatchNotifications(): Promise<DispatchNotification[
   return response.data;
 }
 
-export async function approveDispatchMessage(
-  messageId: string,
-  details: DispatchDetails
-) {
+export async function approveDispatchMessage(messageId: string, details: DispatchDetails) {
   const body = z.object({ details: DispatchDetailsSchema.partial() }).parse({ details });
   const response = parseResponse(
     await requestJson(`/api/messages/${encodeURIComponent(messageId)}/approve-dispatch`, {

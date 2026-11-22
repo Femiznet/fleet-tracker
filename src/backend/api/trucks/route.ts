@@ -21,7 +21,14 @@ export async function POST(request: NextRequest) {
   try {
     const parsed = createTruckSchema.safeParse(await request.json());
     if (!parsed.success) {
-      return apiError({ code: 'VALIDATION_ERROR', message: 'Invalid truck data', details: parsed.error.flatten() }, 400);
+      return apiError(
+        {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid truck data',
+          details: parsed.error.flatten(),
+        },
+        400
+      );
     }
     return apiSuccess(await createTruck(parsed.data), { status: 201 });
   } catch (error) {

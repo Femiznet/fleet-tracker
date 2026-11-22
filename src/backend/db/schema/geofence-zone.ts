@@ -9,12 +9,12 @@ export const geofenceZones = pgTable('geofence_zones', {
   centerLat: doublePrecision('center_lat'),
   centerLon: doublePrecision('center_lon'),
   radiusMeters: doublePrecision('radius_meters'),
-  
+
   // Stores confirmed points inside this zone to refine the center & radius
   samplePoints: jsonb('sample_points')
     .$type<{ lat: number; lon: number }[]>()
     .notNull()
     .default([]),
-    
+
   updatedAt: timestamp('updated_at').defaultNow(),
 });

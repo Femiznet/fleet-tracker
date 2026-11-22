@@ -1,8 +1,5 @@
 import { getCustomerById } from '@/backend/services/customers/query';
-import {
-  deleteCustomerAction,
-  updateCustomerAction,
-} from '@/backend/actions/customers';
+import { deleteCustomerAction, updateCustomerAction } from '@/backend/actions/customers';
 import { apiDbError, apiError, apiSuccess } from '@/backend/lib/api-response';
 
 type RouteContext = {
@@ -31,7 +28,10 @@ export async function PATCH(req: Request, { params }: RouteContext) {
     const result = await updateCustomerAction(id, body);
 
     if (!result.success) {
-      return apiError({ code: 'VALIDATION_ERROR', message: 'Invalid customer data', details: result.error }, 400);
+      return apiError(
+        { code: 'VALIDATION_ERROR', message: 'Invalid customer data', details: result.error },
+        400
+      );
     }
 
     if (!result.data) {

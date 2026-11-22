@@ -1,10 +1,6 @@
 'use client';
 
-import {
-  useCallback,
-  useEffect,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   Box,
@@ -31,7 +27,9 @@ type SkidData = { skids: Skid[]; total: number };
 
 function formatTime(value: Date | null) {
   if (!value) return 'Not checked yet';
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(value);
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
+    value
+  );
 }
 
 function displayStatus(value: string) {
@@ -41,7 +39,8 @@ function displayStatus(value: string) {
 function statusStyle(status: string) {
   if (status === 'available' || status === 'loaded' || status === 'idle') return styles.pillGreen;
   if (status === 'in_transit' || status === 'loading') return styles.pillBlue;
-  if (status === 'maintenance' || status === 'on_hold' || status === 'washing') return styles.pillAmber;
+  if (status === 'maintenance' || status === 'on_hold' || status === 'washing')
+    return styles.pillAmber;
   if (status === 'at_customer') return styles.pillBlue;
   return '';
 }
@@ -66,29 +65,56 @@ function TruckLocations({
       <header className={styles.panelHeader}>
         <div>
           <h2 className={styles.panelTitle}>Truck locations</h2>
-          <p className={styles.panelSubtitle}>Stored HCL Tracker coordinates and last resolved location.</p>
+          <p className={styles.panelSubtitle}>
+            Stored HCL Tracker coordinates and last resolved location.
+          </p>
         </div>
         <TruckIcon size={17} />
       </header>
-      {error ? <div className={styles.error} role="alert">{error}</div> : null}
+      {error ? (
+        <div className={styles.error} role="alert">
+          {error}
+        </div>
+      ) : null}
       {loading && !trucks ? (
-        <div className={styles.empty}><RefreshCw size={17} className="animate-spin" /> Loading trucks…</div>
+        <div className={styles.empty}>
+          <RefreshCw size={17} className="animate-spin" /> Loading trucks…
+        </div>
       ) : !trucks?.trucks.length ? (
-        <div className={styles.empty}><TruckIcon size={18} /><strong>No trucks registered</strong><span>Truck locations will appear after trucks are added and synced.</span></div>
+        <div className={styles.empty}>
+          <TruckIcon size={18} />
+          <strong>No trucks registered</strong>
+          <span>Truck locations will appear after trucks are added and synced.</span>
+        </div>
       ) : (
         <div className={styles.tableWrap}>
           <table className={styles.table}>
             <thead>
-              <tr><th>Truck</th><th>Status</th><th>Location</th><th>Speed</th><th>Coordinates</th></tr>
+              <tr>
+                <th>Truck</th>
+                <th>Status</th>
+                <th>Location</th>
+                <th>Speed</th>
+                <th>Coordinates</th>
+              </tr>
             </thead>
             <tbody>
               {trucks.trucks.map((truck) => (
                 <tr key={truck.id}>
-                  <td><strong>{truck.truckNum}</strong>{truck.slugNum ? <span className={styles.subtle}>{truck.slugNum}</span> : null}</td>
-                  <td><span className={`${styles.pill} ${statusStyle(truck.status)}`}>{displayStatus(truck.status)}</span></td>
+                  <td>
+                    <strong>{truck.truckNum}</strong>
+                    {truck.slugNum ? <span className={styles.subtle}>{truck.slugNum}</span> : null}
+                  </td>
+                  <td>
+                    <span className={`${styles.pill} ${statusStyle(truck.status)}`}>
+                      {displayStatus(truck.status)}
+                    </span>
+                  </td>
                   <td>{truck.currentLoc === 'pending' ? 'Location pending' : truck.currentLoc}</td>
                   <td>{truck.speed.toLocaleString()} km/h</td>
-                  <td>{truck.lat.toFixed(4)}, {truck.lon.toFixed(4)}</td>
+                  <td>
+                    {truck.lat.toFixed(4)}, {truck.lon.toFixed(4)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -100,7 +126,8 @@ function TruckLocations({
       )}
       <p className={styles.freshnessNote}>
         <Clock3 size={12} />
-        The API does not store a location-sync timestamp, so coordinate freshness cannot yet be confirmed here.
+        The API does not store a location-sync timestamp, so coordinate freshness cannot yet be
+        confirmed here.
       </p>
     </section>
   );
@@ -122,29 +149,64 @@ function SkidInventory({
       <header className={styles.panelHeader}>
         <div>
           <h2 className={styles.panelTitle}>Skid inventory</h2>
-          <p className={styles.panelSubtitle}>Current recorded location, fill state, and yard status.</p>
+          <p className={styles.panelSubtitle}>
+            Current recorded location, fill state, and yard status.
+          </p>
         </div>
         <Box size={17} />
       </header>
-      {error ? <div className={styles.error} role="alert">{error}</div> : null}
+      {error ? (
+        <div className={styles.error} role="alert">
+          {error}
+        </div>
+      ) : null}
       {loading && !skids ? (
-        <div className={styles.empty}><RefreshCw size={17} className="animate-spin" /> Loading skids…</div>
+        <div className={styles.empty}>
+          <RefreshCw size={17} className="animate-spin" /> Loading skids…
+        </div>
       ) : !skids?.skids.length ? (
-        <div className={styles.empty}><Box size={18} /><strong>No skids registered</strong><span>Skid inventory will appear when skids are added.</span></div>
+        <div className={styles.empty}>
+          <Box size={18} />
+          <strong>No skids registered</strong>
+          <span>Skid inventory will appear when skids are added.</span>
+        </div>
       ) : (
         <div className={styles.tableWrap}>
           <table className={styles.table}>
             <thead>
-              <tr><th>Skid</th><th>Location</th><th>Status</th><th>Owner</th><th>Maintenance</th></tr>
+              <tr>
+                <th>Skid</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th>Owner</th>
+                <th>Maintenance</th>
+              </tr>
             </thead>
             <tbody>
               {skids.skids.map((skid) => (
                 <tr key={skid.id}>
-                  <td><strong>{skid.skidNum}</strong>{skid.isNew ? <span className={styles.subtle}>New skid</span> : null}</td>
+                  <td>
+                    <strong>{skid.skidNum}</strong>
+                    {skid.isNew ? <span className={styles.subtle}>New skid</span> : null}
+                  </td>
                   <td>{skid.currentLoc === 'pending' ? 'Location pending' : skid.currentLoc}</td>
-                  <td><span className={`${styles.pill} ${statusStyle(skid.status)}`}>{displayStatus(skid.status)}</span></td>
-                  <td><span className={`${styles.pill} ${statusStyle(skid.owner)}`}>{displayStatus(skid.owner)}</span></td>
-                  <td><span className={`${styles.pill} ${skid.isOnMaintenance ? statusStyle('maintenance') : ''}`}>{skid.isOnMaintenance ? 'Maintenance' : 'No'}</span></td>
+                  <td>
+                    <span className={`${styles.pill} ${statusStyle(skid.status)}`}>
+                      {displayStatus(skid.status)}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`${styles.pill} ${statusStyle(skid.owner)}`}>
+                      {displayStatus(skid.owner)}
+                    </span>
+                  </td>
+                  <td>
+                    <span
+                      className={`${styles.pill} ${skid.isOnMaintenance ? statusStyle('maintenance') : ''}`}
+                    >
+                      {skid.isOnMaintenance ? 'Maintenance' : 'No'}
+                    </span>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -167,9 +229,18 @@ function LivePlantSnapshot({
   loading: boolean;
   error: string | null;
 }) {
-  if (error) return <div className={styles.error} role="alert">{error}</div>;
+  if (error)
+    return (
+      <div className={styles.error} role="alert">
+        {error}
+      </div>
+    );
   if (!snapshot) {
-    return <div className={styles.empty}>{loading ? 'Loading live plant status…' : 'Plant status is unavailable.'}</div>;
+    return (
+      <div className={styles.empty}>
+        {loading ? 'Loading live plant status…' : 'Plant status is unavailable.'}
+      </div>
+    );
   }
 
   const truckStatuses = [
@@ -219,22 +290,44 @@ function PlantReportSummary({
   loading: boolean;
   error: string | null;
 }) {
-  if (error) return <div className={styles.error} role="alert">{error}</div>;
+  if (error)
+    return (
+      <div className={styles.error} role="alert">
+        {error}
+      </div>
+    );
   if (!data) {
-    return <div className={styles.empty}>{loading ? 'Loading plant report…' : 'Plant report is unavailable.'}</div>;
+    return (
+      <div className={styles.empty}>
+        {loading ? 'Loading plant report…' : 'Plant report is unavailable.'}
+      </div>
+    );
   }
 
   return (
     <div className={styles.panelBody}>
       <div className={styles.reportDetails}>
-        <div className={styles.reportMetric}><label>Loading</label><strong>{countSkids(data.fleetSnapshot.skidsLoading)}</strong></div>
-        <div className={styles.reportMetric}><label>Loaded</label><strong>{countSkids(data.fleetSnapshot.skidsLoaded)}</strong></div>
-        <div className={styles.reportMetric}><label>Empty</label><strong>{countSkids(data.fleetSnapshot.skidsEmpty)}</strong></div>
-        <div className={styles.reportMetric}><label>On hold</label><strong>{data.fleetSnapshot.skidsOnHold.length}</strong></div>
+        <div className={styles.reportMetric}>
+          <label>Loading</label>
+          <strong>{countSkids(data.fleetSnapshot.skidsLoading)}</strong>
+        </div>
+        <div className={styles.reportMetric}>
+          <label>Loaded</label>
+          <strong>{countSkids(data.fleetSnapshot.skidsLoaded)}</strong>
+        </div>
+        <div className={styles.reportMetric}>
+          <label>Empty</label>
+          <strong>{countSkids(data.fleetSnapshot.skidsEmpty)}</strong>
+        </div>
+        <div className={styles.reportMetric}>
+          <label>On hold</label>
+          <strong>{data.fleetSnapshot.skidsOnHold.length}</strong>
+        </div>
       </div>
       <p className={styles.freshnessNote}>
         <Clock3 size={12} />
-        {data.plantSkids.length} available skid{data.plantSkids.length === 1 ? '' : 's'} currently recorded at the plant.
+        {data.plantSkids.length} available skid{data.plantSkids.length === 1 ? '' : 's'} currently
+        recorded at the plant.
       </p>
     </div>
   );
@@ -262,21 +355,31 @@ export default function OperationsDashboard() {
       setTruckData(trucksResult.value);
       setTruckError(null);
     } else {
-      setTruckError(trucksResult.reason instanceof Error ? trucksResult.reason.message : 'Unable to load trucks.');
+      setTruckError(
+        trucksResult.reason instanceof Error
+          ? trucksResult.reason.message
+          : 'Unable to load trucks.'
+      );
     }
 
     if (skidsResult.status === 'fulfilled') {
       setSkidData(skidsResult.value);
       setSkidError(null);
     } else {
-      setSkidError(skidsResult.reason instanceof Error ? skidsResult.reason.message : 'Unable to load skids.');
+      setSkidError(
+        skidsResult.reason instanceof Error ? skidsResult.reason.message : 'Unable to load skids.'
+      );
     }
 
     if (plantResult.status === 'fulfilled') {
       setPlantData(plantResult.value);
       setPlantError(null);
     } else {
-      setPlantError(plantResult.reason instanceof Error ? plantResult.reason.message : 'Unable to load plant status.');
+      setPlantError(
+        plantResult.reason instanceof Error
+          ? plantResult.reason.message
+          : 'Unable to load plant status.'
+      );
     }
 
     setLastChecked(new Date());
@@ -301,10 +404,16 @@ export default function OperationsDashboard() {
       <OperationsSidebar active="overview" />
       <main className={styles.main}>
         <div className={styles.topbar}>
-          <div className={styles.breadcrumb}><span>Operations</span><span>/</span><strong>Overview</strong></div>
+          <div className={styles.breadcrumb}>
+            <span>Operations</span>
+            <span>/</span>
+            <strong>Overview</strong>
+          </div>
           <div className={styles.refreshInfo}>
             <span className={styles.liveDot} />
-            {lastChecked ? `Dashboard checked ${formatTime(lastChecked)}` : 'Checking operational data…'}
+            {lastChecked
+              ? `Dashboard checked ${formatTime(lastChecked)}`
+              : 'Checking operational data…'}
           </div>
         </div>
 
@@ -312,29 +421,56 @@ export default function OperationsDashboard() {
           <div>
             <p className={styles.eyebrow}>Fleet operations</p>
             <h1 className={styles.title}>Operations overview</h1>
-            <p className={styles.subtitle}>Plant condition, fleet positions, and skid availability in one view.</p>
+            <p className={styles.subtitle}>
+              Plant condition, fleet positions, and skid availability in one view.
+            </p>
           </div>
-          <button className={styles.refreshButton} type="button" onClick={() => void refresh(true)} disabled={loading}>
+          <button
+            className={styles.refreshButton}
+            type="button"
+            onClick={() => void refresh(true)}
+            disabled={loading}
+          >
             <RefreshCw size={14} className={loading ? 'animate-spin' : undefined} /> Refresh
           </button>
         </header>
 
         <section className={styles.stats} aria-label="Fleet overview">
           <div className={styles.statCard}>
-            <div className={styles.statIcon}><TruckIcon size={17} /></div>
-            <div><p className={styles.statLabel}>Registered trucks</p><p className={styles.statValue}>{truckData?.total ?? '—'}</p></div>
+            <div className={styles.statIcon}>
+              <TruckIcon size={17} />
+            </div>
+            <div>
+              <p className={styles.statLabel}>Registered trucks</p>
+              <p className={styles.statValue}>{truckData?.total ?? '—'}</p>
+            </div>
           </div>
           <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.statIconBlue}`}><Gauge size={17} /></div>
-            <div><p className={styles.statLabel}>Trucks in transit</p><p className={styles.statValue}>{inTransitCount ?? '—'}</p></div>
+            <div className={`${styles.statIcon} ${styles.statIconBlue}`}>
+              <Gauge size={17} />
+            </div>
+            <div>
+              <p className={styles.statLabel}>Trucks in transit</p>
+              <p className={styles.statValue}>{inTransitCount ?? '—'}</p>
+            </div>
           </div>
           <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.statIconAmber}`}><PackageCheck size={17} /></div>
-            <div><p className={styles.statLabel}>Skids loading</p><p className={styles.statValue}>{loadingSkidCount ?? '—'}</p></div>
+            <div className={`${styles.statIcon} ${styles.statIconAmber}`}>
+              <PackageCheck size={17} />
+            </div>
+            <div>
+              <p className={styles.statLabel}>Skids loading</p>
+              <p className={styles.statValue}>{loadingSkidCount ?? '—'}</p>
+            </div>
           </div>
           <div className={styles.statCard}>
-            <div className={styles.statIcon}><Fuel size={17} /></div>
-            <div><p className={styles.statLabel}>Skids at plant</p><p className={styles.statValue}>{plantData?.plantSkids.length ?? '—'}</p></div>
+            <div className={styles.statIcon}>
+              <Fuel size={17} />
+            </div>
+            <div>
+              <p className={styles.statLabel}>Skids at plant</p>
+              <p className={styles.statValue}>{plantData?.plantSkids.length ?? '—'}</p>
+            </div>
           </div>
         </section>
 
@@ -343,7 +479,9 @@ export default function OperationsDashboard() {
             <header className={styles.panelHeader}>
               <div>
                 <h2 className={styles.panelTitle}>Live plant & fleet status</h2>
-                <p className={styles.panelSubtitle}>Current movement and yard categories from the backend snapshot.</p>
+                <p className={styles.panelSubtitle}>
+                  Current movement and yard categories from the backend snapshot.
+                </p>
               </div>
               <Gauge size={17} />
             </header>
@@ -379,9 +517,13 @@ export default function OperationsDashboard() {
 
         <div className={styles.panelHeader}>
           <p className={styles.panelSubtitle}>
-            {lastChecked ? `Dashboard refreshes every 30 seconds · Last checked ${formatTime(lastChecked)}` : 'Dashboard refreshes every 30 seconds.'}
+            {lastChecked
+              ? `Dashboard refreshes every 30 seconds · Last checked ${formatTime(lastChecked)}`
+              : 'Dashboard refreshes every 30 seconds.'}
           </p>
-          <Link className={styles.link} href="/dispatch">Open dispatch review</Link>
+          <Link className={styles.link} href="/dispatch">
+            Open dispatch review
+          </Link>
         </div>
       </main>
     </div>

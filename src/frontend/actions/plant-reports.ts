@@ -33,13 +33,16 @@ export async function submitPlantReport(input: {
   return response.data;
 }
 
-export async function updateSkidStatus(id: string, input: {
-  fillState: 'empty' | 'loading' | 'loaded' | 'on_hold';
-  bay: 'washing_bay' | 'loading_bay' | 'parking_bay';
-  isOnMaintenance?: boolean;
-  maintenanceNote?: string | null;
-  note?: string | null;
-}) {
+export async function updateSkidStatus(
+  id: string,
+  input: {
+    fillState: 'empty' | 'loading' | 'loaded' | 'on_hold';
+    bay: 'washing_bay' | 'loading_bay' | 'parking_bay';
+    isOnMaintenance?: boolean;
+    maintenanceNote?: string | null;
+    note?: string | null;
+  }
+) {
   const response = parseResponse(
     await requestJson(`/api/skids/${id}`, {
       method: 'PATCH',

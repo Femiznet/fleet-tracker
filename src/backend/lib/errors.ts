@@ -1,19 +1,18 @@
-import z, { ZodError } from "zod";
+import z, { ZodError } from 'zod';
 
 interface ValueInputType {
-    success?: boolean;
-    data?: object;
-    message?: string;
+  success?: boolean;
+  data?: object;
+  message?: string;
   error?: Error;
   reason?: string;
 }
 
 export interface DbErrorInfo {
-    message: string;
-    field?: string;
-    code?: string;
+  message: string;
+  field?: string;
+  code?: string;
 }
-
 
 export function treeifyZodError(error: ZodError) {
   const errorTree = z.treeifyError(error);
@@ -25,26 +24,24 @@ export function treeifyZodError(error: ZodError) {
 
   const fullErrorTree = {
     errors: errorTree.errors,
-    properties
-  }
+    properties,
+  };
 
   return fullErrorTree;
-
 }
 
 export function returnValueDebugger(input: unknown) {
-    const value = input as ValueInputType;
+  const value = input as ValueInputType;
 
-    if (!value.success) {
-      console.log("FAILURE MESSAGE:", value.message);
-      console.log("FAILURE REASON:", value.reason);
-      console.error("ERROR:", value.error);
-    } else {
-      console.log("SUCCESSFUL MESSAGE:", value.message);
-      console.log("DATA:", value.data);
-    }
+  if (!value.success) {
+    console.log('FAILURE MESSAGE:', value.message);
+    console.log('FAILURE REASON:', value.reason);
+    console.error('ERROR:', value.error);
+  } else {
+    console.log('SUCCESSFUL MESSAGE:', value.message);
+    console.log('DATA:', value.data);
+  }
 }
-
 
 /**
  * Formats a PostgreSQL/drizzle database error into a clean, client-friendly

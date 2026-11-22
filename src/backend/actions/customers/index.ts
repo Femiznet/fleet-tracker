@@ -5,7 +5,6 @@ import { createCustomer, deleteCustomer, updateCustomer } from '@/backend/servic
 import { createCustomerSchema, updateCustomerSchema } from '@/backend/services/customers/validator';
 import { revalidatePath } from 'next/cache';
 
-
 export async function createCustomerAction(input: unknown) {
   const parsed = createCustomerSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: treeifyZodError(parsed.error) };

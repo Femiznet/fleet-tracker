@@ -5,22 +5,26 @@ import { trucks } from './trucks';
 import { customers } from './customers';
 import { skids } from './skids';
 
-export const movements = pgTable('movements',{
-  id: uuid('id').primaryKey().defaultRandom(),
-  type: movementTypeEnum('type').notNull(),
-  status: movementStatusEnum('status').notNull().default('in_progress'),
-  truckId: uuid('truck_id').references(() => trucks.id).notNull(),
-  customerId: uuid('customer_id').references(() => customers.id),
-  skidIdOut: uuid('skid_id_out').references(() => skids.id),
-  skidIdIn: uuid('skid_id_in').references(() => skids.id),
-  note: text('note'),
+export const movements = pgTable(
+  'movements',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    type: movementTypeEnum('type').notNull(),
+    status: movementStatusEnum('status').notNull().default('in_progress'),
+    truckId: uuid('truck_id')
+      .references(() => trucks.id)
+      .notNull(),
+    customerId: uuid('customer_id').references(() => customers.id),
+    skidIdOut: uuid('skid_id_out').references(() => skids.id),
+    skidIdIn: uuid('skid_id_in').references(() => skids.id),
+    note: text('note'),
   },
   (table) => [
     // Partial Unique Index: A truck can only have ONE 'in_progress' movement at a time
     uniqueIndex('unq_active_movement_per_truck')
       .on(table.truckId)
       .where(sql`${table.status} = 'in_progress'`),
-    
+
     // Rule 1A: If type is 'dispatch', skidIdOut MUST NOT be null
     check(
       'chk_dispatch_requires_skid_out',

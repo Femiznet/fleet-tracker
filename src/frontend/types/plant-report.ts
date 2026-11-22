@@ -18,11 +18,13 @@ export const PlantFleetSnapshotSchema = z.object({
 export const PlantReportMetricsSchema = z.object({
   inletPressureBar: z.number().optional(),
   loadingPressureBar: z.number().optional(),
-  landingGearBox: z.object({
-    loadingAndWashingBay: z.number().optional(),
-    workshop: z.number().optional(),
-    wooden: z.number().optional(),
-  }).optional(),
+  landingGearBox: z
+    .object({
+      loadingAndWashingBay: z.number().optional(),
+      workshop: z.number().optional(),
+      wooden: z.number().optional(),
+    })
+    .optional(),
   newChassisInPlant: z.number().optional(),
   compressors: z.record(z.string(), z.string()).optional(),
   extraFields: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
@@ -44,16 +46,18 @@ export const PlantYardSkidSchema = z.object({
 export const PlantDashboardDataSchema = z.object({
   fleetSnapshot: PlantFleetSnapshotSchema,
   plantSkids: z.array(PlantYardSkidSchema),
-  plantTrucks: z.array(z.object({
-    id: z.string(),
-    truckNum: z.string(),
-    currentLoc: z.string(),
-    status: z.enum(['available', 'in_transit', 'standby', 'at_customer', 'maintenance']),
-    isStandby: z.boolean().nullable(),
-    isOnMaintenance: z.boolean().nullable(),
-    maintenanceNote: z.string().nullable(),
-    note: z.string().nullable(),
-  })),
+  plantTrucks: z.array(
+    z.object({
+      id: z.string(),
+      truckNum: z.string(),
+      currentLoc: z.string(),
+      status: z.enum(['available', 'in_transit', 'standby', 'at_customer', 'maintenance']),
+      isStandby: z.boolean().nullable(),
+      isOnMaintenance: z.boolean().nullable(),
+      maintenanceNote: z.string().nullable(),
+      note: z.string().nullable(),
+    })
+  ),
 });
 
 export const PlantDashboardResponseSchema = z.object({

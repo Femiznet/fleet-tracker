@@ -30,8 +30,6 @@ export interface CancelMovementInput {
   note?: string | null;
 }
 
-
-
 /**
  * 1. Create a new full roundtrip dispatch (GASTECH PLANT -> Customer -> GASTECH PLANT)
  */
@@ -58,7 +56,6 @@ export async function createDispatch(
     }
 
     return movementId;
-
   } catch (error) {
     throw formatDbError(error);
   }
@@ -87,7 +84,6 @@ export async function createPickup(input: CreatePickupInput): Promise<string> {
     }
 
     return movementId;
-    
   } catch (error) {
     throw formatDbError(error);
   }

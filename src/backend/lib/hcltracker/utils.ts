@@ -5,7 +5,7 @@ let cachedCookieHeader: string | null = null;
 interface QueryHclOptions<T> {
   fetchApiWithCookies: (cookies: string) => Promise<Response>;
   parseResponse?: (res: Response) => Promise<T>;
-};
+}
 
 function mergeCookies(existingCookie: string | null, setCookieHeaders: string[]): string {
   const cookieMap = new Map<string, string>();
@@ -84,38 +84,36 @@ async function authenticate(): Promise<string> {
   cachedCookieHeader = cookies;
   return cookies;
 }
-  
+
 export async function queryHclTracker<T = unknown>({
-    fetchApiWithCookies,
-    parseResponse,
-  }: QueryHclOptions<T>) {
-    try {
-      let cookies = cachedCookieHeader || (await authenticate());
-      let returnValue = await fetchApiWithCookies(cookies);
-  
-      // If session expired, re-authenticate once and pass the NEW cookies to fetchApiWithCookies
-      if (returnValue.status === 401 || returnValue.status === 302) {
-        cookies = await authenticate();
-        returnValue = await fetchApiWithCookies(cookies);
-      }
-  
-      // Rotate any updated session cookies returned by the server
-      const newCookies = returnValue.headers.getSetCookie();
-      if (newCookies.length > 0) {
-        cachedCookieHeader = mergeCookies(cookies, newCookies);
-      }
-  
-      if (!returnValue.ok) {
-        throw new Error(`Upstream server returned ${returnValue.status}`);
-      }
-  
-      // Parse the Response stream (defaults to JSON if no custom parser is provided)
-      const data = parseResponse
-        ? await parseResponse(returnValue)
-        : await returnValue.json();
-  
-      return data;
-    } catch (error) {
-      throw error instanceof Error ? error : new Error('Internal server error');
+  fetchApiWithCookies,
+  parseResponse,
+}: QueryHclOptions<T>) {
+  try {
+    let cookies = cachedCookieHeader || (await authenticate());
+    let returnValue = await fetchApiWithCookies(cookies);
+
+    // If session expired, re-authenticate once and pass the NEW cookies to fetchApiWithCookies
+    if (returnValue.status === 401 || returnValue.status === 302) {
+      cookies = await authenticate();
+      returnValue = await fetchApiWithCookies(cookies);
     }
+
+    // Rotate any updated session cookies returned by the server
+    const newCookies = returnValue.headers.getSetCookie();
+    if (newCookies.length > 0) {
+      cachedCookieHeader = mergeCookies(cookies, newCookies);
+    }
+
+    if (!returnValue.ok) {
+      throw new Error(`Upstream server returned ${returnValue.status}`);
+    }
+
+    // Parse the Response stream (defaults to JSON if no custom parser is provided)
+    const data = parseResponse ? await parseResponse(returnValue) : await returnValue.json();
+
+    return data;
+  } catch (error) {
+    throw error instanceof Error ? error : new Error('Internal server error');
+  }
 }

@@ -104,10 +104,7 @@ type BaseTreeError = ReturnType<typeof z.treeifyError<BaseWebhook>>;
 type MessageDataTreeError = ReturnType<typeof z.treeifyError<MessageData>>;
 
 export type FailureReason =
-  | 'CHAT_NOT_ALLOWED'
-  | 'UNSUPPORTED_MESSAGE_TYPE'
-  | 'CUSTOMER_NOT_FOUND'
-  | 'ZOD_PARSER_FAILED';
+  'CHAT_NOT_ALLOWED' | 'UNSUPPORTED_MESSAGE_TYPE' | 'CUSTOMER_NOT_FOUND' | 'ZOD_PARSER_FAILED';
 
 export type GreenApiParsedMessage = {
   action: 'create' | 'edit' | 'delete';
@@ -134,9 +131,10 @@ export function parseGreenApiOutgoingMessage(payload: unknown) {
     messageId: parsed.data.idMessage,
     chatId: parsed.data.senderData.chatId,
     sentAt: new Date(parsed.data.timestamp * 1000),
-    text: parsed.data.messageData.typeMessage === 'textMessage'
-      ? parsed.data.messageData.textMessageData.textMessage
-      : parsed.data.messageData.extendedTextMessageData.text,
+    text:
+      parsed.data.messageData.typeMessage === 'textMessage'
+        ? parsed.data.messageData.textMessageData.textMessage
+        : parsed.data.messageData.extendedTextMessageData.text,
   };
 }
 
@@ -208,9 +206,7 @@ export function parseGreenApiMessage(payload: unknown): GreenApiMessageResult {
   if (data.typeMessage === 'editedMessage') {
     const edited = data.editedMessageData;
     const editedText =
-      'textMessage' in edited
-        ? edited.textMessage
-        : edited.extendedTextMessageData.text;
+      'textMessage' in edited ? edited.textMessage : edited.extendedTextMessageData.text;
 
     return {
       status: 'parsed',

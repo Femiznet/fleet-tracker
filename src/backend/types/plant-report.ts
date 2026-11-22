@@ -5,9 +5,4 @@ import type {
   PlantFleetSnapshot,
 } from '@/backend/db/schema/plant-report';
 
-export type {
-  PlantReport,
-  NewPlantReport,
-  PlantReportMetrics,
-  PlantFleetSnapshot,
-};
+export type { PlantReport, NewPlantReport, PlantReportMetrics, PlantFleetSnapshot };

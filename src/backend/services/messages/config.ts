@@ -13,6 +13,5 @@ export const ALLOWED_MESSAGE_LISTS: Record<string, string> = {
   '120363398043369459@g.us': 'SUMAL',
   '120363426018962711@g.us': 'G Z I AGBARA', // Preserves the spaces in 'G Z I'
   '120363419622396563@g.us': 'PROAERO AGBARA',
-  '120363423700843527@g.us': "SIRUS",
-  
+  '120363423700843527@g.us': 'SIRUS',
 };

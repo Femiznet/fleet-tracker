@@ -8,9 +8,7 @@ const pool = new Pool({
 export const db = drizzle(pool);
 
 // Dynamically extract the specific Transaction type based on your db schema
-export type DbTransaction = Parameters<
-  Parameters<typeof db.transaction>[0]
->[0];
+export type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 // Seamless db + transaction helper.
 //

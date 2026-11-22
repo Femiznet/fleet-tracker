@@ -8,16 +8,15 @@ export interface PaginationParams {
 
 export function getPagination(searchParams: URLSearchParams): PaginationParams {
   const page = Math.max(1, Number.parseInt(searchParams.get('page') ?? '1', 10) || 1);
-  const limit = Math.min(100, Math.max(1, Number.parseInt(searchParams.get('limit') ?? '25', 10) || 25));
+  const limit = Math.min(
+    100,
+    Math.max(1, Number.parseInt(searchParams.get('limit') ?? '25', 10) || 25)
+  );
 
   return { page, limit, offset: (page - 1) * limit };
 }
 
-export function getPaginationMeta(
-  page: number,
-  limit: number,
-  total: number
-): PaginationMeta {
+export function getPaginationMeta(page: number, limit: number, total: number): PaginationMeta {
   const totalPages = Math.ceil(total / limit);
 
   return {

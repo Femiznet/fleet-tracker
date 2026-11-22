@@ -45,10 +45,7 @@ export async function GET(request: NextRequest) {
         .leftJoin(customers, eq(skids.customerId, customers.id))
         .leftJoin(plantSkidStatuses, eq(plantSkidStatuses.skidId, skids.id))
         .where(
-          and(
-            eq(skids.status, 'available'),
-            sql`TRIM(${skids.currentLoc}) = 'GASTECH PLANT'`
-          )
+          and(eq(skids.status, 'available'), sql`TRIM(${skids.currentLoc}) = 'GASTECH PLANT'`)
         ),
 
       db
@@ -64,7 +61,7 @@ export async function GET(request: NextRequest) {
         })
         .from(trucks)
         .leftJoin(plantTruckStatuses, eq(plantTruckStatuses.truckId, trucks.id))
-        .where(sql`UPPER(TRIM(${trucks.group})) = 'GASTECH VEHICLES'`)
+        .where(sql`UPPER(TRIM(${trucks.group})) = 'GASTECH VEHICLES'`),
     ]);
 
     return apiSuccess({
@@ -85,11 +82,14 @@ export async function POST(req: NextRequest) {
   try {
     const parsed = createPlantReportSchema.safeParse(await req.json());
     if (!parsed.success) {
-      return apiError({
-        code: 'VALIDATION_ERROR',
-        message: 'Invalid plant report data',
-        details: parsed.error.flatten(),
-      }, 400);
+      return apiError(
+        {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid plant report data',
+          details: parsed.error.flatten(),
+        },
+        400
+      );
     }
 
     const metrics = parsed.data.metrics as PlantReportMetrics;

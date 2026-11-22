@@ -4,13 +4,15 @@ import { calculateCustomerUpdateForecast, formatForecastDuration } from './forec
 import type { CustomerUpdateMessage } from './utils/updateParser';
 
 const update: CustomerUpdateMessage = {
-  PRMS: [{
-    id: 1,
-    pressure: 30,
-    flowrate: 900,
-    totalflow: 1200,
-    skidinuse: 'SKID123',
-  }],
+  PRMS: [
+    {
+      id: 1,
+      pressure: 30,
+      flowrate: 900,
+      totalflow: 1200,
+      skidinuse: 'SKID123',
+    },
+  ],
   outletpressure: null,
   standbyskid: null,
   emptyskid: null,
@@ -27,7 +29,7 @@ test('estimates remaining hours from pressure and flow rate', () => {
     data: update,
   });
 
-  assert.equal(forecast.prmsForecasts[0].estimatedHoursRemaining, 30 * 28 / 900);
+  assert.equal(forecast.prmsForecasts[0].estimatedHoursRemaining, (30 * 28) / 900);
   assert.equal(forecast.prmsForecasts[0].estimatedTimeRemaining, '0h:56mins');
   assert.equal(forecast.prmsForecasts[0].status, 'estimated');
   assert.deepEqual(forecast.prmsForecasts[0].skidNumbers, ['SKID123']);
@@ -57,7 +59,7 @@ test('marks estimates from flagged updates for review', () => {
     data: update,
   });
 
-  assert.equal(forecast.prmsForecasts[0].estimatedHoursRemaining, 30 * 28 / 900);
+  assert.equal(forecast.prmsForecasts[0].estimatedHoursRemaining, (30 * 28) / 900);
   assert.equal(forecast.prmsForecasts[0].estimatedTimeRemaining, '0h:56mins');
   assert.equal(forecast.prmsForecasts[0].status, 'needs_review');
   assert.deepEqual(forecast.warnings, ['totalflow_decreased']);

@@ -1,4 +1,7 @@
-import type { CustomerUpdateForecast, PrmsSkidForecast } from '@/backend/types/customer-update-forecast';
+import type {
+  CustomerUpdateForecast,
+  PrmsSkidForecast,
+} from '@/backend/types/customer-update-forecast';
 import type { CustomerUpdateMessage } from '@/backend/services/messages/utils/updateParser';
 
 const SKID_VOLUME_CONVERSION = 28;
@@ -37,8 +40,7 @@ export function calculateCustomerUpdateForecast(input: {
     } else if (prms.flowrate <= 0) {
       warnings.push('flowrate_must_be_positive');
     } else {
-      estimatedHoursRemaining =
-        (prms.pressure * SKID_VOLUME_CONVERSION) / prms.flowrate;
+      estimatedHoursRemaining = (prms.pressure * SKID_VOLUME_CONVERSION) / prms.flowrate;
     }
 
     if (skidNumbersInUse.length === 0) {
@@ -47,11 +49,12 @@ export function calculateCustomerUpdateForecast(input: {
       warnings.push('multiple_skids_in_use');
     }
 
-    const status = estimatedHoursRemaining === null
-      ? 'unavailable'
-      : input.parseStatus !== 'ok' || input.warnings.length > 0 || warnings.length > 0
-        ? 'needs_review'
-        : 'estimated';
+    const status =
+      estimatedHoursRemaining === null
+        ? 'unavailable'
+        : input.parseStatus !== 'ok' || input.warnings.length > 0 || warnings.length > 0
+          ? 'needs_review'
+          : 'estimated';
 
     return {
       prmsId: prms.id,

@@ -58,15 +58,27 @@ function ForecastPanel({
   error: string | null;
 }) {
   if (loading) {
-    return <div className={styles.empty}><RefreshCw size={17} className="animate-spin" /> Loading skid forecast…</div>;
+    return (
+      <div className={styles.empty}>
+        <RefreshCw size={17} className="animate-spin" /> Loading skid forecast…
+      </div>
+    );
   }
-  if (error) return <div className={styles.error} role="alert">{error}</div>;
+  if (error)
+    return (
+      <div className={styles.error} role="alert">
+        {error}
+      </div>
+    );
   if (!forecast) {
     return (
       <div className={styles.empty}>
         <Gauge size={19} />
         <strong>No forecast available yet</strong>
-        <span>The customer update may still be processing, or there may not be a processed update for this customer.</span>
+        <span>
+          The customer update may still be processing, or there may not be a processed update for
+          this customer.
+        </span>
       </div>
     );
   }
@@ -79,25 +91,32 @@ function ForecastPanel({
       </p>
       {forecast.warnings.length ? (
         <div className={styles.warningBox}>
-          <p className={styles.warningTitle}><AlertTriangle size={13} /> Update needs attention</p>
+          <p className={styles.warningTitle}>
+            <AlertTriangle size={13} /> Update needs attention
+          </p>
           <ul className={styles.warningList}>
-            {forecast.warnings.map((warning) => <li key={warning}>{warning.replaceAll('_', ' ')}</li>)}
+            {forecast.warnings.map((warning) => (
+              <li key={warning}>{warning.replaceAll('_', ' ')}</li>
+            ))}
           </ul>
         </div>
       ) : null}
       {forecast.prmsForecasts.length ? (
         <div className={styles.forecastGrid}>
           {forecast.prmsForecasts.map((prms) => {
-            const cardClass = prms.status === 'needs_review'
-              ? styles.forecastCardReview
-              : prms.status === 'unavailable'
-                ? styles.forecastCardUnavailable
-                : '';
+            const cardClass =
+              prms.status === 'needs_review'
+                ? styles.forecastCardReview
+                : prms.status === 'unavailable'
+                  ? styles.forecastCardUnavailable
+                  : '';
             return (
               <article className={`${styles.forecastCard} ${cardClass}`} key={prms.prmsId}>
                 <div className={styles.forecastTop}>
                   <span>PRMS {prms.prmsId}</span>
-                  <span className={`${styles.badge} ${prms.status === 'estimated' ? styles.badgeOk : prms.status === 'needs_review' ? styles.badgeReview : styles.badgeFailed}`}>
+                  <span
+                    className={`${styles.badge} ${prms.status === 'estimated' ? styles.badgeOk : prms.status === 'needs_review' ? styles.badgeReview : styles.badgeFailed}`}
+                  >
                     {prms.status.replaceAll('_', ' ')}
                   </span>
                 </div>
@@ -108,24 +127,35 @@ function ForecastPanel({
                     : `${prms.estimatedHoursRemaining.toFixed(2)} hours estimated`}
                 </p>
                 <div className={styles.forecastNumbers}>
-                  <span>Pressure: {prms.pressureBar === null ? '—' : `${prms.pressureBar} bar`}</span>
-                  <span>Flow: {prms.flowRateScmPerHour === null ? '—' : `${prms.flowRateScmPerHour} scm/h`}</span>
+                  <span>
+                    Pressure: {prms.pressureBar === null ? '—' : `${prms.pressureBar} bar`}
+                  </span>
+                  <span>
+                    Flow:{' '}
+                    {prms.flowRateScmPerHour === null ? '—' : `${prms.flowRateScmPerHour} scm/h`}
+                  </span>
                 </div>
                 <p className={styles.forecastNumbers}>
-                  Skid{prms.skidNumbers.length === 1 ? '' : 's'}: {prms.skidNumbers.length ? prms.skidNumbers.join(', ') : 'Not reported'}
+                  Skid{prms.skidNumbers.length === 1 ? '' : 's'}:{' '}
+                  {prms.skidNumbers.length ? prms.skidNumbers.join(', ') : 'Not reported'}
                 </p>
                 {prms.warnings.length ? (
-                  <p className={styles.forecastWarnings}>{prms.warnings.map((warning) => warning.replaceAll('_', ' ')).join(' · ')}</p>
+                  <p className={styles.forecastWarnings}>
+                    {prms.warnings.map((warning) => warning.replaceAll('_', ' ')).join(' · ')}
+                  </p>
                 ) : null}
               </article>
             );
           })}
         </div>
       ) : (
-        <div className={styles.empty}><strong>No PRMS readings in the latest processed update.</strong></div>
+        <div className={styles.empty}>
+          <strong>No PRMS readings in the latest processed update.</strong>
+        </div>
       )}
       <p className={styles.helper}>
-        Runtime is estimated from reported pressure and flow rate. It is an operational estimate, not a confirmed depletion time; review flagged updates before acting.
+        Runtime is estimated from reported pressure and flow rate. It is an operational estimate,
+        not a confirmed depletion time; review flagged updates before acting.
       </p>
     </>
   );
@@ -144,26 +174,32 @@ export default function CustomerUpdates() {
   const selectedIdRef = useRef<string | null>(null);
   const forecastRequestRef = useRef(0);
 
-  const refresh = useCallback(async (showLoading = false) => {
-    if (showLoading) setLoading(true);
-    try {
-      const result = await listCustomerUpdates({ page, limit: PAGE_SIZE });
-      setUpdates(result.updates);
-      setPagination(result.pagination);
-      setUpdatesError(null);
-      const selected = result.updates.find((item) => item.id === selectedIdRef.current)
-        ?? result.updates[0]
-        ?? null;
-      if (selected?.id !== selectedIdRef.current) {
-        selectedIdRef.current = selected?.id ?? null;
-        setSelectedId(selected?.id ?? null);
+  const refresh = useCallback(
+    async (showLoading = false) => {
+      if (showLoading) setLoading(true);
+      try {
+        const result = await listCustomerUpdates({ page, limit: PAGE_SIZE });
+        setUpdates(result.updates);
+        setPagination(result.pagination);
+        setUpdatesError(null);
+        const selected =
+          result.updates.find((item) => item.id === selectedIdRef.current) ??
+          result.updates[0] ??
+          null;
+        if (selected?.id !== selectedIdRef.current) {
+          selectedIdRef.current = selected?.id ?? null;
+          setSelectedId(selected?.id ?? null);
+        }
+      } catch (error) {
+        setUpdatesError(
+          error instanceof Error ? error.message : 'Unable to load customer updates.'
+        );
+      } finally {
+        if (showLoading) setLoading(false);
       }
-    } catch (error) {
-      setUpdatesError(error instanceof Error ? error.message : 'Unable to load customer updates.');
-    } finally {
-      if (showLoading) setLoading(false);
-    }
-  }, [page]);
+    },
+    [page]
+  );
 
   useEffect(() => {
     const initialTimer = window.setTimeout(() => void refresh(true), 0);
@@ -198,7 +234,9 @@ export default function CustomerUpdates() {
         })
         .catch((error: unknown) => {
           if (forecastRequestRef.current === requestId) {
-            setForecastError(error instanceof Error ? error.message : 'Unable to load customer forecast.');
+            setForecastError(
+              error instanceof Error ? error.message : 'Unable to load customer forecast.'
+            );
           }
         })
         .finally(() => {
@@ -209,13 +247,16 @@ export default function CustomerUpdates() {
     return () => window.clearTimeout(initialTimer);
   }, [selectedCustomerId]);
 
-  const needsReviewCount = updates.filter((item) => item.processingStatus === 'needs_review').length;
+  const needsReviewCount = updates.filter(
+    (item) => item.processingStatus === 'needs_review'
+  ).length;
   const failedCount = updates.filter((item) => item.processingStatus === 'failed').length;
   const selectedData = selected?.parsedData ?? null;
-  const selectedSkidsInUse = selectedData?.PRMS.flatMap((prms) => {
-    if (prms.skidinuse === null) return [];
-    return Array.isArray(prms.skidinuse) ? prms.skidinuse : [prms.skidinuse];
-  }) ?? [];
+  const selectedSkidsInUse =
+    selectedData?.PRMS.flatMap((prms) => {
+      if (prms.skidinuse === null) return [];
+      return Array.isArray(prms.skidinuse) ? prms.skidinuse : [prms.skidinuse];
+    }) ?? [];
 
   function selectUpdate(update: CustomerUpdateMessage) {
     selectedIdRef.current = update.id;
@@ -227,35 +268,67 @@ export default function CustomerUpdates() {
       <OperationsSidebar active="updates" />
       <main className={styles.main}>
         <div className={styles.topbar}>
-          <div className={styles.breadcrumb}><span>Operations</span><span>/</span><strong>Customer updates</strong></div>
-          <div className={styles.refreshInfo}><span className={styles.liveDot} /> Auto-refreshes every 30 seconds</div>
+          <div className={styles.breadcrumb}>
+            <span>Operations</span>
+            <span>/</span>
+            <strong>Customer updates</strong>
+          </div>
+          <div className={styles.refreshInfo}>
+            <span className={styles.liveDot} /> Auto-refreshes every 30 seconds
+          </div>
         </div>
 
         <header className={styles.pageHeading}>
           <div>
             <p className={styles.eyebrow}>Customer monitoring</p>
             <h1 className={styles.title}>Customer updates & skid forecast</h1>
-            <p className={styles.subtitle}>Review reported PRMS readings and estimated runtime for the latest customer update.</p>
+            <p className={styles.subtitle}>
+              Review reported PRMS readings and estimated runtime for the latest customer update.
+            </p>
           </div>
-          <button className={styles.refreshButton} type="button" onClick={() => void refresh(true)} disabled={loading}>
+          <button
+            className={styles.refreshButton}
+            type="button"
+            onClick={() => void refresh(true)}
+            disabled={loading}
+          >
             <RefreshCw size={14} className={loading ? 'animate-spin' : undefined} /> Refresh
           </button>
         </header>
 
-        {updatesError ? <div className={styles.failureBox} role="alert">{updatesError}</div> : null}
+        {updatesError ? (
+          <div className={styles.failureBox} role="alert">
+            {updatesError}
+          </div>
+        ) : null}
 
         <section className={styles.stats} aria-label="Customer update summary">
           <div className={styles.statCard}>
-            <div className={styles.statIcon}><Waves size={16} /></div>
-            <div><p className={styles.statLabel}>Total updates</p><p className={styles.statValue}>{pagination?.total ?? '—'}</p></div>
+            <div className={styles.statIcon}>
+              <Waves size={16} />
+            </div>
+            <div>
+              <p className={styles.statLabel}>Total updates</p>
+              <p className={styles.statValue}>{pagination?.total ?? '—'}</p>
+            </div>
           </div>
           <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.statIconAmber}`}><AlertTriangle size={16} /></div>
-            <div><p className={styles.statLabel}>Need review on this page</p><p className={styles.statValue}>{needsReviewCount}</p></div>
+            <div className={`${styles.statIcon} ${styles.statIconAmber}`}>
+              <AlertTriangle size={16} />
+            </div>
+            <div>
+              <p className={styles.statLabel}>Need review on this page</p>
+              <p className={styles.statValue}>{needsReviewCount}</p>
+            </div>
           </div>
           <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.statIconRed}`}><AlertTriangle size={16} /></div>
-            <div><p className={styles.statLabel}>Failed parsing on this page</p><p className={styles.statValue}>{failedCount}</p></div>
+            <div className={`${styles.statIcon} ${styles.statIconRed}`}>
+              <AlertTriangle size={16} />
+            </div>
+            <div>
+              <p className={styles.statLabel}>Failed parsing on this page</p>
+              <p className={styles.statValue}>{failedCount}</p>
+            </div>
           </div>
         </section>
 
@@ -271,38 +344,50 @@ export default function CustomerUpdates() {
 
             <div className={styles.list}>
               {loading ? (
-                <div className={styles.empty}><RefreshCw size={17} className="animate-spin" /> Loading customer updates…</div>
+                <div className={styles.empty}>
+                  <RefreshCw size={17} className="animate-spin" /> Loading customer updates…
+                </div>
               ) : updates.length === 0 ? (
                 <div className={styles.empty}>
                   <CheckCircle2 size={19} />
                   <strong>No customer updates yet</strong>
                   <span>Incoming customer readings will appear here after they are received.</span>
                 </div>
-              ) : updates.map((update) => (
-                <button
-                  type="button"
-                  key={update.id}
-                  className={`${styles.updateButton} ${selectedId === update.id ? styles.updateButtonSelected : ''}`}
-                  onClick={() => selectUpdate(update)}
-                  aria-pressed={selectedId === update.id}
-                >
-                  <span className={styles.updateTop}>
-                    <span className={styles.customerName}>{update.customerName}</span>
-                    <span className={styles.date}>{formatDate(update.createdAt, true)}</span>
-                  </span>
-                  <span className={styles.preview}>{update.text}</span>
-                  <span className={styles.updateBottom}>
-                    <span className={`${styles.badge} ${statusClass(update.processingStatus, update.isProcessed)}`}>
-                      {updateStatus(update.processingStatus, update.isProcessed)}
+              ) : (
+                updates.map((update) => (
+                  <button
+                    type="button"
+                    key={update.id}
+                    className={`${styles.updateButton} ${selectedId === update.id ? styles.updateButtonSelected : ''}`}
+                    onClick={() => selectUpdate(update)}
+                    aria-pressed={selectedId === update.id}
+                  >
+                    <span className={styles.updateTop}>
+                      <span className={styles.customerName}>{update.customerName}</span>
+                      <span className={styles.date}>{formatDate(update.createdAt, true)}</span>
                     </span>
-                    {update.parsedData?.PRMS.length ? <span className={styles.date}>{update.parsedData.PRMS.length} PRMS</span> : null}
-                  </span>
-                </button>
-              ))}
+                    <span className={styles.preview}>{update.text}</span>
+                    <span className={styles.updateBottom}>
+                      <span
+                        className={`${styles.badge} ${statusClass(update.processingStatus, update.isProcessed)}`}
+                      >
+                        {updateStatus(update.processingStatus, update.isProcessed)}
+                      </span>
+                      {update.parsedData?.PRMS.length ? (
+                        <span className={styles.date}>{update.parsedData.PRMS.length} PRMS</span>
+                      ) : null}
+                    </span>
+                  </button>
+                ))
+              )}
             </div>
 
             <footer className={styles.footer}>
-              <span>{pagination?.total ? `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, pagination.total)} of ${pagination.total}` : 'No results'}</span>
+              <span>
+                {pagination?.total
+                  ? `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, pagination.total)} of ${pagination.total}`
+                  : 'No results'}
+              </span>
               <div className={styles.footerActions}>
                 <button
                   type="button"
@@ -310,14 +395,18 @@ export default function CustomerUpdates() {
                   aria-label="Previous page"
                   disabled={!pagination?.hasPrevious || loading}
                   onClick={() => setPage((value) => Math.max(1, value - 1))}
-                ><ChevronLeft size={15} /></button>
+                >
+                  <ChevronLeft size={15} />
+                </button>
                 <button
                   type="button"
                   className={styles.iconButton}
                   aria-label="Next page"
                   disabled={!pagination?.hasNext || loading}
                   onClick={() => setPage((value) => value + 1)}
-                ><ChevronRight size={15} /></button>
+                >
+                  <ChevronRight size={15} />
+                </button>
               </div>
             </footer>
           </div>
@@ -325,9 +414,13 @@ export default function CustomerUpdates() {
           <div className={styles.detail}>
             {!selected ? (
               <div className={styles.empty}>
-                <div className={styles.statIcon}><Droplets size={18} /></div>
+                <div className={styles.statIcon}>
+                  <Droplets size={18} />
+                </div>
                 <strong>Select a customer update</strong>
-                <span>Parsed pressure, flow, skid details, and runtime estimate will appear here.</span>
+                <span>
+                  Parsed pressure, flow, skid details, and runtime estimate will appear here.
+                </span>
               </div>
             ) : (
               <>
@@ -335,54 +428,79 @@ export default function CustomerUpdates() {
                   <div>
                     <p className={styles.eyebrow}>Customer update</p>
                     <h2 className={styles.detailTitle}>{selected.customerName}</h2>
-                    <p className={styles.detailMeta}>Received {formatDate(selected.createdAt, true)}</p>
+                    <p className={styles.detailMeta}>
+                      Received {formatDate(selected.createdAt, true)}
+                    </p>
                   </div>
-                  <span className={`${styles.badge} ${statusClass(selected.processingStatus, selected.isProcessed)}`}>
+                  <span
+                    className={`${styles.badge} ${statusClass(selected.processingStatus, selected.isProcessed)}`}
+                  >
                     {updateStatus(selected.processingStatus, selected.isProcessed)}
                   </span>
                 </header>
 
                 {selected.processingStatus === 'failed' ? (
                   <div className={styles.failureBox}>
-                    <p className={styles.warningTitle}><AlertTriangle size={13} /> Update parsing failed</p>
-                    {selected.warnings?.map((warning) => warning.replaceAll('_', ' ')).join(' · ') || 'No parser details are available.'}
+                    <p className={styles.warningTitle}>
+                      <AlertTriangle size={13} /> Update parsing failed
+                    </p>
+                    {selected.warnings
+                      ?.map((warning) => warning.replaceAll('_', ' '))
+                      .join(' · ') || 'No parser details are available.'}
                   </div>
                 ) : null}
                 {selected.warnings?.length && selected.processingStatus !== 'failed' ? (
                   <div className={styles.warningBox}>
-                    <p className={styles.warningTitle}><AlertTriangle size={13} /> Review the reported values</p>
+                    <p className={styles.warningTitle}>
+                      <AlertTriangle size={13} /> Review the reported values
+                    </p>
                     <ul className={styles.warningList}>
-                      {selected.warnings.map((warning) => <li key={warning}>{warning.replaceAll('_', ' ')}</li>)}
+                      {selected.warnings.map((warning) => (
+                        <li key={warning}>{warning.replaceAll('_', ' ')}</li>
+                      ))}
                     </ul>
                   </div>
                 ) : null}
                 {!selected.isProcessed ? (
                   <div className={styles.warningBox}>
-                    <p className={styles.warningTitle}><Clock3 size={13} /> Waiting for update processing</p>
-                    <span>Parsed values and forecast will appear after the message processing task completes.</span>
+                    <p className={styles.warningTitle}>
+                      <Clock3 size={13} /> Waiting for update processing
+                    </p>
+                    <span>
+                      Parsed values and forecast will appear after the message processing task
+                      completes.
+                    </span>
                   </div>
                 ) : null}
 
                 {selectedData ? (
                   <>
-                    <h3 className={styles.sectionTitle}><Gauge size={14} /> Reported readings</h3>
+                    <h3 className={styles.sectionTitle}>
+                      <Gauge size={14} /> Reported readings
+                    </h3>
                     <div className={styles.dataGrid}>
                       {selectedData.PRMS.map((prms) => (
                         <article className={styles.dataTile} key={prms.id}>
                           <span className={styles.dataLabel}>PRMS {prms.id} pressure</span>
-                          <strong className={styles.dataValue}>{prms.pressure === null ? '—' : `${prms.pressure} bar`}</strong>
+                          <strong className={styles.dataValue}>
+                            {prms.pressure === null ? '—' : `${prms.pressure} bar`}
+                          </strong>
                         </article>
                       ))}
                       {selectedData.PRMS.map((prms) => (
                         <article className={styles.dataTile} key={`flow-${prms.id}`}>
                           <span className={styles.dataLabel}>PRMS {prms.id} flow rate</span>
-                          <strong className={styles.dataValue}>{prms.flowrate === null ? '—' : `${prms.flowrate} scm/h`}</strong>
+                          <strong className={styles.dataValue}>
+                            {prms.flowrate === null ? '—' : `${prms.flowrate} scm/h`}
+                          </strong>
                         </article>
                       ))}
                       {selectedData.outletpressure !== null ? (
                         <article className={styles.dataTile}>
                           <span className={styles.dataLabel}>Outlet pressure</span>
-                          <strong className={styles.dataValue}>{selectedData.outletpressure} bar</strong>
+                          <strong className={styles.dataValue}>
+                            {selectedData.outletpressure} bar
+                          </strong>
                         </article>
                       ) : null}
                       {selectedData.availabletrucks !== null ? (
@@ -397,13 +515,21 @@ export default function CustomerUpdates() {
                       ) : null}
                     </div>
 
-                    <h3 className={styles.sectionTitle}><Gauge size={14} /> Latest skid runtime forecast</h3>
-                    <ForecastPanel forecast={forecast} loading={forecastLoading} error={forecastError} />
+                    <h3 className={styles.sectionTitle}>
+                      <Gauge size={14} /> Latest skid runtime forecast
+                    </h3>
+                    <ForecastPanel
+                      forecast={forecast}
+                      loading={forecastLoading}
+                      error={forecastError}
+                    />
 
                     <div className={styles.reportedSkids}>
                       <div className={styles.reportedSkidGroup}>
                         <label>Skid in use</label>
-                        <strong>{listValue(selectedSkidsInUse.length ? selectedSkidsInUse : null)}</strong>
+                        <strong>
+                          {listValue(selectedSkidsInUse.length ? selectedSkidsInUse : null)}
+                        </strong>
                       </div>
                       <div className={styles.reportedSkidGroup}>
                         <label>Standby skid</label>

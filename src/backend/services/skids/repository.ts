@@ -13,7 +13,13 @@ export async function listSkids(page: number, limit: number, search?: string) {
     : undefined;
 
   const [rows, totalRows] = await Promise.all([
-    db.select().from(skids).where(searchFilter).orderBy(desc(skids.skidNum)).limit(limit).offset(offset),
+    db
+      .select()
+      .from(skids)
+      .where(searchFilter)
+      .orderBy(desc(skids.skidNum))
+      .limit(limit)
+      .offset(offset),
     db.select({ value: count() }).from(skids).where(searchFilter),
   ]);
 

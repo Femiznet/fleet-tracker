@@ -10,12 +10,7 @@ const MAX_SAMPLE_POINTS = 50;
 
 export type GeofenceZone = typeof geofenceZones.$inferSelect;
 
-export function getDistanceMeters(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
+export function getDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371e3;
   const toRad = (deg: number) => (deg * Math.PI) / 180;
 
@@ -24,10 +19,7 @@ export function getDistanceMeters(
 
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
 
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
@@ -45,11 +37,7 @@ export function findMatchingGeofence(
   let minDistance = Infinity;
 
   for (const zone of zones) {
-    if (
-      zone.centerLat === null ||
-      zone.centerLon === null ||
-      zone.radiusMeters === null
-    ) {
+    if (zone.centerLat === null || zone.centerLon === null || zone.radiusMeters === null) {
       continue;
     }
 
@@ -98,14 +86,10 @@ export async function learnGeofencePointsBatch(
     if (isTooClose) continue;
 
     const updatedPoints = [...zone.samplePoints, { lat, lon }];
-    const newCenterLat =
-      updatedPoints.reduce((sum, p) => sum + p.lat, 0) / updatedPoints.length;
-    const newCenterLon =
-      updatedPoints.reduce((sum, p) => sum + p.lon, 0) / updatedPoints.length;
+    const newCenterLat = updatedPoints.reduce((sum, p) => sum + p.lat, 0) / updatedPoints.length;
+    const newCenterLon = updatedPoints.reduce((sum, p) => sum + p.lon, 0) / updatedPoints.length;
     const maxDist = Math.max(
-      ...updatedPoints.map((p) =>
-        getDistanceMeters(newCenterLat, newCenterLon, p.lat, p.lon)
-      )
+      ...updatedPoints.map((p) => getDistanceMeters(newCenterLat, newCenterLon, p.lat, p.lon))
     );
 
     zone.centerLat = newCenterLat;

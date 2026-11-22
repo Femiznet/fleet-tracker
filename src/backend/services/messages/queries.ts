@@ -1,13 +1,10 @@
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/backend/db';
 import { messages, processedMessages, type Message } from '@/backend/db/schema/messages';
-import type {
-  GreenApiSenderData,
-} from '@/backend/services/messages/validator';
+import type { GreenApiSenderData } from '@/backend/services/messages/validator';
 
 export type ProcessGreenApiMessageResult =
-  | { success: true; data: Message }
-  | { success: false; message: string };
+  { success: true; data: Message } | { success: false; message: string };
 
 export async function getLatestProcessedCustomerUpdate(customerId: string) {
   const [result] = await db
@@ -39,8 +36,11 @@ export async function saveGreenApiMessage({
   messageId,
   textMessage,
   senderData,
-  messageType
-}: BaseHandlerParams & { textMessage: string, messageType: 'update' | 'dispatch' }): Promise<ProcessGreenApiMessageResult> {
+  messageType,
+}: BaseHandlerParams & {
+  textMessage: string;
+  messageType: 'update' | 'dispatch';
+}): Promise<ProcessGreenApiMessageResult> {
   const [savedMessage] = await db
     .insert(messages)
     .values({
@@ -61,22 +61,20 @@ export async function editGreenApiMessage({
   messageId,
   textMessage,
   senderData,
-  messageType
-}: BaseHandlerParams & { textMessage: string, messageType: 'update' | 'dispatch' }): Promise<ProcessGreenApiMessageResult> {
+  messageType,
+}: BaseHandlerParams & {
+  textMessage: string;
+  messageType: 'update' | 'dispatch';
+}): Promise<ProcessGreenApiMessageResult> {
   const [updatedMessage] = await db
     .update(messages)
     .set({
       text: textMessage,
       metadata: senderData,
       type: messageType,
-      isProcessed: false
+      isProcessed: false,
     })
-    .where(
-      and(
-        eq(messages.customerId, customerId),
-        eq(messages.externalId, messageId)
-      )
-    )
+    .where(and(eq(messages.customerId, customerId), eq(messages.externalId, messageId)))
     .returning();
 
   if (!updatedMessage) {
@@ -96,12 +94,7 @@ export async function deleteGreenApiMessage({
 }: Omit<BaseHandlerParams, 'senderData'>): Promise<ProcessGreenApiMessageResult> {
   const [deletedMessage] = await db
     .delete(messages)
-    .where(
-      and(
-        eq(messages.customerId, customerId),
-        eq(messages.externalId, messageId)
-      )
-    )
+    .where(and(eq(messages.customerId, customerId), eq(messages.externalId, messageId)))
     .returning();
 
   if (!deletedMessage) {

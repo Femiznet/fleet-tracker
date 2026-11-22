@@ -30,22 +30,22 @@ test('duplicate fingerprint uses customer, truck, skid, and dispatch date', () =
     createDispatchFingerprint('customer-1', details),
     createDispatchFingerprint('customer-2', details)
   );
-  assert.equal(
-    createDispatchFingerprint('customer-1', { ...details, dateOut: null }),
-    null
-  );
+  assert.equal(createDispatchFingerprint('customer-1', { ...details, dateOut: null }), null);
 });
 
 test('generates the approved copy-ready dispatch notice', () => {
-  assert.equal(formatDispatchNotification(details), [
-    '*Truck/Skid Dispatch Details*',
-    '*Truck Number*: TRUCK-12',
-    '*Skid Number*: SKID123',
-    '*Driver Name:* Ada Driver',
-    '*Driver Contact*: +2348012345678',
-    '*Date Out*: 2026-11-21',
-    '*Time Out*: 14:30',
-  ].join('\n'));
+  assert.equal(
+    formatDispatchNotification(details),
+    [
+      '*Truck/Skid Dispatch Details*',
+      '*Truck Number*: TRUCK-12',
+      '*Skid Number*: SKID123',
+      '*Driver Name:* Ada Driver',
+      '*Driver Contact*: +2348012345678',
+      '*Date Out*: 2026-11-21',
+      '*Time Out*: 14:30',
+    ].join('\n')
+  );
 });
 
 test('matches incoming or outgoing notice text by truck and skid', () => {

@@ -5,7 +5,9 @@ export const motormates = pgTable('motormates', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name', { length: 255 }).unique().notNull(),
   phone: varchar('phone', { length: 255 }).unique(),
-  currentDriver: varchar('current_driver', { length: 255 }).references(() => drivers.name).unique()
+  currentDriver: varchar('current_driver', { length: 255 })
+    .references(() => drivers.name)
+    .unique(),
 });
 
 export type Motormate = typeof motormates.$inferSelect;

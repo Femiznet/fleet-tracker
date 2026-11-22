@@ -20,12 +20,15 @@ export async function listDashboardTrucks() {
   };
 }
 
-export async function updateTruckPlantStatus(id: string, input: {
-  isStandby?: boolean;
-  isOnMaintenance?: boolean;
-  maintenanceNote?: string | null;
-  note?: string | null;
-}) {
+export async function updateTruckPlantStatus(
+  id: string,
+  input: {
+    isStandby?: boolean;
+    isOnMaintenance?: boolean;
+    maintenanceNote?: string | null;
+    note?: string | null;
+  }
+) {
   const response = parseResponse(
     await requestJson(`/api/trucks/${id}`, {
       method: 'PATCH',

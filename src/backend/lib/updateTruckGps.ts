@@ -48,12 +48,10 @@ export async function processBatchTruckLocations(inputs: TruckLocationInput[]) {
   // 1. Fetch matching trucks AND all geofence zones in parallel (2 queries total)
   const truckNums = inputs.map((t) => t.truckNum);
   const [existingTrucks, allZones] = await Promise.all([
-    db.select().from(trucks).where(
-      and(
-        inArray(trucks.truckNum, truckNums),
-        eq(trucks.group, 'GASTECH VEHICLES')
-      )
-    ),
+    db
+      .select()
+      .from(trucks)
+      .where(and(inArray(trucks.truckNum, truckNums), eq(trucks.group, 'GASTECH VEHICLES'))),
     db.select().from(geofenceZones),
   ]);
 
@@ -74,10 +72,7 @@ export async function processBatchTruckLocations(inputs: TruckLocationInput[]) {
       );
 
       // Stationary (< 150m) with a known location: keep existing location
-      if (
-        distanceMoved < MOVEMENT_THRESHOLD_METERS &&
-        existing.currentLoc !== 'pending'
-      ) {
+      if (distanceMoved < MOVEMENT_THRESHOLD_METERS && existing.currentLoc !== 'pending') {
         return { input, existing, resolvedLoc: existing.currentLoc, bucketKey: null };
       }
 
@@ -104,7 +99,7 @@ export async function processBatchTruckLocations(inputs: TruckLocationInput[]) {
   const entries = Array.from(pendingApiBuckets.entries());
   const apiResults = new Map<string, string | null>();
   const CONCURRENCY = 3;
-  
+
   for (let i = 0; i < entries.length; i += CONCURRENCY) {
     const chunk = entries.slice(i, i + CONCURRENCY);
     await Promise.all(
@@ -114,7 +109,7 @@ export async function processBatchTruckLocations(inputs: TruckLocationInput[]) {
       })
     );
   }
-  
+
   // 4. Build final updates + new geofence observations
   const observations: Array<{ geofenceName: string; lat: number; lon: number }> = [];
 

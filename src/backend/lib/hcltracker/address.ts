@@ -1,15 +1,7 @@
 // lib/hcltracker/address.ts
 import { HCL_URL, queryHclTracker } from '@/backend/lib/hcltracker/utils';
 
-async function fetchAddress({
-  lat,
-  lon,
-  cookies,
-}: {
-  lat: string;
-  lon: string;
-  cookies: string;
-}) {
+async function fetchAddress({ lat, lon, cookies }: { lat: string; lon: string; cookies: string }) {
   return fetch(
     `${HCL_URL}/ui/address?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`,
     {
@@ -31,8 +23,7 @@ export async function getCleanAddress(lat: number, lon: number): Promise<string 
     const lonStr = String(lon);
 
     const data = await queryHclTracker({
-      fetchApiWithCookies: (cookies: string) =>
-        fetchAddress({ lat: latStr, lon: lonStr, cookies }),
+      fetchApiWithCookies: (cookies: string) => fetchAddress({ lat: latStr, lon: lonStr, cookies }),
       parseResponse: async (res) => ({
         lat: latStr,
         lon: lonStr,

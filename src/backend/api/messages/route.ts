@@ -1,16 +1,16 @@
-import { processGreenApiMessage } from "@/backend/actions/messages";
-import { returnValueDebugger } from "@/backend/lib/errors";
+import { processGreenApiMessage } from '@/backend/actions/messages';
+import { returnValueDebugger } from '@/backend/lib/errors';
 import {
   parseGreenApiMessage,
   parseGreenApiOutgoingMessage,
-} from "@/backend/services/messages/validator";
-import { NextRequest } from "next/server";
-import { apiDbError, apiSuccess } from "@/backend/lib/api-response";
+} from '@/backend/services/messages/validator';
+import { NextRequest } from 'next/server';
+import { apiDbError, apiSuccess } from '@/backend/lib/api-response';
 import {
   listMessages,
   recordDispatchNotification,
-} from "@/backend/services/messages/dispatch-review-repository";
-import { getPagination, getPaginationMeta } from "@/backend/lib/pagination";
+} from '@/backend/services/messages/dispatch-review-repository';
+import { getPagination, getPaginationMeta } from '@/backend/lib/pagination';
 
 export async function GET(request: NextRequest) {
   const pagination = getPagination(request.nextUrl.searchParams);
@@ -18,12 +18,13 @@ export async function GET(request: NextRequest) {
   const typeValue = query.get('type');
   const reviewValue = query.get('reviewStatus');
   const type = typeValue === 'update' || typeValue === 'dispatch' ? typeValue : undefined;
-  const reviewStatus = reviewValue === 'pending'
-    || reviewValue === 'duplicate'
-    || reviewValue === 'approved'
-    || reviewValue === 'rejected'
-    ? reviewValue
-    : undefined;
+  const reviewStatus =
+    reviewValue === 'pending' ||
+    reviewValue === 'duplicate' ||
+    reviewValue === 'approved' ||
+    reviewValue === 'rejected'
+      ? reviewValue
+      : undefined;
 
   try {
     const result = await listMessages({

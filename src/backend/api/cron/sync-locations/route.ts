@@ -13,19 +13,19 @@ export async function GET(request: Request) {
     const newTrucks = await getCleanVehicles('1', '100');
 
     const data = newTrucks
-    .filter(
-      (truck): truck is typeof truck & { lat: number; lon: number } =>
-        truck.lat !== null && truck.lon !== null
-    )
-    .map((truck) => ({
-      truckNum: truck.plateNumber.trim(),
-      newLat: truck.lat,
-      newLon: truck.lon,
-      speed: parseInt(String(truck.speed), 10) || 0,
-    }));
-  
-  await processBatchTruckLocations(data);
-  
+      .filter(
+        (truck): truck is typeof truck & { lat: number; lon: number } =>
+          truck.lat !== null && truck.lon !== null
+      )
+      .map((truck) => ({
+        truckNum: truck.plateNumber.trim(),
+        newLat: truck.lat,
+        newLon: truck.lon,
+        speed: parseInt(String(truck.speed), 10) || 0,
+      }));
+
+    await processBatchTruckLocations(data);
+
     return apiSuccess({ processed: data.length });
   } catch (error) {
     console.error('Sync locations cron error:', error);

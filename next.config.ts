@@ -1,4 +1,4 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -9,13 +9,13 @@ const nextConfig: NextConfig = {
   partialPrefetching: true,
   turbopack: {
     rules: {
-      "src/app/global.css": {
-        loaders: ["@tailwindcss/turbopack"],
-        as: "*.css",
+      'src/app/global.css': {
+        loaders: ['@tailwindcss/turbopack'],
+        as: '*.css',
       },
     },
   },
-  allowedDevOrigins: ['odin-frowzier-spatteringly.ngrok-free.dev']
+  allowedDevOrigins: ['odin-frowzier-spatteringly.ngrok-free.dev'],
 };
 
 export default nextConfig;

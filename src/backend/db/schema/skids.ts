@@ -13,6 +13,5 @@ export const skids = pgTable('skids', {
   isNew: boolean('is_new').default(false).notNull(), // Tagged on registration for newly acquired skids
 });
 
-
 export type Skid = typeof skids.$inferSelect;
 export type NewSkid = typeof skids.$inferInsert;

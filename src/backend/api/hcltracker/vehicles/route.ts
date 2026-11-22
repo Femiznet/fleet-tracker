@@ -9,7 +9,13 @@ export async function GET(request: NextRequest) {
   const limit = searchParams.get('per_page');
 
   if (!page || !limit) {
-    return apiError({ code: 'VALIDATION_ERROR', message: 'Both page and per_page query parameters are required.' }, 400);
+    return apiError(
+      {
+        code: 'VALIDATION_ERROR',
+        message: 'Both page and per_page query parameters are required.',
+      },
+      400
+    );
   }
 
   try {

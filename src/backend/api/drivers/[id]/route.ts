@@ -9,7 +9,9 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
   try {
     const { id } = await params;
     const driver = await getDriverById(id);
-    return driver ? apiSuccess(driver) : apiError({ code: 'NOT_FOUND', message: 'Driver not found' }, 404);
+    return driver
+      ? apiSuccess(driver)
+      : apiError({ code: 'NOT_FOUND', message: 'Driver not found' }, 404);
   } catch (error) {
     return apiDbError(error);
   }
@@ -19,11 +21,20 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   try {
     const parsed = updateDriverSchema.safeParse(await request.json());
     if (!parsed.success) {
-      return apiError({ code: 'VALIDATION_ERROR', message: 'Invalid driver data', details: parsed.error.flatten() }, 400);
+      return apiError(
+        {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid driver data',
+          details: parsed.error.flatten(),
+        },
+        400
+      );
     }
     const { id } = await params;
     const driver = await updateDriver(id, parsed.data);
-    return driver ? apiSuccess(driver) : apiError({ code: 'NOT_FOUND', message: 'Driver not found' }, 404);
+    return driver
+      ? apiSuccess(driver)
+      : apiError({ code: 'NOT_FOUND', message: 'Driver not found' }, 404);
   } catch (error) {
     return apiDbError(error);
   }
@@ -33,7 +44,9 @@ export async function DELETE(_request: NextRequest, { params }: RouteContext) {
   try {
     const { id } = await params;
     const driver = await deleteDriver(id);
-    return driver ? apiSuccess(driver) : apiError({ code: 'NOT_FOUND', message: 'Driver not found' }, 404);
+    return driver
+      ? apiSuccess(driver)
+      : apiError({ code: 'NOT_FOUND', message: 'Driver not found' }, 404);
   } catch (error) {
     return apiDbError(error);
   }

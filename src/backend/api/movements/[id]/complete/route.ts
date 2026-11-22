@@ -20,10 +20,16 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     return apiSuccess({ movementId: id, status: 'completed' });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Failed to complete movement';
+    const message = error instanceof Error ? error.message : 'Failed to complete movement';
     const requiresOverride = message.includes('manual override');
 
-    return apiError({ code: requiresOverride ? 'OVERRIDE_REQUIRED' : 'MOVEMENT_FAILED', message, field: requiresOverride ? 'forceOverride' : undefined }, requiresOverride ? 409 : 400);
+    return apiError(
+      {
+        code: requiresOverride ? 'OVERRIDE_REQUIRED' : 'MOVEMENT_FAILED',
+        message,
+        field: requiresOverride ? 'forceOverride' : undefined,
+      },
+      requiresOverride ? 409 : 400
+    );
   }
 }

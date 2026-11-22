@@ -18,22 +18,14 @@ export async function GET(_req: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
 
-    const [report] = await db
-      .select()
-      .from(plantReports)
-      .where(eq(plantReports.id, id))
-      .limit(1);
+    const [report] = await db.select().from(plantReports).where(eq(plantReports.id, id)).limit(1);
 
     if (!report) {
       return apiError({ code: 'NOT_FOUND', message: 'Plant report not found' }, 404);
     }
 
     const formattedMessage = report.fleetSnapshot
-      ? formatPlantReportMessage(
-          report.officersOnDuty,
-          report.metrics,
-          report.fleetSnapshot
-        )
+      ? formatPlantReportMessage(report.officersOnDuty, report.metrics, report.fleetSnapshot)
       : null;
 
     return apiSuccess({ report, formattedMessage });
@@ -51,18 +43,17 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     const { id } = await context.params;
     const parsed = updatePlantReportSchema.safeParse(await req.json());
     if (!parsed.success) {
-      return apiError({
-        code: 'VALIDATION_ERROR',
-        message: 'Invalid plant report data',
-        details: parsed.error.flatten(),
-      }, 400);
+      return apiError(
+        {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid plant report data',
+          details: parsed.error.flatten(),
+        },
+        400
+      );
     }
 
-    const [existing] = await db
-      .select()
-      .from(plantReports)
-      .where(eq(plantReports.id, id))
-      .limit(1);
+    const [existing] = await db.select().from(plantReports).where(eq(plantReports.id, id)).limit(1);
 
     if (!existing) {
       return apiError({ code: 'NOT_FOUND', message: 'Plant report not found' }, 404);
@@ -74,7 +65,10 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         : existing.officersOnDuty;
 
     if (!updatedOfficers) {
-      return apiError({ code: 'VALIDATION_ERROR', message: 'Officers on duty cannot be empty' }, 400);
+      return apiError(
+        { code: 'VALIDATION_ERROR', message: 'Officers on duty cannot be empty' },
+        400
+      );
     }
 
     // Merge existing metrics with incoming changes so partial edits don't wipe other fields
@@ -84,8 +78,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         : existing.metrics;
     const typedMetrics = updatedMetrics as PlantReportMetrics;
 
-    const updatedNotes =
-      parsed.data.notes !== undefined ? parsed.data.notes : existing.notes;
+    const updatedNotes = parsed.data.notes !== undefined ? parsed.data.notes : existing.notes;
 
     const [updatedReport] = await db
       .update(plantReports)

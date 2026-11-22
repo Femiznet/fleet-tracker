@@ -24,22 +24,25 @@ export const usePlantStatusStore = create<PlantStatusDraft>()(
       formattedMessage: null,
       setOfficersOnDuty: (value) => set({ officersOnDuty: value, formattedMessage: null }),
       setMetrics: (value) => set({ metrics: value, formattedMessage: null }),
-      setSkidUpdate: (id, update) => set((state) => ({
-        skidUpdates: { ...state.skidUpdates, [id]: update },
-        formattedMessage: null,
-      })),
-      removeSkidUpdate: (id) => set((state) => {
-        const skidUpdates = { ...state.skidUpdates };
-        delete skidUpdates[id];
-        return { skidUpdates, formattedMessage: null };
-      }),
+      setSkidUpdate: (id, update) =>
+        set((state) => ({
+          skidUpdates: { ...state.skidUpdates, [id]: update },
+          formattedMessage: null,
+        })),
+      removeSkidUpdate: (id) =>
+        set((state) => {
+          const skidUpdates = { ...state.skidUpdates };
+          delete skidUpdates[id];
+          return { skidUpdates, formattedMessage: null };
+        }),
       setFormattedMessage: (value) => set({ formattedMessage: value }),
-      clearAfterSave: () => set({
-        officersOnDuty: '',
-        metrics: {},
-        skidUpdates: {},
-        formattedMessage: null,
-      }),
+      clearAfterSave: () =>
+        set({
+          officersOnDuty: '',
+          metrics: {},
+          skidUpdates: {},
+          formattedMessage: null,
+        }),
     }),
     {
       name: 'plant-status-draft',

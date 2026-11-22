@@ -1,11 +1,6 @@
 import { z } from 'zod';
 
-export const SkidStatusSchema = z.enum([
-  'available',
-  'in_transit',
-  'at_customer',
-  'maintenance',
-]);
+export const SkidStatusSchema = z.enum(['available', 'in_transit', 'at_customer', 'maintenance']);
 
 export const SkidOwnerSchema = z.enum(['customer', 'gastech']);
 

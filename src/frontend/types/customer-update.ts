@@ -4,13 +4,15 @@ import { PaginationMetaSchema } from './dispatch-review';
 const SkidListSchema = z.union([z.string(), z.array(z.string())]).nullable();
 
 export const CustomerUpdateDataSchema = z.object({
-  PRMS: z.array(z.object({
-    id: z.number().int(),
-    pressure: z.number().nullable(),
-    flowrate: z.number().nullable(),
-    totalflow: z.number().nullable(),
-    skidinuse: SkidListSchema,
-  })),
+  PRMS: z.array(
+    z.object({
+      id: z.number().int(),
+      pressure: z.number().nullable(),
+      flowrate: z.number().nullable(),
+      totalflow: z.number().nullable(),
+      skidinuse: SkidListSchema,
+    })
+  ),
   outletpressure: z.number().nullable(),
   standbyskid: SkidListSchema,
   emptyskid: SkidListSchema,
@@ -49,16 +51,18 @@ export const CustomerForecastSchema = z.object({
   reportedAt: z.string().nullable(),
   parseStatus: z.enum(['ok', 'needs_review', 'failed']),
   warnings: z.array(z.string()),
-  prmsForecasts: z.array(z.object({
-    prmsId: z.number().int(),
-    skidNumbers: z.array(z.string()),
-    pressureBar: z.number().nullable(),
-    flowRateScmPerHour: z.number().nullable(),
-    estimatedHoursRemaining: z.number().nullable(),
-    estimatedTimeRemaining: z.string().nullable(),
-    status: ForecastStatusSchema,
-    warnings: z.array(z.string()),
-  })),
+  prmsForecasts: z.array(
+    z.object({
+      prmsId: z.number().int(),
+      skidNumbers: z.array(z.string()),
+      pressureBar: z.number().nullable(),
+      flowRateScmPerHour: z.number().nullable(),
+      estimatedHoursRemaining: z.number().nullable(),
+      estimatedTimeRemaining: z.string().nullable(),
+      status: ForecastStatusSchema,
+      warnings: z.array(z.string()),
+    })
+  ),
 });
 
 export const CustomerForecastResponseSchema = z.object({

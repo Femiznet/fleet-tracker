@@ -66,12 +66,16 @@ export const updateTripSchema = createTripSchema.partial();
 export const createPlantReportSchema = z.object({
   officersOnDuty: z.string().trim().min(1),
   metrics: z.record(z.string(), z.unknown()).default({}),
-  skidUpdates: z.array(z.object({
-    id: z.string().uuid(),
-    fillState: z.enum(skidFillStateEnum.enumValues).optional(),
-    bay: z.enum(skidBayEnum.enumValues).optional(),
-    note: z.string().trim().nullish(),
-  })).default([]),
+  skidUpdates: z
+    .array(
+      z.object({
+        id: z.string().uuid(),
+        fillState: z.enum(skidFillStateEnum.enumValues).optional(),
+        bay: z.enum(skidBayEnum.enumValues).optional(),
+        note: z.string().trim().nullish(),
+      })
+    )
+    .default([]),
   notes: z.string().trim().nullish(),
 });
 

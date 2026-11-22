@@ -10,7 +10,9 @@ import { movements } from './movements';
 export const messages = pgTable('messages', {
   id: uuid('id').defaultRandom().primaryKey(),
   externalId: text('external_id').notNull().unique(),
-  customerId: uuid('customer_id').references(() => customers.id).notNull(),
+  customerId: uuid('customer_id')
+    .references(() => customers.id)
+    .notNull(),
   text: text('text').notNull(),
   metadata: jsonb('metadata').$type<GreenApiSenderData>().notNull(),
   type: messageTypeEnum('type').notNull(),
@@ -18,27 +20,33 @@ export const messages = pgTable('messages', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
-
-export const processedMessages = pgTable('processed_messages', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  // one parsed update per message; UNIQUE is what makes webhook retries harmless
-  messageId: uuid('message_id').references(() => messages.id, {onDelete:'cascade'}).notNull().unique(),
-  customerId: uuid('customer_id').references(() => customers.id).notNull(),
-  status: text('status', { enum: ['ok', 'needs_review', 'failed'] }).notNull(),
-  warnings: jsonb('warnings').$type<string[]>().notNull().default([]),
-  data: jsonb('data').$type<CustomerUpdateMessage | DispatchDetails>(), // the clean JSON
-  processedAt: timestamp('processed_at').defaultNow(),
-  reviewStatus: text('review_status', {
-    enum: ['pending', 'duplicate', 'approved', 'rejected'],
-  }),
-  dispatchFingerprint: text('dispatch_fingerprint'),
-  duplicateOfMessageId: uuid('duplicate_of_message_id'),
-  movementId: uuid('movement_id').references(() => movements.id),
-  approvedAt: timestamp('approved_at', { withTimezone: true }),
-  notificationDueAt: timestamp('notification_due_at', { withTimezone: true }),
-  notificationText: text('notification_text'),
-  notifiedAt: timestamp('notified_at', { withTimezone: true }),
-  notificationMessageId: text('notification_message_id'),
+export const processedMessages = pgTable(
+  'processed_messages',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    // one parsed update per message; UNIQUE is what makes webhook retries harmless
+    messageId: uuid('message_id')
+      .references(() => messages.id, { onDelete: 'cascade' })
+      .notNull()
+      .unique(),
+    customerId: uuid('customer_id')
+      .references(() => customers.id)
+      .notNull(),
+    status: text('status', { enum: ['ok', 'needs_review', 'failed'] }).notNull(),
+    warnings: jsonb('warnings').$type<string[]>().notNull().default([]),
+    data: jsonb('data').$type<CustomerUpdateMessage | DispatchDetails>(), // the clean JSON
+    processedAt: timestamp('processed_at').defaultNow(),
+    reviewStatus: text('review_status', {
+      enum: ['pending', 'duplicate', 'approved', 'rejected'],
+    }),
+    dispatchFingerprint: text('dispatch_fingerprint'),
+    duplicateOfMessageId: uuid('duplicate_of_message_id'),
+    movementId: uuid('movement_id').references(() => movements.id),
+    approvedAt: timestamp('approved_at', { withTimezone: true }),
+    notificationDueAt: timestamp('notification_due_at', { withTimezone: true }),
+    notificationText: text('notification_text'),
+    notifiedAt: timestamp('notified_at', { withTimezone: true }),
+    notificationMessageId: text('notification_message_id'),
   },
   (table) => [
     uniqueIndex('unq_approved_dispatch_fingerprint')

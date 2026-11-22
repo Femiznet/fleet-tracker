@@ -107,7 +107,11 @@ export async function approveDispatchMessage(
 
       const parsed = DispatchDetailsSchema.safeParse(review.data);
       if (!parsed.success) {
-        throw new DispatchReviewError('Parsed dispatch details are invalid', 'INVALID_DISPATCH_DATA', 422);
+        throw new DispatchReviewError(
+          'Parsed dispatch details are invalid',
+          'INVALID_DISPATCH_DATA',
+          422
+        );
       }
 
       const detailsResult = DispatchDetailsSchema.safeParse({
@@ -139,11 +143,13 @@ export async function approveDispatchMessage(
       const [existingApproved] = await tx
         .select({ messageId: processedMessages.messageId })
         .from(processedMessages)
-        .where(and(
-          eq(processedMessages.dispatchFingerprint, fingerprint),
-          eq(processedMessages.reviewStatus, 'approved'),
-          ne(processedMessages.messageId, messageId)
-        ))
+        .where(
+          and(
+            eq(processedMessages.dispatchFingerprint, fingerprint),
+            eq(processedMessages.reviewStatus, 'approved'),
+            ne(processedMessages.messageId, messageId)
+          )
+        )
         .limit(1);
       if (existingApproved) {
         await tx
@@ -164,7 +170,11 @@ export async function approveDispatchMessage(
         .where(ilike(trucks.truckNum, details.truckNumber))
         .limit(1);
       if (!truck) {
-        throw new DispatchReviewError(`Truck ${details.truckNumber} was not found`, 'TRUCK_NOT_FOUND', 422);
+        throw new DispatchReviewError(
+          `Truck ${details.truckNumber} was not found`,
+          'TRUCK_NOT_FOUND',
+          422
+        );
       }
 
       const [skid] = await tx
@@ -173,14 +183,21 @@ export async function approveDispatchMessage(
         .where(ilike(skids.skidNum, details.skidNumber))
         .limit(1);
       if (!skid) {
-        throw new DispatchReviewError(`Skid ${details.skidNumber} was not found`, 'SKID_NOT_FOUND', 422);
+        throw new DispatchReviewError(
+          `Skid ${details.skidNumber} was not found`,
+          'SKID_NOT_FOUND',
+          422
+        );
       }
 
-      const movementId = await createDispatch({
-        truckId: truck.id,
-        customerId: message.customerId,
-        skidIdOut: skid.id,
-      }, tx);
+      const movementId = await createDispatch(
+        {
+          truckId: truck.id,
+          customerId: message.customerId,
+          skidIdOut: skid.id,
+        },
+        tx
+      );
 
       const approvedAt = new Date();
       await tx
@@ -212,14 +229,16 @@ export async function approveDispatchMessage(
     let existingApproved: { messageId: string } | undefined;
     if (targetFingerprint) {
       const [approved] = await db
-      .select({ messageId: processedMessages.messageId })
-      .from(processedMessages)
-      .where(and(
-        eq(processedMessages.dispatchFingerprint, targetFingerprint),
-        eq(processedMessages.reviewStatus, 'approved'),
-        ne(processedMessages.messageId, messageId)
-      ))
-      .limit(1);
+        .select({ messageId: processedMessages.messageId })
+        .from(processedMessages)
+        .where(
+          and(
+            eq(processedMessages.dispatchFingerprint, targetFingerprint),
+            eq(processedMessages.reviewStatus, 'approved'),
+            ne(processedMessages.messageId, messageId)
+          )
+        )
+        .limit(1);
       existingApproved = approved;
     }
 
@@ -230,10 +249,12 @@ export async function approveDispatchMessage(
           reviewStatus: 'duplicate',
           duplicateOfMessageId: existingApproved.messageId,
         })
-        .where(and(
-          eq(processedMessages.messageId, messageId),
-          eq(processedMessages.reviewStatus, 'pending')
-        ));
+        .where(
+          and(
+            eq(processedMessages.messageId, messageId),
+            eq(processedMessages.reviewStatus, 'pending')
+          )
+        );
       return { status: 'duplicate' as const, duplicateOfMessageId: existingApproved.messageId };
     }
 
@@ -245,10 +266,9 @@ export async function rejectDispatchMessage(messageId: string) {
   const [review] = await db
     .update(processedMessages)
     .set({ reviewStatus: 'rejected' })
-    .where(and(
-      eq(processedMessages.messageId, messageId),
-      eq(processedMessages.reviewStatus, 'pending')
-    ))
+    .where(
+      and(eq(processedMessages.messageId, messageId), eq(processedMessages.reviewStatus, 'pending'))
+    )
     .returning({ messageId: processedMessages.messageId });
 
   if (!review) {
@@ -286,10 +306,12 @@ export async function listDispatchNotifications(overdueOnly = false) {
     .innerJoin(customers, eq(customers.id, messages.customerId))
     .where(and(...filters))
     .orderBy(processedMessages.notificationDueAt)
-    .then((rows) => rows.map((row) => ({
-      ...row,
-      overdue: row.dueAt !== null && row.dueAt <= now,
-    })));
+    .then((rows) =>
+      rows.map((row) => ({
+        ...row,
+        overdue: row.dueAt !== null && row.dueAt <= now,
+      }))
+    );
 }
 
 export async function recordDispatchNotification(input: {
@@ -316,12 +338,14 @@ export async function recordDispatchNotification(input: {
     })
     .from(processedMessages)
     .innerJoin(messages, eq(messages.id, processedMessages.messageId))
-    .where(and(
-      eq(messages.customerId, customer.id),
-      eq(processedMessages.reviewStatus, 'approved'),
-      sql`${processedMessages.notifiedAt} IS NULL`,
-      sql`${processedMessages.approvedAt} <= ${input.sentAt}`
-    ))
+    .where(
+      and(
+        eq(messages.customerId, customer.id),
+        eq(processedMessages.reviewStatus, 'approved'),
+        sql`${processedMessages.notifiedAt} IS NULL`,
+        sql`${processedMessages.approvedAt} <= ${input.sentAt}`
+      )
+    )
     .orderBy(processedMessages.approvedAt);
 
   for (const candidate of candidates) {
@@ -334,11 +358,13 @@ export async function recordDispatchNotification(input: {
         notifiedAt: input.sentAt,
         notificationMessageId: input.messageId,
       })
-      .where(and(
-        eq(processedMessages.messageId, candidate.messageId),
-        eq(processedMessages.reviewStatus, 'approved'),
-        sql`${processedMessages.notifiedAt} IS NULL`
-      ))
+      .where(
+        and(
+          eq(processedMessages.messageId, candidate.messageId),
+          eq(processedMessages.reviewStatus, 'approved'),
+          sql`${processedMessages.notifiedAt} IS NULL`
+        )
+      )
       .returning({ messageId: processedMessages.messageId });
 
     if (updated) return true;

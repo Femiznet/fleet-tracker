@@ -9,7 +9,13 @@ export async function listDrivers(page: number, limit: number, search?: string) 
     : undefined;
 
   const [rows, totalRows] = await Promise.all([
-    db.select().from(drivers).where(searchFilter).orderBy(desc(drivers.name)).limit(limit).offset(offset),
+    db
+      .select()
+      .from(drivers)
+      .where(searchFilter)
+      .orderBy(desc(drivers.name))
+      .limit(limit)
+      .offset(offset),
     db.select({ value: count() }).from(drivers).where(searchFilter),
   ]);
 

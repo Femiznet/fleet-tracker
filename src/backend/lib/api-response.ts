@@ -1,10 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { ApiError, ApiSuccess, PaginationMeta } from '@/backend/types/api';
 
-export function apiSuccess<T>(
-  data: T,
-  init?: { status?: number; pagination?: PaginationMeta }
-) {
+export function apiSuccess<T>(data: T, init?: { status?: number; pagination?: PaginationMeta }) {
   const body: ApiSuccess<T> = { data };
 
   if (init?.pagination) {
@@ -14,10 +11,7 @@ export function apiSuccess<T>(
   return NextResponse.json(body, { status: init?.status ?? 200 });
 }
 
-export function apiError(
-  error: ApiError,
-  status = 500
-) {
+export function apiError(error: ApiError, status = 500) {
   return NextResponse.json({ error }, { status });
 }
 

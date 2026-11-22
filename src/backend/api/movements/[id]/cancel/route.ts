@@ -18,8 +18,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     return apiSuccess({ movementId: id, status: 'cancelled' });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Failed to cancel movement';
+    const message = error instanceof Error ? error.message : 'Failed to cancel movement';
 
     return apiError({ code: 'MOVEMENT_FAILED', message }, 400);
   }

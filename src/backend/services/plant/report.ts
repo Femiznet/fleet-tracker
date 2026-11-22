@@ -8,24 +8,18 @@ import { movements } from '@/backend/db/schema/movements';
 import { trips } from '@/backend/db/schema/trips';
 import { customers } from '@/backend/db/schema/customers';
 import { drivers } from '@/backend/db/schema/drivers';
-import {
-  PlantReportMetrics,
-  PlantFleetSnapshot,
-} from '@/backend/db/schema/plant-report';
+import { PlantReportMetrics, PlantFleetSnapshot } from '@/backend/db/schema/plant-report';
 
 export interface SkidYardUpdate {
-    id: string;
-    fillState?: 'empty' | 'loading' | 'loaded' | 'on_hold';
-    bay?: 'washing_bay' | 'loading_bay' | 'parking_bay';
-    isOnMaintenance?: boolean;
-    maintenanceNote?: string | null;
-    note?: string | null;
+  id: string;
+  fillState?: 'empty' | 'loading' | 'loaded' | 'on_hold';
+  bay?: 'washing_bay' | 'loading_bay' | 'parking_bay';
+  isOnMaintenance?: boolean;
+  maintenanceNote?: string | null;
+  note?: string | null;
 }
-  
 
-export async function getLivePlantFleetSnapshot(
-  tx?: DbTransaction
-): Promise<PlantFleetSnapshot> {
+export async function getLivePlantFleetSnapshot(tx?: DbTransaction): Promise<PlantFleetSnapshot> {
   const conn = dbtx(tx);
 
   const [allSkids, allTrucks, activeMovements] = await Promise.all([
@@ -49,10 +43,7 @@ export async function getLivePlantFleetSnapshot(
       .where(
         or(
           eq(plantSkidStatuses.isOnMaintenance, true),
-          and(
-            eq(skids.status, 'available'),
-            sql`TRIM(${skids.currentLoc}) = 'GASTECH PLANT'`
-          )
+          and(eq(skids.status, 'available'), sql`TRIM(${skids.currentLoc}) = 'GASTECH PLANT'`)
         )
       ),
 
@@ -89,10 +80,7 @@ export async function getLivePlantFleetSnapshot(
       .from(movements)
       .innerJoin(trucks, eq(movements.truckId, trucks.id))
       .leftJoin(customers, eq(movements.customerId, customers.id))
-      .leftJoin(
-        trips,
-        and(eq(trips.movementId, movements.id), eq(trips.status, 'in_transit'))
-      )
+      .leftJoin(trips, and(eq(trips.movementId, movements.id), eq(trips.status, 'in_transit')))
       .where(
         and(
           eq(movements.status, 'in_progress'),
@@ -113,18 +101,19 @@ export async function getLivePlantFleetSnapshot(
     trucksInTransit: [],
     returningTrucks: [],
     maintenance: { skids: [], trucks: [] },
-    };
-    
+  };
+
   // Categorize Skids
   for (const s of allSkids) {
-    const withNote = (label: string) => s.note?.trim() ? `${label}(${s.note.trim()})` : label;
+    const withNote = (label: string) => (s.note?.trim() ? `${label}(${s.note.trim()})` : label);
     const withMaintenanceNote = (label: string) =>
       s.maintenanceNote?.trim() ? `${label}(${s.maintenanceNote.trim()})` : label;
     const fillState = s.fillState ?? 'empty';
     const bay = s.bay ?? 'parking_bay';
-    const customerLabel = s.owner === 'customer'
-      ? `${s.skidNum}${s.customerName ? `(${s.customerName})` : ''}`
-      : s.skidNum;
+    const customerLabel =
+      s.owner === 'customer'
+        ? `${s.skidNum}${s.customerName ? `(${s.customerName})` : ''}`
+        : s.skidNum;
     const label = customerLabel;
 
     if (s.isOnMaintenance) {
@@ -163,9 +152,9 @@ export async function getLivePlantFleetSnapshot(
     if (t.isOnMaintenance) {
       snapshot.maintenance.trucks.push(truckLabel);
     } else if (
-      t.isStandby
-      && t.currentLoc.trim().toUpperCase() === 'GASTECH PLANT'
-      && t.assignedDriver === null
+      t.isStandby &&
+      t.currentLoc.trim().toUpperCase() === 'GASTECH PLANT' &&
+      t.assignedDriver === null
     ) {
       snapshot.standbyTrucks.push(truckLabel);
     } else if (t.status === 'available' && t.currentLoc.trim() === 'GASTECH PLANT') {
@@ -189,7 +178,6 @@ export async function getLivePlantFleetSnapshot(
   return snapshot;
 }
 
-
 /**
  * Format live fleet state into copy-ready WhatsApp text.
  */
@@ -201,12 +189,9 @@ export function formatPlantReportMessage(
   const bay = metrics.landingGearBox?.loadingAndWashingBay;
   const workshop = metrics.landingGearBox?.workshop;
   const wooden = metrics.landingGearBox?.wooden;
-  const baseTotal =
-    bay !== undefined && workshop !== undefined ? bay + workshop : undefined;
+  const baseTotal = bay !== undefined && workshop !== undefined ? bay + workshop : undefined;
   const grandTotal =
-    baseTotal !== undefined && wooden !== undefined
-      ? baseTotal + wooden
-      : undefined;
+    baseTotal !== undefined && wooden !== undefined ? baseTotal + wooden : undefined;
 
   const compressorLines = metrics.compressors
     ? Object.entries(metrics.compressors)
@@ -302,66 +287,61 @@ export function formatPlantReportMessage(
     .trim();
 }
 
-
 export async function batchUpdateSkidYardStates(
-    updates: SkidYardUpdate[],
-    tx?: DbTransaction
-  ): Promise<void> {
-    if (updates.length === 0) return;
-    const conn = dbtx(tx);
-  
-    await Promise.all(
-      updates.map((u) =>
-        conn
-          .insert(plantSkidStatuses)
-          .values({
-            skidId: u.id,
-            fillState: u.fillState ?? 'empty',
-            bay: u.fillState === 'loading' ? 'loading_bay' : (u.bay ?? 'parking_bay'),
-            note: u.note?.trim() || null,
-            isOnMaintenance: u.isOnMaintenance ?? false,
-            maintenanceNote: u.maintenanceNote?.trim() || null,
+  updates: SkidYardUpdate[],
+  tx?: DbTransaction
+): Promise<void> {
+  if (updates.length === 0) return;
+  const conn = dbtx(tx);
+
+  await Promise.all(
+    updates.map((u) =>
+      conn
+        .insert(plantSkidStatuses)
+        .values({
+          skidId: u.id,
+          fillState: u.fillState ?? 'empty',
+          bay: u.fillState === 'loading' ? 'loading_bay' : (u.bay ?? 'parking_bay'),
+          note: u.note?.trim() || null,
+          isOnMaintenance: u.isOnMaintenance ?? false,
+          maintenanceNote: u.maintenanceNote?.trim() || null,
+          updatedAt: new Date(),
+        })
+        .onConflictDoUpdate({
+          target: plantSkidStatuses.skidId,
+          set: {
+            ...(u.fillState !== undefined && { fillState: u.fillState }),
+            ...(u.fillState === 'loading'
+              ? { bay: 'loading_bay' as const }
+              : u.bay !== undefined
+                ? { bay: u.bay }
+                : {}),
+            ...(u.note !== undefined && { note: u.note?.trim() || null }),
+            ...(u.isOnMaintenance !== undefined && { isOnMaintenance: u.isOnMaintenance }),
+            ...(u.maintenanceNote !== undefined && {
+              maintenanceNote: u.maintenanceNote?.trim() || null,
+            }),
             updatedAt: new Date(),
-          })
-          .onConflictDoUpdate({
-            target: plantSkidStatuses.skidId,
-            set: {
-              ...(u.fillState !== undefined && { fillState: u.fillState }),
-              ...(u.fillState === 'loading'
-                ? { bay: 'loading_bay' as const }
-                : u.bay !== undefined
-                  ? { bay: u.bay }
-                  : {}),
-              ...(u.note !== undefined && { note: u.note?.trim() || null }),
-              ...(u.isOnMaintenance !== undefined && { isOnMaintenance: u.isOnMaintenance }),
-              ...(u.maintenanceNote !== undefined && { maintenanceNote: u.maintenanceNote?.trim() || null }),
-              updatedAt: new Date(),
-            },
-          })
-      )
-    );
-  }
-  
-export async function submitPlantStatus(input: {
-    officersOnDuty: string;
-    metrics: PlantReportMetrics;
-    skidUpdates?: SkidYardUpdate[];
-}) {
-    const snapshot = await db.transaction(async (tx) => {
-      if (input.skidUpdates && input.skidUpdates.length > 0) {
-        await batchUpdateSkidYardStates(input.skidUpdates, tx);
-      }
-  
-      return getLivePlantFleetSnapshot(tx);
-    });
-  
-    const formattedMessage = formatPlantReportMessage(
-      input.officersOnDuty,
-      input.metrics,
-      snapshot
-    );
-  
-    return { snapshot, formattedMessage };
+          },
+        })
+    )
+  );
 }
-  
-  
+
+export async function submitPlantStatus(input: {
+  officersOnDuty: string;
+  metrics: PlantReportMetrics;
+  skidUpdates?: SkidYardUpdate[];
+}) {
+  const snapshot = await db.transaction(async (tx) => {
+    if (input.skidUpdates && input.skidUpdates.length > 0) {
+      await batchUpdateSkidYardStates(input.skidUpdates, tx);
+    }
+
+    return getLivePlantFleetSnapshot(tx);
+  });
+
+  const formattedMessage = formatPlantReportMessage(input.officersOnDuty, input.metrics, snapshot);
+
+  return { snapshot, formattedMessage };
+}

@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { HCL_URL, queryHclTracker } from '@/backend/lib/hcltracker/utils';
 import { apiError, apiSuccess } from '@/backend/lib/api-response';
 
-async function fetchAddress({lat, lon, cookies}:{lat: string, lon: string, cookies: string}) {
+async function fetchAddress({ lat, lon, cookies }: { lat: string; lon: string; cookies: string }) {
   return fetch(
     `${HCL_URL}/ui/address?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`,
     {
@@ -24,7 +24,10 @@ export async function GET(request: NextRequest) {
   const lon = searchParams.get('lon');
 
   if (!lat || !lon) {
-    return apiError({ code: 'VALIDATION_ERROR', message: 'Both lat and lon query parameters are required.' }, 400);
+    return apiError(
+      { code: 'VALIDATION_ERROR', message: 'Both lat and lon query parameters are required.' },
+      400
+    );
   }
 
   try {
@@ -43,9 +46,3 @@ export async function GET(request: NextRequest) {
     return apiError({ code: 'UPSTREAM_ERROR', message }, 502);
   }
 }
-
-
-
-
-
-

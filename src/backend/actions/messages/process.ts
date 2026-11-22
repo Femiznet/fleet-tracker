@@ -1,14 +1,25 @@
 import { and, asc, eq, inArray, ne, or, sql } from 'drizzle-orm';
 import { db } from '@/backend/db';
-import { messages, processedMessages, type Message, type NewProcessedMessage } from '@/backend/db/schema/messages';
+import {
+  messages,
+  processedMessages,
+  type Message,
+  type NewProcessedMessage,
+} from '@/backend/db/schema/messages';
 import { parseUpdate } from '@/backend/services/messages/utils/updateParser';
-import { DispatchDetailsSchema, parseDispatchDetails } from '@/backend/services/messages/utils/dispatchParser';
+import {
+  DispatchDetailsSchema,
+  parseDispatchDetails,
+} from '@/backend/services/messages/utils/dispatchParser';
 import { createDispatchFingerprint } from '@/backend/services/messages/dispatch-review';
 
 export type Outcome = 'ok' | 'needs_review' | 'failed' | 'ignored';
 
 /** Parse one message in memory. null = not an update, nothing to store. */
-function toRow(message: Message, parse: typeof parseUpdate | typeof parseDispatchDetails): NewProcessedMessage | null {
+function toRow(
+  message: Message,
+  parse: typeof parseUpdate | typeof parseDispatchDetails
+): NewProcessedMessage | null {
   try {
     const result = parse(message.text);
     return {
@@ -18,14 +29,15 @@ function toRow(message: Message, parse: typeof parseUpdate | typeof parseDispatc
       warnings: result.warnings,
       data: result.data,
       reviewStatus: message.type === 'dispatch' ? 'pending' : null,
-      dispatchFingerprint: message.type === 'dispatch'
-        ? (() => {
-            const parsedDetails = DispatchDetailsSchema.safeParse(result.data);
-            return parsedDetails.success
-              ? createDispatchFingerprint(message.customerId, parsedDetails.data)
-              : null;
-          })()
-        : null,
+      dispatchFingerprint:
+        message.type === 'dispatch'
+          ? (() => {
+              const parsedDetails = DispatchDetailsSchema.safeParse(result.data);
+              return parsedDetails.success
+                ? createDispatchFingerprint(message.customerId, parsedDetails.data)
+                : null;
+            })()
+          : null,
       duplicateOfMessageId: null,
     };
   } catch (err) {
@@ -50,14 +62,16 @@ const save = async (rows: NewProcessedMessage[]) => {
         const [duplicate] = await tx
           .select({ messageId: processedMessages.messageId })
           .from(processedMessages)
-          .where(and(
-            eq(processedMessages.dispatchFingerprint, row.dispatchFingerprint),
-            ne(processedMessages.messageId, row.messageId),
-            or(
-              eq(processedMessages.reviewStatus, 'pending'),
-              eq(processedMessages.reviewStatus, 'approved')
+          .where(
+            and(
+              eq(processedMessages.dispatchFingerprint, row.dispatchFingerprint),
+              ne(processedMessages.messageId, row.messageId),
+              or(
+                eq(processedMessages.reviewStatus, 'pending'),
+                eq(processedMessages.reviewStatus, 'approved')
+              )
             )
-          ))
+          )
           .limit(1);
 
         if (duplicate) {
@@ -85,15 +99,10 @@ const save = async (rows: NewProcessedMessage[]) => {
           },
         });
 
-      await tx
-        .update(messages)
-        .set({ isProcessed: true })
-        .where(eq(messages.id, row.messageId));
+      await tx.update(messages).set({ isProcessed: true }).where(eq(messages.id, row.messageId));
     }
   });
 };
-
-
 
 /** Process ONE message (e.g. right after inserting it). */
 export async function processOne(message: Message): Promise<Outcome> {
@@ -103,8 +112,7 @@ export async function processOne(message: Message): Promise<Outcome> {
     parse = parseUpdate;
   } else if (message.type === 'dispatch') {
     parse = parseDispatchDetails;
-  }
-  else return 'ignored';
+  } else return 'ignored';
 
   const row = toRow(message, parse);
   if (!row) return 'ignored';

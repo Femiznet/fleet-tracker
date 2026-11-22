@@ -14,7 +14,9 @@ export default function OperationsSidebar({
   return (
     <aside className={styles.sidebar}>
       <Link className={styles.brand} href="/">
-        <span className={styles.brandMark}><Truck size={19} /></span>
+        <span className={styles.brandMark}>
+          <Truck size={19} />
+        </span>
         <span>
           <span className={styles.brandName}>GasTech Fleet</span>
           <span className={styles.brandCaption}>Operations workspace</span>
@@ -54,13 +56,20 @@ export default function OperationsSidebar({
           >
             <Inbox size={16} />
             <span>Dispatch review</span>
-            {pendingDispatchCount ? <span className={styles.navCount}>{pendingDispatchCount}</span> : null}
+            {pendingDispatchCount ? (
+              <span className={styles.navCount}>{pendingDispatchCount}</span>
+            ) : null}
           </Link>
         </nav>
       </div>
       <div className={styles.sidebarNote}>
-        <p className={styles.sidebarNoteTitle}><ShieldCheck size={14} /> Human-reviewed operations</p>
-        <p>Dispatch approvals are reviewed by an officer. WhatsApp notices are copied and sent manually.</p>
+        <p className={styles.sidebarNoteTitle}>
+          <ShieldCheck size={14} /> Human-reviewed operations
+        </p>
+        <p>
+          Dispatch approvals are reviewed by an officer. WhatsApp notices are copied and sent
+          manually.
+        </p>
       </div>
     </aside>
   );

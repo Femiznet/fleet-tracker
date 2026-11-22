@@ -25,20 +25,21 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
       return apiSuccess(null);
     }
 
-    const parsedData = update.data === null
-      ? null
-      : CustomerUpdateMessageSchema.safeParse(update.data);
+    const parsedData =
+      update.data === null ? null : CustomerUpdateMessageSchema.safeParse(update.data);
     if (parsedData && !parsedData.success) {
       return apiDbError(new Error('Stored customer update data is invalid'));
     }
 
-    return apiSuccess(calculateCustomerUpdateForecast({
-      messageId: update.messageId,
-      receivedAt: update.receivedAt,
-      parseStatus: update.status,
-      warnings: update.warnings,
-      data: parsedData?.data ?? null,
-    }));
+    return apiSuccess(
+      calculateCustomerUpdateForecast({
+        messageId: update.messageId,
+        receivedAt: update.receivedAt,
+        parseStatus: update.status,
+        warnings: update.warnings,
+        data: parsedData?.data ?? null,
+      })
+    );
   } catch (error) {
     return apiDbError(error);
   }

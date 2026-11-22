@@ -12,7 +12,9 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
   try {
     const { id } = await params;
     const skid = await getSkidById(id);
-    return skid ? apiSuccess(skid) : apiError({ code: 'NOT_FOUND', message: 'Skid not found' }, 404);
+    return skid
+      ? apiSuccess(skid)
+      : apiError({ code: 'NOT_FOUND', message: 'Skid not found' }, 404);
   } catch (error) {
     return apiDbError(error);
   }
@@ -26,10 +28,19 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     if (!statusParsed.success) {
       const parsed = updateSkidSchema.safeParse(body);
       if (!parsed.success) {
-        return apiError({ code: 'VALIDATION_ERROR', message: 'Invalid skid data', details: parsed.error.flatten() }, 400);
+        return apiError(
+          {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid skid data',
+            details: parsed.error.flatten(),
+          },
+          400
+        );
       }
       const skid = await updateSkid(id, parsed.data);
-      return skid ? apiSuccess(skid) : apiError({ code: 'NOT_FOUND', message: 'Skid not found' }, 404);
+      return skid
+        ? apiSuccess(skid)
+        : apiError({ code: 'NOT_FOUND', message: 'Skid not found' }, 404);
     }
 
     const [status] = await db
@@ -48,8 +59,12 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
           fillState: statusParsed.data.fillState,
           bay: statusParsed.data.fillState === 'loading' ? 'loading_bay' : statusParsed.data.bay,
           note: statusParsed.data.note?.trim() || null,
-          ...(statusParsed.data.isOnMaintenance !== undefined && { isOnMaintenance: statusParsed.data.isOnMaintenance }),
-          ...(statusParsed.data.maintenanceNote !== undefined && { maintenanceNote: statusParsed.data.maintenanceNote?.trim() || null }),
+          ...(statusParsed.data.isOnMaintenance !== undefined && {
+            isOnMaintenance: statusParsed.data.isOnMaintenance,
+          }),
+          ...(statusParsed.data.maintenanceNote !== undefined && {
+            maintenanceNote: statusParsed.data.maintenanceNote?.trim() || null,
+          }),
           updatedAt: new Date(),
         },
       })
@@ -68,7 +83,9 @@ export async function DELETE(_request: NextRequest, { params }: RouteContext) {
   try {
     const { id } = await params;
     const skid = await deleteSkid(id);
-    return skid ? apiSuccess(skid) : apiError({ code: 'NOT_FOUND', message: 'Skid not found' }, 404);
+    return skid
+      ? apiSuccess(skid)
+      : apiError({ code: 'NOT_FOUND', message: 'Skid not found' }, 404);
   } catch (error) {
     return apiDbError(error);
   }

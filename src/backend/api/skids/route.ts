@@ -21,7 +21,10 @@ export async function POST(request: NextRequest) {
   try {
     const parsed = createSkidSchema.safeParse(await request.json());
     if (!parsed.success) {
-      return apiError({ code: 'VALIDATION_ERROR', message: 'Invalid skid data', details: parsed.error.flatten() }, 400);
+      return apiError(
+        { code: 'VALIDATION_ERROR', message: 'Invalid skid data', details: parsed.error.flatten() },
+        400
+      );
     }
     return apiSuccess(await createSkid(parsed.data), { status: 201 });
   } catch (error) {

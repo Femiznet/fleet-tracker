@@ -23,15 +23,11 @@ export async function insertTrucks(newTrucks: HclTrackerTruck[]) {
     lat: item.lat,
     lon: item.lon,
     speed: parseInt(item.speed, 10) || 0,
-    group: item.group
+    group: item.group,
   }));
 
-    return (
-        await db.insert(trucks).values(rows).onConflictDoNothing()
-            .returning({
-                id: trucks.id,
-                truckNum: trucks.truckNum
-            })
-    );
-    
+  return await db.insert(trucks).values(rows).onConflictDoNothing().returning({
+    id: trucks.id,
+    truckNum: trucks.truckNum,
+  });
 }

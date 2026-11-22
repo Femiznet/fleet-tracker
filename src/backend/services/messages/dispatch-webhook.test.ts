@@ -1,9 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {
-  parseGreenApiMessage,
-  parseGreenApiOutgoingMessage,
-} from './validator';
+import { parseGreenApiMessage, parseGreenApiOutgoingMessage } from './validator';
 
 const dispatchText = [
   '*Truck/Skid Dispatch Details*',

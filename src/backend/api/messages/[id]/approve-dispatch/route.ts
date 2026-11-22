@@ -22,15 +22,21 @@ export async function POST(request: Request, { params }: RouteContext) {
   try {
     body = await request.json();
   } catch {
-    return apiError({ code: 'VALIDATION_ERROR', message: 'A valid JSON request body is required' }, 400);
+    return apiError(
+      { code: 'VALIDATION_ERROR', message: 'A valid JSON request body is required' },
+      400
+    );
   }
   const parsed = requestSchema.safeParse(body);
   if (!parsed.success) {
-    return apiError({
-      code: 'VALIDATION_ERROR',
-      message: 'Invalid dispatch review details',
-      details: parsed.error.flatten(),
-    }, 400);
+    return apiError(
+      {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid dispatch review details',
+        details: parsed.error.flatten(),
+      },
+      400
+    );
   }
 
   try {
