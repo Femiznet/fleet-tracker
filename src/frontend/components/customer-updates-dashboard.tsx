@@ -17,6 +17,7 @@ import {
   Users,
   Waves,
 } from 'lucide-react';
+import { useToast } from './toast-provider';
 import {
   getCustomerAnalytics,
   getCustomerUpdatesAnalytics,
@@ -238,7 +239,7 @@ function CustomerSelector({
         <input
           value={search}
           onChange={(event) => onSearch(event.target.value)}
-          placeholder="Search customers"
+          placeholder="Search customer name or location"
           aria-label="Search customers"
         />
       </label>
@@ -521,11 +522,8 @@ function CustomerReport({ customer }: { customer: CustomerSummary }) {
     return (
       <div className={styles.emptyStateLarge}>
         <Droplets size={22} />
-        <strong>No customer update yet</strong>
-        <span>
-          {customer.name} has no incoming updates yet. New customer reports will appear here after
-          they are received.
-        </span>
+        <strong>No customer reports available</strong>
+        <span>Awaiting the next report from {customer.name}.</span>
       </div>
     );
   }
@@ -545,11 +543,11 @@ function CustomerReport({ customer }: { customer: CustomerSummary }) {
         </section>
         <div className={styles.emptyStateLarge}>
           <AlertTriangle size={22} />
-          <strong>No parsed readings available</strong>
+          <strong>Readings unavailable</strong>
           <span>
             {latest.warnings.length
               ? latest.warnings.map((warning) => warning.replaceAll('_', ' ')).join(' · ')
-              : 'This update has not produced PRMS readings.'}
+              : 'No PRMS readings were extracted from this update.'}
           </span>
         </div>
       </>
@@ -601,7 +599,7 @@ function CustomerReport({ customer }: { customer: CustomerSummary }) {
       <section className={styles.panel}>
         <header className={styles.cardHeader}>
           <div>
-            <h3>PRMS readings and runtime</h3>
+            <h3>PRMS readings & runtime</h3>
             <p>Latest reported pressure, flow, and estimated runtime per PRMS</p>
           </div>
           <Gauge size={16} />
@@ -647,7 +645,7 @@ function CustomerReport({ customer }: { customer: CustomerSummary }) {
             ))}
           </div>
         ) : (
-          <div className={styles.emptyState}>This update did not include PRMS readings.</div>
+          <div className={styles.emptyState}>No PRMS readings were extracted from this update.</div>
         )}
       </section>
 
@@ -681,8 +679,8 @@ function UpdateDetail({ update }: { update: CustomerUpdateHistoryItem | null }) 
     return (
       <div className={styles.emptyStateLarge}>
         <CheckCircle2 size={21} />
-        <strong>Select an update</strong>
-        <span>Original message, parsed readings, warnings, and forecast will appear here.</span>
+        <strong>Select an update to review</strong>
+        <span>Review the customer message, extracted readings, and warnings.</span>
       </div>
     );
   }
@@ -703,7 +701,7 @@ function UpdateDetail({ update }: { update: CustomerUpdateHistoryItem | null }) 
 
       {!update.isProcessed ? (
         <div className={styles.pendingBox}>
-          <Clock3 size={14} /> This update is waiting to be processed.
+          <Clock3 size={14} /> Processing pending.
         </div>
       ) : null}
       {update.warnings.length ? (
@@ -716,7 +714,7 @@ function UpdateDetail({ update }: { update: CustomerUpdateHistoryItem | null }) 
       ) : null}
 
       <details className={styles.originalMessage} open>
-        <summary>Original incoming message</summary>
+        <summary>Original customer message</summary>
         <pre>{update.text}</pre>
       </details>
 
@@ -762,7 +760,7 @@ function UpdateDetail({ update }: { update: CustomerUpdateHistoryItem | null }) 
           ) : null}
         </>
       ) : update.processingStatus === 'failed' ? (
-        <div className={styles.emptyState}>No parsed readings are available for this update.</div>
+        <div className={styles.emptyState}>No readings were extracted from this update.</div>
       ) : null}
     </section>
   );
@@ -830,7 +828,7 @@ function UpdateHistoryList({
           <div className={styles.emptyState}>
             <CheckCircle2 size={18} />
             <strong>No matching updates</strong>
-            <span>This customer has no updates for the selected filters.</span>
+            <span>Adjust the date or status filters to see more results.</span>
           </div>
         )}
       </div>
@@ -881,12 +879,14 @@ export default function CustomerUpdatesDashboard() {
   const [customerLoading, setCustomerLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [customerError, setCustomerError] = useState<string | null>(null);
-  const [historyError, setHistoryError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const selectedUpdateRef = useRef<string | null>(null);
   const customerRequestRef = useRef(0);
   const historyRequestRef = useRef(0);
+  const overviewErrorRef = useRef<string | null>(null);
+  const customerErrorRef = useRef<string | null>(null);
+  const historyErrorRef = useRef<string | null>(null);
+  const showToast = useToast();
 
   const refreshOverview = useCallback(
     async (showLoading = false) => {
@@ -895,6 +895,7 @@ export default function CustomerUpdatesDashboard() {
         const result = await getCustomerUpdatesAnalytics(period);
         setAnalytics(result);
         setError(null);
+        overviewErrorRef.current = null;
         setLastUpdated(new Date());
         setSelectedCustomerId((current) =>
           current && result.customers.some((customer) => customer.id === current)
@@ -903,14 +904,22 @@ export default function CustomerUpdatesDashboard() {
                 ?.id ?? null)
         );
       } catch (loadError) {
-        setError(
-          loadError instanceof Error ? loadError.message : 'Unable to load customer analytics.'
-        );
+        const message =
+          loadError instanceof Error ? loadError.message : 'Unable to load customer analytics.';
+        setError(message);
+        if (overviewErrorRef.current !== message) {
+          overviewErrorRef.current = message;
+          showToast({
+            tone: 'error',
+            title: 'Customer analytics unavailable',
+            description: message,
+          });
+        }
       } finally {
         if (showLoading) setLoading(false);
       }
     },
-    [period]
+    [period, showToast]
   );
 
   useEffect(() => {
@@ -927,7 +936,7 @@ export default function CustomerUpdatesDashboard() {
     if (view !== 'customer' || !selectedCustomerId) {
       const timer = window.setTimeout(() => {
         setCustomerAnalytics(null);
-        setCustomerError(null);
+        customerErrorRef.current = null;
         setCustomerLoading(false);
       }, 0);
       return () => window.clearTimeout(timer);
@@ -936,16 +945,23 @@ export default function CustomerUpdatesDashboard() {
     const timer = window.setTimeout(() => {
       setCustomerAnalytics(null);
       setCustomerLoading(true);
-      setCustomerError(null);
+      customerErrorRef.current = null;
       void getCustomerAnalytics(selectedCustomerId, period)
         .then((result) => {
           if (customerRequestRef.current === requestId) setCustomerAnalytics(result);
         })
         .catch((loadError: unknown) => {
           if (customerRequestRef.current === requestId) {
-            setCustomerError(
-              loadError instanceof Error ? loadError.message : 'Unable to load customer analytics.'
-            );
+            const message =
+              loadError instanceof Error ? loadError.message : 'Unable to load customer analytics.';
+            if (customerErrorRef.current !== message) {
+              customerErrorRef.current = message;
+              showToast({
+                tone: 'error',
+                title: 'Customer report unavailable',
+                description: message,
+              });
+            }
           }
         })
         .finally(() => {
@@ -953,7 +969,7 @@ export default function CustomerUpdatesDashboard() {
         });
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [period, selectedCustomerId, view]);
+  }, [period, selectedCustomerId, showToast, view]);
 
   const refreshHistory = useCallback(
     async (showLoading = false) => {
@@ -976,7 +992,7 @@ export default function CustomerUpdatesDashboard() {
         if (historyRequestRef.current !== requestId) return;
         setHistory(result.updates);
         setHistoryPagination(result.pagination);
-        setHistoryError(null);
+        historyErrorRef.current = null;
         const nextSelected =
           result.updates.find((item) => item.id === selectedUpdateRef.current) ??
           result.updates[0] ??
@@ -985,15 +1001,22 @@ export default function CustomerUpdatesDashboard() {
         setSelectedUpdateId(nextSelected?.id ?? null);
       } catch (loadError) {
         if (historyRequestRef.current === requestId) {
-          setHistoryError(
-            loadError instanceof Error ? loadError.message : 'Unable to load update history.'
-          );
+          const message =
+            loadError instanceof Error ? loadError.message : 'Unable to load update history.';
+          if (historyErrorRef.current !== message) {
+            historyErrorRef.current = message;
+            showToast({
+              tone: 'error',
+              title: 'Customer update history unavailable',
+              description: message,
+            });
+          }
         }
       } finally {
         if (showLoading && historyRequestRef.current === requestId) setHistoryLoading(false);
       }
     },
-    [historyFrom, historyPage, historyStatus, historyTo, selectedCustomerId]
+    [historyFrom, historyPage, historyStatus, historyTo, selectedCustomerId, showToast]
   );
 
   useEffect(() => {
@@ -1055,9 +1078,9 @@ export default function CustomerUpdatesDashboard() {
         <header className={styles.pageHeading}>
           <div>
             <p className={styles.eyebrow}>Customer monitoring</p>
-            <h1 className={styles.title}>Customer analytics</h1>
+            <h1 className={styles.title}>Customer updates & analytics</h1>
             <p className={styles.subtitle}>
-              Review PRMS performance, customer reports, and update processing history.
+              Monitor customer reports, PRMS performance, and processing history.
             </p>
           </div>
           <button
@@ -1073,12 +1096,6 @@ export default function CustomerUpdatesDashboard() {
           </button>
         </header>
 
-        {error ? (
-          <div className={styles.failureBox} role="alert">
-            {analytics ? `Refresh failed: ${error}. Showing the last loaded data.` : error}
-          </div>
-        ) : null}
-
         <div className={styles.pageToolbar}>
           <div className={styles.viewTabs} role="tablist" aria-label="Customer update view">
             {(['overview', 'customer', 'history'] as const).map((tab) => (
@@ -1091,7 +1108,7 @@ export default function CustomerUpdatesDashboard() {
                 onClick={() => setView(tab)}
               >
                 {tab === 'overview'
-                  ? 'All-customer overview'
+                  ? 'Overview'
                   : tab === 'customer'
                     ? 'Customer details'
                     : 'Update history'}
@@ -1140,11 +1157,6 @@ export default function CustomerUpdatesDashboard() {
               onSelect={chooseCustomer}
             />
             <section className={styles.customerContent}>
-              {customerError ? (
-                <div className={styles.failureBox} role="alert">
-                  {customerError}
-                </div>
-              ) : null}
               {customerLoading && !customerAnalytics ? (
                 <div className={styles.loadingState}>
                   <RefreshCw size={17} className="animate-spin" /> Loading customer report…
@@ -1190,7 +1202,7 @@ export default function CustomerUpdatesDashboard() {
                   </button>
                 </>
               ) : (
-                <div className={styles.emptyStateLarge}>No customer selected.</div>
+                <div className={styles.emptyStateLarge}>Select a customer to review reports.</div>
               )}
             </section>
           </div>
@@ -1259,11 +1271,6 @@ export default function CustomerUpdatesDashboard() {
                 ) : null}
               </div>
 
-              {historyError ? (
-                <div className={styles.failureBox} role="alert">
-                  {historyError}
-                </div>
-              ) : null}
               <div className={styles.historyLayout}>
                 <UpdateHistoryList
                   customerName={selectedCustomer?.name ?? 'Customer'}

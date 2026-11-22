@@ -19,7 +19,7 @@
   gap: 14px;
   border-bottom: 1px solid #e6ebe7;
   color: #829087;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .breadcrumb,
@@ -57,7 +57,7 @@
 .eyebrow {
   margin: 0 0 6px;
   color: #48805e;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -74,7 +74,7 @@
 .pageHeading p:last-child {
   margin: 6px 0 0;
   color: #79867e;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .buttonPrimary,
@@ -89,7 +89,7 @@
   border-radius: 6px;
   padding: 7px 11px;
   font: inherit;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 650;
   cursor: pointer;
   transition:
@@ -158,7 +158,7 @@
   padding: 0 11px;
   color: #77847c;
   font: inherit;
-  font-size: 10px;
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -186,7 +186,7 @@
   border-radius: 20px;
   background: #eaf3ed;
   color: #3b7a53;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
 }
 
@@ -233,7 +233,7 @@
   max-width: 680px;
   margin: 0;
   color: #87948b;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -248,7 +248,7 @@
   min-width: 0;
   gap: 6px;
   color: #526158;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -267,7 +267,7 @@
   padding: 9px 10px;
   color: #34463b;
   font: inherit;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 450;
 }
 
@@ -283,9 +283,128 @@
   line-height: 1.5;
 }
 
+.searchFieldLabel {
+  color: #607066;
+}
+
+.searchSelect {
+  position: relative;
+  min-width: 0;
+}
+
+.searchSelectOpen {
+  z-index: 20;
+}
+
+.searchInputWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.searchInputWrap > svg {
+  position: absolute;
+  left: 10px;
+  color: #819087;
+  pointer-events: none;
+}
+
+.searchInputWrap .searchInput {
+  width: 100%;
+  min-height: 35px;
+  border: 1px solid #e0e7e2;
+  border-radius: 6px;
+  background: #fff;
+  padding: 9px 34px 9px 32px;
+  color: #34463b;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 450;
+}
+
+.searchInputWrap .searchInput:focus {
+  border-color: #78a687;
+  outline: 2px solid #dfeee3;
+}
+
+.searchInputWrap .searchInput:disabled {
+  cursor: not-allowed;
+  background: #f5f7f5;
+  color: #8a968e;
+}
+
+.searchClear {
+  position: absolute;
+  right: 6px;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  color: #78877d;
+  background: transparent;
+  cursor: pointer;
+}
+
+.searchClear:hover {
+  color: #34463b;
+  background: #edf3ee;
+}
+
+.searchResults {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 5px);
+  right: 0;
+  left: 0;
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid #dce5de;
+  border-radius: 8px;
+  background: #fff;
+  padding: 4px;
+  box-shadow: 0 12px 28px rgb(22 46 32 / 14%);
+}
+
+.searchOption {
+  display: grid;
+  width: 100%;
+  gap: 3px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  padding: 8px 9px;
+  color: #34463b;
+  text-align: left;
+  cursor: pointer;
+}
+
+.searchOption:hover,
+.searchOptionActive {
+  background: #f0f6f1;
+}
+
+.searchOption strong {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.searchOption span {
+  color: #7a8980;
+  font-size: 11px;
+}
+
+.searchEmpty {
+  margin: 0;
+  padding: 10px;
+  color: #7a8980;
+  font-size: 12px;
+}
+
 .field small {
   color: #718078;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 450;
 }
 
@@ -298,7 +417,7 @@
   align-items: flex-start;
   gap: 8px;
   color: #64736a;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 500;
   line-height: 1.45;
   cursor: pointer;
@@ -324,7 +443,7 @@
 .formFooter p {
   margin: 0;
   color: #89958d;
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.45;
 }
 
@@ -356,13 +475,13 @@
 .receiptHeader h3 {
   margin: 0;
   color: #365b40;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .receiptHeader p {
   margin: 4px 0 0;
   color: #7d8f81;
-  font-size: 9px;
+  font-size: 11px;
   overflow-wrap: anywhere;
 }
 
@@ -374,7 +493,7 @@
   padding: 11px;
   color: #526359;
   font: inherit;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -433,13 +552,13 @@
 
 .movementHeading strong {
   color: #35473c;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .movementHeading span {
   overflow: hidden;
   color: #829087;
-  font-size: 9px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -448,7 +567,7 @@
   flex: 0 0 auto;
   border-radius: 20px;
   padding: 5px 8px;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 650;
 }
 
@@ -479,13 +598,13 @@
 
 .movementFacts span {
   color: #89958d;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .movementFacts strong {
   overflow: hidden;
   color: #506056;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -496,7 +615,7 @@
   border-left: 2px solid #b9d1c0;
   padding: 4px 8px;
   color: #758279;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .movementActions,
@@ -524,24 +643,24 @@
 .actionPanel h3 {
   margin: 0;
   color: #3d4e43;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .actionPanel > p {
   margin: -5px 0 0;
   color: #859188;
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.45;
 }
 
 .actionPanel .field {
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .actionPanel .field input,
 .actionPanel .field select,
 .actionPanel .field textarea {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .actionButtons {
@@ -555,7 +674,7 @@
   gap: 6px;
   margin: -3px 0 0;
   color: #986c2b;
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.45;
 }
 
@@ -571,7 +690,7 @@
   background: #f1f8f3;
   padding: 9px 11px;
   color: #3d7650;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
@@ -594,13 +713,13 @@
   border-radius: 7px;
   background: #fbfdfb;
   color: #849188;
-  font-size: 10px;
+  font-size: 12px;
   text-align: center;
 }
 
 .emptyState strong {
   color: #526258;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .loadingState {
@@ -615,7 +734,7 @@
   gap: 6px;
   margin-top: 15px;
   color: #8d9991;
-  font-size: 8px;
+  font-size: 10px;
   line-height: 1.5;
 }
 
@@ -640,7 +759,7 @@
   }
 
   .main {
-    padding: 0 16px 24px;
+    padding: 0 16px 104px;
   }
 
   .topbar {
@@ -657,14 +776,20 @@
   }
 
   .tabs {
-    overflow-x: auto;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2px;
+    overflow: visible;
   }
 
   .tab,
   .tabActive {
-    flex: 0 0 auto;
-    padding-right: 8px;
-    padding-left: 8px;
+    min-width: 0;
+    justify-content: center;
+    padding-right: 4px;
+    padding-left: 4px;
+    text-align: center;
+    white-space: normal;
   }
 
   .formCard,

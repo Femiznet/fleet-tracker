@@ -19,7 +19,7 @@
   gap: 16px;
   border-bottom: 1px solid #e6ebe7;
   color: #849188;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .breadcrumb,
@@ -62,7 +62,7 @@
 .eyebrow {
   margin: 0 0 6px;
   color: #48805e;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -79,7 +79,7 @@
 .subtitle {
   margin: 6px 0 0;
   color: #79867e;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .refreshButton,
@@ -99,7 +99,7 @@
   align-items: center;
   gap: 7px;
   padding: 8px 11px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
 }
 
@@ -131,7 +131,7 @@
   background: transparent;
   padding: 11px 12px 12px;
   color: #758279;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .viewTabActive {
@@ -156,7 +156,7 @@
 
 .periodButton {
   padding: 6px 9px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .periodButtonActive {
@@ -174,7 +174,7 @@
   border-radius: 7px;
   background: #fff9f0;
   color: #875a23;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .failureBox {
@@ -252,7 +252,7 @@
 .summaryLabel {
   margin: 0 35px 9px 0;
   color: #7d8981;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 550;
 }
 
@@ -270,7 +270,7 @@
 .summaryCard small {
   margin-top: 5px;
   color: #929d95;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .insightGrid {
@@ -327,13 +327,13 @@
 
 .insightCard small {
   color: #829087;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .insightCard strong {
   overflow: hidden;
   color: #314238;
-  font-size: 12px;
+  font-size: 14px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -374,19 +374,19 @@
 .cardHeader h3 {
   margin: 0;
   color: #33443a;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 650;
 }
 
 .cardHeader p {
   margin: 4px 0 0;
   color: #929d95;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .chartUnit {
   color: #7b8b80;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .chartFrame {
@@ -410,7 +410,7 @@
 
 .chartAxisLabel {
   fill: #8b978f;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .chartEmpty,
@@ -421,7 +421,7 @@
   justify-content: center;
   gap: 8px;
   color: #89968d;
-  font-size: 11px;
+  font-size: 13px;
   text-align: center;
 }
 
@@ -454,7 +454,7 @@
 .rankingNumber {
   width: 20px;
   color: #98a39b;
-  font-size: 9px;
+  font-size: 11px;
   text-align: center;
 }
 
@@ -469,7 +469,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .rankingLabel strong {
@@ -514,7 +514,7 @@
 .activityCopy strong {
   overflow: hidden;
   color: #3a4b41;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -522,7 +522,7 @@
 
 .activityCopy small {
   color: #939e96;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .badge {
@@ -531,7 +531,7 @@
   align-items: center;
   border-radius: 20px;
   padding: 4px 7px;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 650;
   line-height: 1;
   text-transform: capitalize;
@@ -590,13 +590,13 @@
 .selectorHeader h2 {
   margin: 0;
   color: #34463a;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .selectorHeader p {
   margin: 3px 0 0;
   color: #94a097;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .customerSearch {
@@ -618,7 +618,7 @@
   background: transparent;
   color: #35463c;
   font: inherit;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .customerList {
@@ -660,7 +660,7 @@
 
 .customerButtonTop strong {
   overflow: hidden;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -668,12 +668,12 @@
 
 .customerButtonMeta {
   color: #929d95;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .customerButtonStats {
   color: #87938a;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .customerButtonStats strong {
@@ -684,7 +684,7 @@
 .selectorEmpty {
   padding: 24px 12px;
   color: #8b978f;
-  font-size: 10px;
+  font-size: 12px;
   text-align: center;
 }
 
@@ -711,7 +711,7 @@
 .reportMeta {
   margin: 5px 0 0;
   color: #859188;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .reportMetricGrid {
@@ -733,7 +733,7 @@
 
 .reportMetric span {
   color: #859188;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .reportMetric strong {
@@ -777,7 +777,7 @@
 
 .prmsCardHeader > strong {
   color: #405147;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .runtimeValue {
@@ -793,7 +793,7 @@
   display: block;
   margin-top: 2px;
   color: #8b978f;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .prmsReadings {
@@ -803,13 +803,13 @@
   border-top: 1px solid #e9eeea;
   padding-top: 9px;
   color: #728078;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .prmsWarning {
   margin: 8px 0 0;
   color: #a16d25;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .skidStatusGrid {
@@ -827,7 +827,7 @@
   border: 0;
   background: transparent;
   color: #3f7b55;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -851,7 +851,7 @@
 
 .historyFilters label > span {
   color: #77847b;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .historyFilters input,
@@ -863,7 +863,7 @@
   padding: 6px 7px;
   color: #45554a;
   font: inherit;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .historyFilters select {
@@ -872,7 +872,7 @@
 
 .clearFilters {
   padding: 7px 9px;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .historyLayout {
@@ -931,7 +931,7 @@
 
 .historyItemTop strong {
   color: #536258;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -939,7 +939,7 @@
   display: -webkit-box;
   overflow: hidden;
   color: #76847a;
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.45;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -948,7 +948,7 @@
 .historyItemBottom {
   justify-content: flex-start;
   color: #98a199;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .pagination {
@@ -958,7 +958,7 @@
   border-top: 1px solid #edf1ee;
   padding: 8px 10px;
   color: #849087;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .pagination > div {
@@ -1001,7 +1001,7 @@
 .originalMessage summary {
   padding: 9px 10px;
   color: #59695e;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -1014,7 +1014,7 @@
   padding: 10px;
   color: #526158;
   font: inherit;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.55;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -1023,7 +1023,7 @@
 .sectionTitle {
   margin: 15px 0 9px;
   color: #3d4d43;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .emptyStateLarge,
@@ -1039,13 +1039,13 @@
   background: #fbfdfb;
   padding: 24px;
   color: #849188;
-  font-size: 11px;
+  font-size: 13px;
   text-align: center;
 }
 
 .emptyStateLarge strong {
   color: #526258;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .emptyStateLarge span {
@@ -1062,7 +1062,7 @@
 .footerNote {
   margin: 18px 0 0;
   color: #929d95;
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.5;
 }
 
@@ -1083,7 +1083,7 @@
   }
 
   .main {
-    padding: 0 16px 24px;
+    padding: 0 16px 104px;
   }
 
   .topbar {
@@ -1168,7 +1168,7 @@
   }
 
   .refreshInfo {
-    font-size: 9px;
+    font-size: 11px;
   }
 
   .pageHeading {

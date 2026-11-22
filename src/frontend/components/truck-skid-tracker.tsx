@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Activity,
   Box,
@@ -15,6 +15,7 @@ import {
 import { getTrackerData } from '@/frontend/actions/tracker';
 import type { SkidTrackerItem, TrackerData, TruckTrackerItem } from '@/frontend/types/tracker';
 import OperationsSidebar from './operations-sidebar';
+import { useToast } from './toast-provider';
 import styles from './truck-skid-tracker.module.css';
 
 const REFRESH_INTERVAL_MS = 30_000;
@@ -126,7 +127,7 @@ function LocationBoard({
           ))}
         </div>
       ) : (
-        <div className={styles.emptyState}>No assets are registered yet.</div>
+        <div className={styles.emptyState}>No trucks or skids are registered.</div>
       )}
     </section>
   );
@@ -181,7 +182,7 @@ function Overview({
           <span className={styles.metricIcon}>
             <Clock3 size={17} />
           </span>
-          <span className={styles.metricLabel}>Assets on maintenance</span>
+          <span className={styles.metricLabel}>Assets in maintenance</span>
           <strong>{maintenanceCount}</strong>
           <small>Trucks and skids combined</small>
         </article>
@@ -194,9 +195,9 @@ function Overview({
 
       <section className={styles.overviewActions}>
         <div>
-          <h2 className={styles.panelTitle}>Track a specific asset</h2>
+          <h2 className={styles.panelTitle}>Asset details</h2>
           <p className={styles.panelSubtitle}>
-            Search its latest location and operational details.
+            Search by asset number to view location, status, and telemetry.
           </p>
         </div>
         <div className={styles.overviewButtons}>
@@ -385,21 +386,35 @@ export default function TruckSkidTracker() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const lastErrorRef = useRef<string | null>(null);
+  const showToast = useToast();
 
-  const refresh = useCallback(async (showLoading = false) => {
-    if (showLoading) setLoading(true);
-    try {
-      setData(await getTrackerData());
-      setError(null);
-      setLastUpdated(new Date());
-    } catch (loadError) {
-      setError(
-        loadError instanceof Error ? loadError.message : 'Unable to load truck and skid data.'
-      );
-    } finally {
-      if (showLoading) setLoading(false);
-    }
-  }, []);
+  const refresh = useCallback(
+    async (showLoading = false) => {
+      if (showLoading) setLoading(true);
+      try {
+        setData(await getTrackerData());
+        setError(null);
+        lastErrorRef.current = null;
+        setLastUpdated(new Date());
+      } catch (loadError) {
+        const message =
+          loadError instanceof Error ? loadError.message : 'Unable to load truck and skid data.';
+        setError(message);
+        if (lastErrorRef.current !== message) {
+          lastErrorRef.current = message;
+          showToast({
+            tone: 'error',
+            title: 'Tracker data unavailable',
+            description: message,
+          });
+        }
+      } finally {
+        if (showLoading) setLoading(false);
+      }
+    },
+    [showToast]
+  );
 
   useEffect(() => {
     const initialTimer = window.setTimeout(() => void refresh(true), 0);
@@ -495,7 +510,7 @@ export default function TruckSkidTracker() {
             <p className={styles.eyebrow}>Fleet visibility</p>
             <h1 className={styles.title}>Truck & skid tracker</h1>
             <p className={styles.subtitle}>
-              Check where assets are, their current availability, and the latest truck telemetry.
+              Locate trucks and skids, check availability, and review truck telemetry.
             </p>
           </div>
           <button
@@ -507,12 +522,6 @@ export default function TruckSkidTracker() {
             <RefreshCw size={14} className={loading ? 'animate-spin' : undefined} /> Refresh
           </button>
         </header>
-
-        {error ? (
-          <div className={styles.errorBanner} role="alert">
-            {data ? `Refresh failed: ${error}. Showing the last loaded data.` : error}
-          </div>
-        ) : null}
 
         <div className={styles.toolbar}>
           <div className={styles.viewTabs} role="tablist" aria-label="Tracker view">
@@ -541,7 +550,11 @@ export default function TruckSkidTracker() {
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 aria-label={`Search ${view}`}
-                placeholder={`Search ${view} by number, location, or status`}
+                placeholder={
+                  view === 'trucks'
+                    ? 'Search trucks by fleet number, location, or status'
+                    : 'Search skids by number, location, or status'
+                }
               />
             </label>
           ) : null}
@@ -652,14 +665,14 @@ export default function TruckSkidTracker() {
                     );
                   })
                 ) : (
-                  <div className={styles.emptyState}>No trucks match that search.</div>
+                  <div className={styles.emptyState}>No matching trucks.</div>
                 )}
               </div>
             </section>
             {selectedTruck ? (
               <TruckDetails truck={selectedTruck} />
             ) : (
-              <div className={styles.emptyState}>Select a truck to view its details.</div>
+              <div className={styles.emptyState}>Select a truck to review its status.</div>
             )}
           </div>
         ) : (
@@ -701,14 +714,14 @@ export default function TruckSkidTracker() {
                     );
                   })
                 ) : (
-                  <div className={styles.emptyState}>No skids match that search.</div>
+                  <div className={styles.emptyState}>No matching skids.</div>
                 )}
               </div>
             </section>
             {selectedSkid ? (
               <SkidDetails skid={selectedSkid} />
             ) : (
-              <div className={styles.emptyState}>Select a skid to view its details.</div>
+              <div className={styles.emptyState}>Select a skid to review its status.</div>
             )}
           </div>
         )}

@@ -28,7 +28,7 @@
   justify-content: space-between;
   margin-bottom: 27px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .breadcrumb {
@@ -67,7 +67,7 @@
 .eyebrow {
   margin: 0 0 7px;
   color: var(--green);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 750;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -106,7 +106,7 @@
   border: 1px solid transparent;
   border-radius: 9px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 650;
   transition:
     background 0.15s ease,
@@ -152,7 +152,7 @@
   border-color: #d4e5da;
   color: var(--green);
   background: #fff;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .copyButton:hover:not(:disabled) {
@@ -210,7 +210,7 @@
 .statLabel {
   margin: 0 0 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .statValue {
@@ -242,7 +242,7 @@
   align-items: center;
   gap: 9px;
   margin: 0;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -252,7 +252,7 @@
 
 .remindersHint {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .reminderList {
@@ -290,7 +290,7 @@
 
 .reminderCustomer {
   margin: 0 0 4px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -299,7 +299,7 @@
   align-items: center;
   gap: 5px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .reminderOverdue {
@@ -313,7 +313,7 @@
   gap: 8px;
   padding: 13px 16px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .workspace {
@@ -351,7 +351,7 @@
 .resultCount {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .filter {
@@ -362,7 +362,7 @@
   border-radius: 8px;
   color: #47544c;
   background: #fff;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .messageList {
@@ -401,7 +401,7 @@
 .messageCustomer {
   overflow: hidden;
   margin: 0;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -410,7 +410,7 @@
 .messageTime {
   flex: 0 0 auto;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .messagePreview {
@@ -418,7 +418,7 @@
   overflow: hidden;
   margin: 7px 0 10px;
   color: #657269;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.45;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -432,7 +432,7 @@
   border-radius: 999px;
   color: #57635b;
   background: #eef1ee;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.025em;
   text-transform: capitalize;
@@ -466,7 +466,7 @@
   padding: 10px 13px;
   border-top: 1px solid var(--line);
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .paginationButtons {
@@ -504,7 +504,7 @@
 .detailMeta {
   margin: 5px 0 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .warnings {
@@ -514,7 +514,7 @@
   border-radius: 9px;
   color: #80530d;
   background: #fff8e9;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .warningsTitle {
@@ -538,7 +538,7 @@
   padding: 3px 6px;
   border-radius: 5px;
   background: #ffefd0;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .originalMessage {
@@ -555,7 +555,7 @@
   gap: 7px;
   margin: 0 0 7px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
 }
@@ -563,7 +563,7 @@
 .originalText {
   margin: 0;
   color: #3e4b43;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -571,7 +571,7 @@
 
 .formTitle {
   margin: 0 0 11px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -590,7 +590,7 @@
 
 .field label {
   color: #68756c;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 650;
 }
 
@@ -602,7 +602,7 @@
   border-radius: 8px;
   color: var(--ink);
   background: #fff;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .field input:disabled {
@@ -620,7 +620,7 @@
   gap: 8px;
   margin: 15px 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -648,7 +648,7 @@
   border-radius: 8px;
   color: #176b4a;
   background: var(--green-soft);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .feedbackError {
@@ -664,7 +664,7 @@
   gap: 8px;
   color: var(--muted);
   text-align: center;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .centerState strong {
@@ -702,7 +702,7 @@
 .emptyDetail p {
   max-width: 270px;
   margin: 7px 0 0;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.5;
 }
 
@@ -713,10 +713,10 @@
   border-radius: 9px;
   color: var(--red);
   background: #fff8f7;
-  font-size: 12px;
+  font-size: 14px;
 }
 
-@media (max-width: 1020px) {
+@media (max-width: 1120px) {
   .shell {
     grid-template-columns: 190px minmax(0, 1fr);
   }
@@ -732,7 +732,7 @@
   }
 
   .main {
-    padding: 20px 16px 30px;
+    padding: 20px 16px 104px;
   }
 
   .topbar {

@@ -39,6 +39,7 @@ import type {
   PaginationMeta,
   ReviewStatus,
 } from '@/frontend/types/dispatch-review';
+import { useToast } from './toast-provider';
 import OperationsSidebar from './operations-sidebar';
 import styles from './dispatch-inbox.module.css';
 
@@ -56,8 +57,6 @@ const EMPTY_DETAILS: DispatchDetails = {
 };
 
 type StatusFilter = ReviewStatus | 'all';
-type Feedback = { tone: 'success' | 'error'; text: string; copyText?: string };
-
 function displayDate(value: string | null, includeTime = false) {
   if (!value) return 'Time unavailable';
   const date = new Date(value);
@@ -105,12 +104,13 @@ export default function DispatchInbox() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [details, setDetails] = useState<DispatchDetails>(EMPTY_DETAILS);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [reminderError, setReminderError] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [busyAction, setBusyAction] = useState<'approve' | 'reject' | null>(null);
   const [busyNotificationId, setBusyNotificationId] = useState<string | null>(null);
+  const [copyingNotice, setCopyingNotice] = useState(false);
   const selectedIdRef = useRef<string | null>(null);
+  const inboxErrorRef = useRef<string | null>(null);
+  const reminderErrorRef = useRef<string | null>(null);
+  const showToast = useToast();
 
   const refresh = useCallback(
     async (showLoading = false) => {
@@ -123,7 +123,7 @@ export default function DispatchInbox() {
       if (inboxResult.status === 'fulfilled') {
         setMessages(inboxResult.value.messages);
         setPagination(inboxResult.value.pagination);
-        setLoadError(null);
+        inboxErrorRef.current = null;
 
         const selected =
           inboxResult.value.messages.find((message) => message.id === selectedIdRef.current) ??
@@ -135,26 +135,36 @@ export default function DispatchInbox() {
           setDetails(selected?.parsedData ?? EMPTY_DETAILS);
         }
       } else {
-        setLoadError(
+        const message =
           inboxResult.reason instanceof Error
             ? inboxResult.reason.message
-            : 'Unable to load dispatch messages.'
-        );
+            : 'Unable to load dispatch messages.';
+        if (inboxErrorRef.current !== message) {
+          inboxErrorRef.current = message;
+          showToast({ tone: 'error', title: 'Dispatch inbox unavailable', description: message });
+        }
       }
 
       if (reminderResult.status === 'fulfilled') {
         setNotifications(reminderResult.value);
-        setReminderError(null);
+        reminderErrorRef.current = null;
       } else {
-        setReminderError(
+        const message =
           reminderResult.reason instanceof Error
             ? reminderResult.reason.message
-            : 'Unable to load dispatch reminders.'
-        );
+            : 'Unable to load dispatch reminders.';
+        if (reminderErrorRef.current !== message) {
+          reminderErrorRef.current = message;
+          showToast({
+            tone: 'error',
+            title: 'Dispatch reminders unavailable',
+            description: message,
+          });
+        }
       }
       if (showLoading) setLoading(false);
     },
-    [filter, page]
+    [filter, page, showToast]
   );
 
   useEffect(() => {
@@ -177,7 +187,6 @@ export default function DispatchInbox() {
     selectedIdRef.current = message.id;
     setSelectedId(message.id);
     setDetails(message.parsedData ?? EMPTY_DETAILS);
-    setFeedback(null);
   }
 
   function updateField(field: keyof DispatchDetails) {
@@ -187,26 +196,28 @@ export default function DispatchInbox() {
   async function handleApprove() {
     if (!selectedMessage || !canReview || !canApprove) return;
     setBusyAction('approve');
-    setFeedback(null);
     try {
       const result = await approveDispatchMessage(selectedMessage.id, details);
       if (result.status === 'duplicate') {
-        setFeedback({
+        showToast({
           tone: 'error',
-          text: `This dispatch duplicates an approved message (${result.duplicateOfMessageId}).`,
+          title: 'Duplicate dispatch',
+          description: `Duplicate of approved message ${result.duplicateOfMessageId}.`,
         });
       } else {
-        setFeedback({
+        showToast({
           tone: 'success',
-          text: 'Dispatch approved. Copy the notice to send it manually; this app will not send it.',
-          copyText: result.notificationText,
+          title: 'Dispatch approved',
+          description: 'Copy the customer notice and send it through the approved channel.',
+          action: { label: 'Copy notice', onClick: () => copyNotice(result.notificationText) },
         });
       }
       await refresh();
     } catch (error) {
-      setFeedback({
+      showToast({
         tone: 'error',
-        text: error instanceof Error ? error.message : 'Unable to approve this dispatch.',
+        title: 'Unable to approve dispatch',
+        description: error instanceof Error ? error.message : 'Try again.',
       });
     } finally {
       setBusyAction(null);
@@ -216,15 +227,15 @@ export default function DispatchInbox() {
   async function handleReject() {
     if (!selectedMessage || !canReview) return;
     setBusyAction('reject');
-    setFeedback(null);
     try {
       await rejectDispatchMessage(selectedMessage.id);
-      setFeedback({ tone: 'success', text: 'Dispatch rejected.' });
+      showToast({ tone: 'success', title: 'Dispatch rejected' });
       await refresh();
     } catch (error) {
-      setFeedback({
+      showToast({
         tone: 'error',
-        text: error instanceof Error ? error.message : 'Unable to reject this dispatch.',
+        title: 'Unable to reject dispatch',
+        description: error instanceof Error ? error.message : 'Try again.',
       });
     } finally {
       setBusyAction(null);
@@ -232,28 +243,33 @@ export default function DispatchInbox() {
   }
 
   async function copyNotice(text: string) {
+    if (copyingNotice) return;
+    setCopyingNotice(true);
     try {
       await navigator.clipboard.writeText(text);
-      setFeedback({ tone: 'success', text: 'Dispatch notice copied to clipboard.' });
+      showToast({ tone: 'success', title: 'Dispatch notice copied' });
     } catch (error) {
-      setFeedback({
+      showToast({
         tone: 'error',
-        text: error instanceof Error ? error.message : 'Unable to copy the dispatch notice.',
+        title: 'Unable to copy dispatch notice',
+        description: error instanceof Error ? error.message : 'Try again.',
       });
+    } finally {
+      setCopyingNotice(false);
     }
   }
 
   async function confirmMovementNotification(movementId: string) {
     setBusyNotificationId(movementId);
-    setFeedback(null);
     try {
       await markMovementNotified(movementId);
-      setFeedback({ tone: 'success', text: 'Dispatch notification marked as sent.' });
+      showToast({ tone: 'success', title: 'Dispatch notice marked as sent' });
       await refresh();
     } catch (error) {
-      setFeedback({
+      showToast({
         tone: 'error',
-        text: error instanceof Error ? error.message : 'Unable to confirm dispatch notification.',
+        title: 'Unable to confirm dispatch notice',
+        description: error instanceof Error ? error.message : 'Try again.',
       });
     } finally {
       setBusyNotificationId(null);
@@ -275,15 +291,11 @@ export default function DispatchInbox() {
     selectedIdRef.current = null;
     setSelectedId(null);
     setDetails(EMPTY_DETAILS);
-    setFeedback(null);
   }
 
   return (
     <div className={styles.shell}>
-      <OperationsSidebar
-        active="dispatch"
-        pendingDispatchCount={filter === 'pending' ? pagination?.total : undefined}
-      />
+      <OperationsSidebar active="dispatch" />
 
       <main className={styles.main}>
         <div className={styles.topbar}>
@@ -302,7 +314,7 @@ export default function DispatchInbox() {
             <p className={styles.eyebrow}>Operations / Messaging</p>
             <h1 className={styles.title}>Dispatch review</h1>
             <p className={styles.subtitle}>
-              Review incoming dispatch details before they change fleet movements.
+              Verify incoming dispatch details before approving fleet movements.
             </p>
           </div>
           <div className={styles.headingActions}>
@@ -318,36 +330,13 @@ export default function DispatchInbox() {
           </div>
         </header>
 
-        {loadError ? (
-          <div className={styles.errorBanner} role="alert">
-            {loadError}
-          </div>
-        ) : null}
-        {feedback ? (
-          <div
-            className={`${styles.feedback} ${feedback.tone === 'error' ? styles.feedbackError : ''}`}
-            role={feedback.tone === 'error' ? 'alert' : 'status'}
-          >
-            <span>{feedback.text}</span>
-            {feedback.copyText ? (
-              <button
-                className={styles.copyButton}
-                type="button"
-                onClick={() => void copyNotice(feedback.copyText ?? '')}
-              >
-                <Copy size={12} /> Copy notice
-              </button>
-            ) : null}
-          </div>
-        ) : null}
-
         <section className={styles.stats} aria-label="Dispatch inbox summary">
           <div className={styles.statCard}>
             <div className={styles.statIcon}>
               <Inbox size={17} />
             </div>
             <div>
-              <p className={styles.statLabel}>Messages in this view</p>
+              <p className={styles.statLabel}>Messages in view</p>
               <p className={styles.statValue}>{pagination?.total ?? '—'}</p>
             </div>
           </div>
@@ -356,7 +345,7 @@ export default function DispatchInbox() {
               <BellRing size={17} />
             </div>
             <div>
-              <p className={styles.statLabel}>Reminders waiting</p>
+              <p className={styles.statLabel}>Pending reminders</p>
               <p className={styles.statValue}>{notifications.length}</p>
             </div>
           </div>
@@ -377,17 +366,13 @@ export default function DispatchInbox() {
               <BellRing size={15} /> Dispatch reminders
             </h2>
             <span className={styles.remindersHint}>
-              A matching message from the connected phone or customer group clears a reminder.
+              Reminders clear when a matching message arrives from the connected phone or customer
+              group.
             </span>
           </div>
-          {reminderError ? (
-            <div className={styles.errorBanner} role="alert">
-              {reminderError}
-            </div>
-          ) : null}
           {notifications.length === 0 ? (
             <div className={styles.emptyReminders}>
-              <CheckCircle2 size={15} /> No dispatch reminders waiting.
+              <CheckCircle2 size={15} /> No pending reminders.
             </div>
           ) : (
             <div className={styles.reminderList}>
@@ -412,9 +397,10 @@ export default function DispatchInbox() {
                         className={styles.copyButton}
                         type="button"
                         onClick={() => void copyNotice(notification.notificationText ?? '')}
+                        disabled={copyingNotice}
                         aria-label={`Copy dispatch notice for ${notification.customerName}`}
                       >
-                        <Copy size={12} /> Copy notice
+                        <Copy size={12} /> {copyingNotice ? 'Copying…' : 'Copy notice'}
                       </button>
                       {notification.source === 'movement' && notification.movementId ? (
                         <button
@@ -445,7 +431,7 @@ export default function DispatchInbox() {
           <div className={styles.inbox}>
             <div className={styles.inboxToolbar}>
               <div>
-                <h2 className={styles.inboxTitle}>Message inbox</h2>
+                <h2 className={styles.inboxTitle}>Dispatch messages</h2>
                 <p className={styles.resultCount}>{pagination?.total ?? 0} dispatch messages</p>
               </div>
               <label>
@@ -469,8 +455,8 @@ export default function DispatchInbox() {
               ) : messages.length === 0 ? (
                 <div className={styles.centerState}>
                   <CheckCircle2 size={19} />
-                  <strong>Queue is clear</strong>
-                  <span>No {filter === 'all' ? '' : `${filter} `}dispatch messages to show.</span>
+                  <strong>No dispatch messages</strong>
+                  <span>No {filter === 'all' ? '' : `${filter} `}messages match this view.</span>
                 </div>
               ) : (
                 messages.map((message) => (
@@ -536,11 +522,8 @@ export default function DispatchInbox() {
                 <div className={styles.emptyDetailIcon}>
                   <ClipboardCheck size={21} />
                 </div>
-                <h2>Select a dispatch message</h2>
-                <p>
-                  Parsed details and review actions will appear here. New messages are checked
-                  automatically.
-                </p>
+                <h2>Select a dispatch message to review</h2>
+                <p>Verify the extracted details and approve or reject the dispatch.</p>
               </div>
             ) : (
               <>
@@ -560,7 +543,7 @@ export default function DispatchInbox() {
                 {selectedMessage.warnings?.length ? (
                   <div className={styles.warnings} role="note">
                     <p className={styles.warningsTitle}>
-                      <AlertTriangle size={14} /> Check these parser warnings
+                      <AlertTriangle size={14} /> Review extraction warnings
                     </p>
                     <ul className={styles.warningList}>
                       {selectedMessage.warnings.map((warning) => (
@@ -577,7 +560,7 @@ export default function DispatchInbox() {
                   <p className={styles.originalText}>{selectedMessage.text}</p>
                 </div>
 
-                <h3 className={styles.formTitle}>Confirm or correct the parsed details</h3>
+                <h3 className={styles.formTitle}>Verify dispatch details</h3>
                 <div className={styles.formGrid}>
                   <div className={styles.field}>
                     <label htmlFor="truck-number">Truck number *</label>
@@ -610,7 +593,7 @@ export default function DispatchInbox() {
                     />
                   </div>
                   <div className={styles.field}>
-                    <label htmlFor="driver-contact">Driver contact</label>
+                    <label htmlFor="driver-contact">Driver phone number</label>
                     <input
                       id="driver-contact"
                       type="tel"
@@ -621,7 +604,7 @@ export default function DispatchInbox() {
                     />
                   </div>
                   <div className={styles.field}>
-                    <label htmlFor="date-out">Date out *</label>
+                    <label htmlFor="date-out">Dispatch date *</label>
                     <input
                       id="date-out"
                       type="date"
@@ -631,7 +614,7 @@ export default function DispatchInbox() {
                     />
                   </div>
                   <div className={styles.field}>
-                    <label htmlFor="time-out">Time out</label>
+                    <label htmlFor="time-out">Dispatch time</label>
                     <input
                       id="time-out"
                       type="time"
@@ -644,8 +627,8 @@ export default function DispatchInbox() {
 
                 <p className={styles.approvalNote}>
                   <ShieldCheck size={14} />
-                  Approval records the dispatch and schedules an in-app reminder for 10 minutes
-                  later. WhatsApp is never sent automatically.
+                  Approval creates the dispatch and schedules an in-app reminder for 10 minutes. No
+                  WhatsApp message is sent automatically.
                 </p>
 
                 {canReview ? (
@@ -670,13 +653,13 @@ export default function DispatchInbox() {
                   </div>
                 ) : selectedMessage.reviewStatus === 'duplicate' ? (
                   <div className={styles.approvalNote}>
-                    <AlertTriangle size={14} /> This message is marked as a duplicate and cannot
-                    create another movement.
+                    <AlertTriangle size={14} /> Duplicate message. No additional movement can be
+                    created.
                   </div>
                 ) : selectedMessage.reviewStatus === 'approved' ? (
                   <div className={styles.approvalNote}>
-                    <CheckCircle2 size={14} /> Dispatch approved; the reminder clears when a
-                    matching group or phone message is observed.
+                    <CheckCircle2 size={14} /> Approved. The reminder clears when a matching
+                    customer group or phone message arrives.
                   </div>
                 ) : null}
               </>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import {
   ArrowUpRight,
@@ -16,6 +16,7 @@ import {
   type OperationsOverviewData,
 } from '@/frontend/actions/operations-overview';
 import OperationsSidebar from './operations-sidebar';
+import { useToast } from './toast-provider';
 import styles from './operations-dashboard.module.css';
 
 const REFRESH_INTERVAL_MS = 30_000;
@@ -82,7 +83,7 @@ function GeofenceBoard({
         <div>
           <h2 className={styles.panelTitle}>Geofence activity</h2>
           <p className={styles.panelSubtitle}>
-            Tracked Gastech trucks matched to known geofences using their latest stored coordinates.
+            Truck locations matched to geofences using the latest stored coordinates.
           </p>
         </div>
         <MapPinned size={18} />
@@ -95,7 +96,7 @@ function GeofenceBoard({
         <div className={styles.empty}>
           <MapPinned size={19} />
           <strong>No geofences available</strong>
-          <span>Known locations will appear here after geofences are created.</span>
+          <span>Create geofences to monitor truck activity here.</span>
         </div>
       ) : (
         <div className={styles.geofenceGrid}>
@@ -120,7 +121,7 @@ function GeofenceBoard({
         </div>
       ) : null}
       <p className={styles.freshnessNote}>
-        Location timestamps are not available, so counts may reflect an older GPS update.
+        Counts use the latest stored GPS coordinates and may be delayed.
       </p>
     </section>
   );
@@ -131,21 +132,37 @@ export default function OperationsDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
+  const lastErrorRef = useRef<string | null>(null);
+  const showToast = useToast();
 
-  const refresh = useCallback(async (showLoading = false) => {
-    if (showLoading) setLoading(true);
-    try {
-      setOverview(await getOperationsOverview());
-      setError(null);
-      setLastChecked(new Date());
-    } catch (loadError) {
-      setError(
-        loadError instanceof Error ? loadError.message : 'Unable to load the operations overview.'
-      );
-    } finally {
-      if (showLoading) setLoading(false);
-    }
-  }, []);
+  const refresh = useCallback(
+    async (showLoading = false) => {
+      if (showLoading) setLoading(true);
+      try {
+        setOverview(await getOperationsOverview());
+        setError(null);
+        lastErrorRef.current = null;
+        setLastChecked(new Date());
+      } catch (loadError) {
+        const message =
+          loadError instanceof Error
+            ? loadError.message
+            : 'Unable to load the operations overview.';
+        setError(message);
+        if (lastErrorRef.current !== message) {
+          lastErrorRef.current = message;
+          showToast({
+            tone: 'error',
+            title: 'Operations overview unavailable',
+            description: message,
+          });
+        }
+      } finally {
+        if (showLoading) setLoading(false);
+      }
+    },
+    [showToast]
+  );
 
   useEffect(() => {
     const initialTimer = window.setTimeout(() => void refresh(true), 0);
@@ -181,7 +198,7 @@ export default function OperationsDashboard() {
             <p className={styles.eyebrow}>Fleet operations</p>
             <h1 className={styles.title}>Operations overview</h1>
             <p className={styles.subtitle}>
-              A live snapshot of fleet, plant inventory, and customer locations.
+              Monitor fleet status, plant inventory, and customer locations.
             </p>
           </div>
           <button
@@ -194,16 +211,10 @@ export default function OperationsDashboard() {
           </button>
         </header>
 
-        {error ? (
-          <div className={styles.errorBanner} role="alert">
-            {overview ? `Refresh failed: ${error}. Showing the last loaded data.` : error}
-          </div>
-        ) : null}
-
         <section className={styles.summaryGrid} aria-label="Fleet and skid summaries">
           <SummaryPanel
             title="Fleet"
-            description="Current status across all registered trucks."
+            description="Status across the registered truck fleet."
             data={overview?.trucks ?? null}
             loading={loading}
             icon={<TruckIcon size={18} />}
@@ -217,7 +228,7 @@ export default function OperationsDashboard() {
           />
           <SummaryPanel
             title="Skid inventory"
-            description="Current status across all registered skids."
+            description="Status across all registered skids."
             data={overview?.skids ?? null}
             loading={loading}
             icon={<Box size={18} />}
@@ -236,8 +247,8 @@ export default function OperationsDashboard() {
         <section className={styles.quickActions}>
           <header className={styles.quickActionsHeader}>
             <div>
-              <h2 className={styles.panelTitle}>Quick actions</h2>
-              <p className={styles.panelSubtitle}>Jump straight to common operations.</p>
+              <h2 className={styles.panelTitle}>Operational actions</h2>
+              <p className={styles.panelSubtitle}>Common fleet tasks.</p>
             </div>
           </header>
           <div className={styles.actionGrid}>
@@ -247,7 +258,7 @@ export default function OperationsDashboard() {
               </span>
               <span className={styles.actionCopy}>
                 <strong>Review dispatches</strong>
-                <small>Check incoming dispatch requests</small>
+                <small>Review incoming dispatch requests</small>
               </span>
               <ArrowUpRight size={15} />
             </Link>
@@ -257,7 +268,7 @@ export default function OperationsDashboard() {
               </span>
               <span className={styles.actionCopy}>
                 <strong>Track trucks & skids</strong>
-                <small>View location and availability</small>
+                <small>View truck and skid locations</small>
               </span>
               <ArrowUpRight size={15} />
             </Link>
@@ -266,8 +277,8 @@ export default function OperationsDashboard() {
                 <TruckIcon size={17} />
               </span>
               <span className={styles.actionCopy}>
-                <strong>Record plant status</strong>
-                <small>Update skids, trucks, and readings</small>
+                <strong>Update plant status</strong>
+                <small>Update trucks, skids, and plant readings</small>
               </span>
               <ArrowUpRight size={15} />
             </Link>
@@ -277,7 +288,7 @@ export default function OperationsDashboard() {
               </span>
               <span className={styles.actionCopy}>
                 <strong>View customer updates</strong>
-                <small>See recent customer messages</small>
+                <small>Review reports and processing status</small>
               </span>
               <ArrowUpRight size={15} />
             </Link>

@@ -15,6 +15,7 @@ import type {
 } from '@/frontend/types/plant-report';
 import { usePlantStatusStore } from '@/frontend/store/plant-status-store';
 import OperationsSidebar from './operations-sidebar';
+import { useToast } from './toast-provider';
 import styles from './plant-report-form.module.css';
 
 type SkidFill = 'empty' | 'loading' | 'loaded' | 'on_hold';
@@ -36,6 +37,47 @@ type TruckStatusDraft = {
   maintenanceNote: string;
   note: string;
 };
+type PlantTruck = PlantDashboardData['plantTrucks'][number];
+
+function getSkidStatusDraft(skid: PlantYardSkid): SkidStatusDraft {
+  return {
+    fillState: skid.fillState ?? 'empty',
+    bay: skid.fillState === 'loading' ? 'loading_bay' : (skid.bay ?? 'parking_bay'),
+    note: skid.note ?? '',
+    isOnMaintenance: skid.isOnMaintenance ?? false,
+    maintenanceNote: skid.maintenanceNote ?? '',
+  };
+}
+
+function hasSkidStatusChanges(skid: PlantYardSkid, status: SkidStatusDraft) {
+  const original = getSkidStatusDraft(skid);
+  return (
+    status.fillState !== original.fillState ||
+    status.bay !== original.bay ||
+    status.note.trim() !== original.note.trim() ||
+    status.isOnMaintenance !== original.isOnMaintenance ||
+    status.maintenanceNote.trim() !== original.maintenanceNote.trim()
+  );
+}
+
+function getTruckStatusDraft(truck: PlantTruck): TruckStatusDraft {
+  return {
+    isStandby: truck.isStandby ?? false,
+    isOnMaintenance: truck.isOnMaintenance ?? false,
+    maintenanceNote: truck.maintenanceNote ?? '',
+    note: truck.note ?? '',
+  };
+}
+
+function hasTruckStatusChanges(truck: PlantTruck, status: TruckStatusDraft) {
+  const original = getTruckStatusDraft(truck);
+  return (
+    status.isStandby !== original.isStandby ||
+    status.isOnMaintenance !== original.isOnMaintenance ||
+    status.maintenanceNote.trim() !== original.maintenanceNote.trim() ||
+    status.note.trim() !== original.note.trim()
+  );
+}
 
 function countSkids(groups: { customer: string[]; gastech: string[] }) {
   return groups.customer.length + groups.gastech.length;
@@ -53,7 +95,6 @@ export default function PlantReportForm() {
   const [dashboard, setDashboard] = useState<PlantDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [truckSearch, setTruckSearch] = useState('');
   const [skidStatuses, setSkidStatuses] = useState<Record<string, SkidStatusDraft>>({});
@@ -67,7 +108,9 @@ export default function PlantReportForm() {
   const [extraFields, setExtraFields] = useState<ExtraFieldRow[]>([]);
   const [truckStatuses, setTruckStatuses] = useState<Record<string, TruckStatusDraft>>({});
   const [copied, setCopied] = useState(false);
+  const [copying, setCopying] = useState(false);
   const nextRowId = useRef(0);
+  const showToast = useToast();
 
   const {
     officersOnDuty,
@@ -80,7 +123,6 @@ export default function PlantReportForm() {
 
   const loadStatus = useCallback(async () => {
     setLoading(true);
-    setError(null);
     try {
       const data = await getPlantDashboard();
       setDashboard(data);
@@ -99,11 +141,15 @@ export default function PlantReportForm() {
         );
       });
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Unable to load plant skids.');
+      showToast({
+        tone: 'error',
+        title: 'Unable to load plant status',
+        description: loadError instanceof Error ? loadError.message : 'Try again.',
+      });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showToast]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void loadStatus(), 0);
@@ -175,8 +221,8 @@ export default function PlantReportForm() {
   }, [dashboard, truckSearch]);
 
   async function recordSkidStatus(skid: PlantYardSkid, status: SkidStatusDraft) {
+    if (saving || loading || !hasSkidStatusChanges(skid, status)) return;
     setSaving(true);
-    setError(null);
     try {
       await updateSkidStatus(skid.id, {
         fillState: status.fillState,
@@ -186,8 +232,13 @@ export default function PlantReportForm() {
         note: status.note.trim() || null,
       });
       await loadStatus();
+      showToast({ tone: 'success', title: `Skid ${skid.skidNum} status recorded` });
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Unable to record skid status.');
+      showToast({
+        tone: 'error',
+        title: 'Unable to record skid status',
+        description: saveError instanceof Error ? saveError.message : 'Try again.',
+      });
     } finally {
       setSaving(false);
     }
@@ -245,13 +296,17 @@ export default function PlantReportForm() {
   }
 
   async function generateStatus() {
+    if (saving) return;
     if (!officersOnDuty.trim()) {
-      setError('Enter the logistics officer(s) on duty.');
+      showToast({
+        tone: 'error',
+        title: 'Officer name required',
+        description: 'Enter the logistics officer(s) on duty.',
+      });
       setActiveSection('pressures');
       return;
     }
     setSaving(true);
-    setError(null);
     setCopied(false);
     try {
       const result = await submitPlantReport({
@@ -262,22 +317,35 @@ export default function PlantReportForm() {
       setFormattedMessage(result.formattedMessage);
       await loadStatus();
       setActiveSection('preview');
+      showToast({ tone: 'success', title: 'Plant status report recorded' });
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Unable to generate plant status.');
+      showToast({
+        tone: 'error',
+        title: 'Unable to record plant status',
+        description: saveError instanceof Error ? saveError.message : 'Try again.',
+      });
     } finally {
       setSaving(false);
     }
   }
 
   async function copyStatus() {
+    if (copying) return;
     const message = dashboard?.latestReport?.formattedMessage ?? formattedMessage;
     if (!message) return;
-    setError(null);
+    setCopying(true);
     try {
       await navigator.clipboard.writeText(message);
       setCopied(true);
+      showToast({ tone: 'success', title: 'Plant status copied' });
     } catch (copyError) {
-      setError(copyError instanceof Error ? copyError.message : 'Unable to copy plant status.');
+      showToast({
+        tone: 'error',
+        title: 'Unable to copy plant status',
+        description: copyError instanceof Error ? copyError.message : 'Try again.',
+      });
+    } finally {
+      setCopying(false);
     }
   }
 
@@ -311,9 +379,7 @@ export default function PlantReportForm() {
           <div>
             <p className={styles.eyebrow}>Plant operations</p>
             <h1 className={styles.title}>Plant status</h1>
-            <p className={styles.subtitle}>
-              Live plant operations, fleet status, and reporting in one workspace.
-            </p>
+            <p className={styles.subtitle}>Monitor plant inventory, fleet status, and readings.</p>
           </div>
           <button
             type="button"
@@ -324,12 +390,6 @@ export default function PlantReportForm() {
             <RefreshCw size={14} /> Refresh
           </button>
         </header>
-
-        {error ? (
-          <div className={styles.error} role="alert">
-            {error}
-          </div>
-        ) : null}
 
         <div className={styles.statusTabs} role="tablist" aria-label="Plant status section">
           <button
@@ -366,7 +426,7 @@ export default function PlantReportForm() {
             className={`${styles.statusTab} ${activeSection === 'pressures' ? styles.statusTabActive : ''}`}
             onClick={() => setActiveSection('pressures')}
           >
-            Pressures & officer
+            Pressure & officers
           </button>
           <button
             type="button"
@@ -375,7 +435,7 @@ export default function PlantReportForm() {
             className={`${styles.statusTab} ${activeSection === 'equipment' ? styles.statusTabActive : ''}`}
             onClick={() => setActiveSection('equipment')}
           >
-            Gear & equipment
+            Plant equipment
           </button>
           <button
             type="button"
@@ -405,18 +465,27 @@ export default function PlantReportForm() {
                 className={styles.dashboardAction}
                 onClick={() => void copyStatus()}
                 disabled={
-                  saving || !(dashboard?.latestReport?.formattedMessage ?? formattedMessage)
+                  saving ||
+                  copying ||
+                  !(dashboard?.latestReport?.formattedMessage ?? formattedMessage)
                 }
               >
                 <span className={styles.dashboardActionIcon}>
                   <Copy size={17} />
                 </span>
                 <span className={styles.dashboardActionCopy}>
-                  <strong>{copied ? 'Plant status copied' : 'Copy latest plant status'}</strong>
+                  <strong>
+                    {' '}
+                    {copying
+                      ? 'Copying plant status…'
+                      : copied
+                        ? 'Plant status copied'
+                        : 'Copy latest plant status'}
+                  </strong>
                   <small>
                     {dashboard?.latestReport
                       ? `Last recorded ${formatReportDate(dashboard.latestReport.createdAt)}`
-                      : 'Record a plant status before copying it'}
+                      : 'Save a report to enable copying.'}
                   </small>
                 </span>
               </button>
@@ -424,7 +493,6 @@ export default function PlantReportForm() {
                 type="button"
                 className={`${styles.dashboardAction} ${styles.dashboardActionPrimary}`}
                 onClick={() => {
-                  setError(null);
                   setCopied(false);
                   setActiveSection('skids');
                 }}
@@ -433,7 +501,7 @@ export default function PlantReportForm() {
                   <Plus size={18} />
                 </span>
                 <span className={styles.dashboardActionCopy}>
-                  <strong>Record a new plant status</strong>
+                  <strong>Update plant status</strong>
                   <small>Update skids, trucks, and plant readings</small>
                 </span>
               </button>
@@ -442,12 +510,12 @@ export default function PlantReportForm() {
             <section className={styles.snapshotPanel}>
               <header className={styles.panelHeader}>
                 <div>
-                  <h2 className={styles.panelTitle}>Live plant snapshot</h2>
-                  <p className={styles.panelHint}>Current truck movements and skid yard status.</p>
+                  <h2 className={styles.panelTitle}>Plant snapshot</h2>
+                  <p className={styles.panelHint}>Truck activity and skid yard status.</p>
                 </div>
               </header>
               {loading && !dashboard ? (
-                <div className={styles.emptyState}>Loading live plant status...</div>
+                <div className={styles.emptyState}>Loading plant snapshot…</div>
               ) : snapshot ? (
                 <div className={styles.snapshotGroups}>
                   <section className={styles.snapshotGroup}>
@@ -496,7 +564,7 @@ export default function PlantReportForm() {
         ) : activeSection === 'trucks' ? (
           <section className={styles.truckStatus}>
             <header className={styles.skidListHeader}>
-              <strong>Plant trucks</strong>
+              <strong>Trucks at plant</strong>
               <span>{filteredPlantTrucks.length} found</span>
             </header>
             <div className={styles.truckSearch}>
@@ -505,24 +573,18 @@ export default function PlantReportForm() {
                 id="truck-search"
                 value={truckSearch}
                 onChange={(event) => setTruckSearch(event.target.value)}
-                placeholder="Truck number..."
+                placeholder="Search by truck number"
               />
             </div>
             <div className={styles.truckList}>
               {loading ? (
-                <div className={styles.emptyState}>Loading plant trucks...</div>
+                <div className={styles.emptyState}>Loading trucks…</div>
               ) : !truckSearch.trim() ? (
-                <div className={styles.emptyState}>
-                  Search by truck number to update its status.
-                </div>
+                <div className={styles.emptyState}>Search for a truck to update its status.</div>
               ) : filteredPlantTrucks.length ? (
                 filteredPlantTrucks.map((truck) => {
-                  const status = truckStatuses[truck.id] ?? {
-                    isStandby: truck.isStandby ?? false,
-                    isOnMaintenance: truck.isOnMaintenance ?? false,
-                    maintenanceNote: truck.maintenanceNote ?? '',
-                    note: truck.note ?? '',
-                  };
+                  const status = truckStatuses[truck.id] ?? getTruckStatusDraft(truck);
+                  const hasChanges = hasTruckStatusChanges(truck, status);
                   return (
                     <article className={styles.truckRow} key={truck.id}>
                       <div className={styles.truckIdentity}>
@@ -537,6 +599,7 @@ export default function PlantReportForm() {
                             role="switch"
                             aria-checked={status.isStandby}
                             aria-label={`${truck.truckNum} standby`}
+                            disabled={saving || loading}
                             className={`${styles.toggle} ${status.isStandby ? styles.toggleOn : ''}`}
                             onClick={() =>
                               setTruckStatuses((current) => ({
@@ -555,6 +618,7 @@ export default function PlantReportForm() {
                             role="switch"
                             aria-checked={status.isOnMaintenance}
                             aria-label={`${truck.truckNum} maintenance`}
+                            disabled={saving || loading}
                             className={`${styles.toggle} ${status.isOnMaintenance ? styles.toggleOn : ''}`}
                             onClick={() =>
                               setTruckStatuses((current) => ({
@@ -572,22 +636,23 @@ export default function PlantReportForm() {
                           className={styles.truckMaintenanceNote}
                           aria-label={`${truck.truckNum} maintenance note`}
                           value={status.maintenanceNote}
+                          disabled={saving || loading}
                           onChange={(event) =>
                             setTruckStatuses((current) => ({
                               ...current,
                               [truck.id]: { ...status, maintenanceNote: event.target.value },
                             }))
                           }
-                          placeholder="Why is it in maintenance?"
+                          placeholder="Enter maintenance details"
                         />
                       ) : null}
                       <button
                         type="button"
                         className={`${styles.recordButton} ${styles.truckRecordButton}`}
-                        disabled={saving}
+                        disabled={saving || loading || !hasChanges}
                         onClick={async () => {
+                          if (saving || loading || !hasChanges) return;
                           setSaving(true);
-                          setError(null);
                           try {
                             await updateTruckPlantStatus(truck.id, {
                               isStandby: status.isStandby,
@@ -596,18 +661,23 @@ export default function PlantReportForm() {
                               note: status.note.trim() || null,
                             });
                             await loadStatus();
+                            showToast({
+                              tone: 'success',
+                              title: `Truck ${truck.truckNum} status recorded`,
+                            });
                           } catch (saveError) {
-                            setError(
-                              saveError instanceof Error
-                                ? saveError.message
-                                : 'Unable to record truck status.'
-                            );
+                            showToast({
+                              tone: 'error',
+                              title: 'Unable to record truck status',
+                              description:
+                                saveError instanceof Error ? saveError.message : 'Try again.',
+                            });
                           } finally {
                             setSaving(false);
                           }
                         }}
                       >
-                        <Save size={13} /> Record
+                        <Save size={13} /> Save status
                       </button>
                     </article>
                   );
@@ -630,7 +700,7 @@ export default function PlantReportForm() {
                   id="plant-skid-search"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Skid number or customer..."
+                  placeholder="Search skid number or customer"
                 />
               </div>
               <button
@@ -683,9 +753,9 @@ export default function PlantReportForm() {
                     )
                   }
                 >
-                  <option value="">Maintenance: all</option>
-                  <option value="no">Maintenance: no</option>
-                  <option value="yes">Maintenance: yes</option>
+                  <option value="">All maintenance statuses</option>
+                  <option value="no">Not in maintenance</option>
+                  <option value="yes">In maintenance</option>
                 </select>
                 <select
                   value={filterNew === '' ? '' : filterNew ? 'yes' : 'no'}
@@ -693,9 +763,9 @@ export default function PlantReportForm() {
                     setFilterNew(event.target.value === '' ? '' : event.target.value === 'yes')
                   }
                 >
-                  <option value="">New: all</option>
-                  <option value="no">New: no</option>
-                  <option value="yes">New: yes</option>
+                  <option value="">All skid types</option>
+                  <option value="no">Existing skids</option>
+                  <option value="yes">New skids</option>
                 </select>
                 <button type="button" className={styles.buttonSecondary} onClick={clearFilters}>
                   Clear
@@ -705,18 +775,13 @@ export default function PlantReportForm() {
 
             <div className={styles.skidList}>
               {loading ? (
-                <div className={styles.emptyState}>Loading skids...</div>
+                <div className={styles.emptyState}>Loading skids…</div>
               ) : !search.trim() ? (
-                <div className={styles.emptyState}>Search by skid number or customer to begin.</div>
+                <div className={styles.emptyState}>Search for a skid to update its status.</div>
               ) : filteredSkids.length ? (
                 filteredSkids.map((skid) => {
-                  const status = skidStatuses[skid.id] ?? {
-                    fillState: skid.fillState ?? 'empty',
-                    bay: skid.fillState === 'loading' ? 'loading_bay' : (skid.bay ?? 'parking_bay'),
-                    note: skid.note ?? '',
-                    isOnMaintenance: skid.isOnMaintenance ?? false,
-                    maintenanceNote: skid.maintenanceNote ?? '',
-                  };
+                  const status = skidStatuses[skid.id] ?? getSkidStatusDraft(skid);
+                  const hasChanges = hasSkidStatusChanges(skid, status);
 
                   return (
                     <article className={styles.skidRow} key={skid.id}>
@@ -735,7 +800,7 @@ export default function PlantReportForm() {
                           <select
                             id={`skid-fill-${skid.id}`}
                             value={status.fillState}
-                            disabled={saving || loading}
+                            disabled={saving || loading || !hasChanges}
                             onChange={(event) => {
                               const fillState = event.target.value as SkidFill;
                               setSkidStatuses((current) => ({
@@ -787,7 +852,7 @@ export default function PlantReportForm() {
                                 [skid.id]: { ...status, note: event.target.value },
                               }))
                             }
-                            placeholder="Note..."
+                            placeholder="Add skid notes"
                           />
                         </div>
                         <div className={styles.skidMaintenance}>
@@ -818,7 +883,7 @@ export default function PlantReportForm() {
                           disabled={saving || loading}
                           onClick={() => void recordSkidStatus(skid, status)}
                         >
-                          <Save size={13} /> Record
+                          <Save size={13} /> Save status
                         </button>
                       </div>
                       {status.isOnMaintenance ? (
@@ -833,7 +898,7 @@ export default function PlantReportForm() {
                               [skid.id]: { ...status, maintenanceNote: event.target.value },
                             }))
                           }
-                          placeholder="Why is it in maintenance?"
+                          placeholder="Enter maintenance details"
                           rows={3}
                         />
                       ) : null}
@@ -849,15 +914,15 @@ export default function PlantReportForm() {
           <section className={styles.panel}>
             <header className={styles.panelHeader}>
               <div>
-                <h2 className={styles.panelTitle}>Pressures & officer</h2>
-                <p className={styles.panelHint}>Enter the current readings and officer name.</p>
+                <h2 className={styles.panelTitle}>Pressure & officers</h2>
+                <p className={styles.panelHint}>Record current readings and duty officers.</p>
               </div>
             </header>
             <div className={styles.panelBody}>
               <div className={styles.fieldGrid}>
                 <div className={`${styles.field} ${styles.fullWidth}`}>
                   <label htmlFor="officers">
-                    Logistics officer(s) on duty <span className={styles.required}>*</span>
+                    Officers on duty <span className={styles.required}>*</span>
                   </label>
                   <input
                     id="officers"
@@ -878,7 +943,7 @@ export default function PlantReportForm() {
                   />
                 </div>
                 <div className={styles.field}>
-                  <label htmlFor="loading-pressure">Skids loading at (bar)</label>
+                  <label htmlFor="loading-pressure">Skid loading pressure (bar)</label>
                   <input
                     id="loading-pressure"
                     type="number"
@@ -895,8 +960,8 @@ export default function PlantReportForm() {
           <section className={styles.panel}>
             <header className={styles.panelHeader}>
               <div>
-                <h2 className={styles.panelTitle}>Gear & equipment</h2>
-                <p className={styles.panelHint}>Landing gearboxes, new chassis and compressors.</p>
+                <h2 className={styles.panelTitle}>Plant equipment</h2>
+                <p className={styles.panelHint}>Track chassis and gearbox inventory.</p>
               </div>
             </header>
             <div className={styles.panelBody}>
@@ -949,7 +1014,7 @@ export default function PlantReportForm() {
 
               <div className={styles.subsection}>
                 <div className={styles.subsectionHeader}>
-                  <h3 className={styles.subsectionTitle}>Extra fields</h3>
+                  <h3 className={styles.subsectionTitle}>Additional fields</h3>
                   <button
                     type="button"
                     className={styles.buttonSecondary}
@@ -974,7 +1039,7 @@ export default function PlantReportForm() {
                           )
                         )
                       }
-                      placeholder="Field name"
+                      placeholder="Metric name"
                     />
                     <input
                       value={row.value}
@@ -985,7 +1050,7 @@ export default function PlantReportForm() {
                           )
                         )
                       }
-                      placeholder="Value"
+                      placeholder="Enter metric value"
                     />
                     <button
                       type="button"
@@ -1044,7 +1109,7 @@ export default function PlantReportForm() {
                           )
                         )
                       }
-                      placeholder="Optional note"
+                      placeholder="Add note (optional)"
                       aria-label={`${row.name} optional note`}
                     />
                   </div>
@@ -1068,7 +1133,7 @@ export default function PlantReportForm() {
                 disabled={saving}
               >
                 {saving ? <RefreshCw size={14} /> : <Save size={14} />}
-                {saving ? 'Recording...' : 'Record status'}
+                {saving ? 'Saving…' : 'Save plant status'}
               </button>
             </header>
             <div className={styles.panelBody}>
@@ -1079,14 +1144,15 @@ export default function PlantReportForm() {
                     type="button"
                     className={styles.copyButton}
                     onClick={() => void copyStatus()}
+                    disabled={copying}
                   >
                     <Copy size={13} />
-                    {copied ? 'Copied' : 'Copy text'}
+                    {copying ? 'Copying…' : copied ? 'Copied' : 'Copy text'}
                   </button>
                 </>
               ) : (
                 <div className={styles.emptyState}>
-                  Record the plant status to preview the WhatsApp message.
+                  Save the report to generate the WhatsApp summary.
                 </div>
               )}
             </div>

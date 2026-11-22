@@ -25,7 +25,7 @@
   gap: 12px;
   margin-bottom: 25px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .breadcrumb,
@@ -70,7 +70,7 @@
 .eyebrow {
   margin: 0 0 7px;
   color: var(--green);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 750;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -86,7 +86,7 @@
 .subtitle {
   margin: 7px 0 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.5;
 }
 
@@ -104,7 +104,7 @@
   color: #46534b;
   background: #fff;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 650;
   white-space: nowrap;
 }
@@ -127,7 +127,7 @@
   border-radius: 9px;
   color: #9e3f38;
   background: #fff8f7;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .toolbar {
@@ -155,7 +155,7 @@
   color: #647268;
   background: transparent;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: capitalize;
 }
@@ -187,7 +187,7 @@
   color: var(--ink);
   background: transparent;
   font: inherit;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .filterBar {
@@ -207,7 +207,7 @@
   align-items: center;
   gap: 6px;
   color: #536159;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -219,7 +219,7 @@
 
 .filterControl > span {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 650;
 }
 
@@ -232,7 +232,7 @@
   color: var(--ink);
   background: #fff;
   font: inherit;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .clearFilters {
@@ -243,7 +243,7 @@
   color: var(--green);
   background: transparent;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -285,7 +285,7 @@
 .metricLabel {
   overflow: hidden;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -297,7 +297,7 @@
 
 .metricCard small {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .locationBoards {
@@ -348,14 +348,14 @@
 .panelTitle {
   margin: 0;
   color: var(--ink);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
 .panelSubtitle {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.45;
 }
 
@@ -377,7 +377,7 @@
 .locationName {
   overflow: hidden;
   color: #46534b;
-  font-size: 10px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -398,7 +398,7 @@
 
 .locationRow strong {
   color: var(--ink);
-  font-size: 10px;
+  font-size: 12px;
   text-align: right;
 }
 
@@ -451,13 +451,13 @@
 .listHeader h2 {
   margin: 0;
   color: var(--ink);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .listHeader p {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .assetList {
@@ -503,14 +503,14 @@
 }
 
 .assetIdentity strong {
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .assetIdentity small,
 .assetMeta small {
   overflow: hidden;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -526,7 +526,7 @@
   align-items: center;
   padding: 0 8px;
   border-radius: 999px;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: capitalize;
   white-space: nowrap;
@@ -567,7 +567,7 @@
 
 .detailEyebrow {
   color: var(--green);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 750;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -582,7 +582,7 @@
 .detailHeader p {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .primaryLocation {
@@ -604,18 +604,18 @@
 
 .primaryLocation span {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .primaryLocation strong {
   color: var(--ink);
-  font-size: 12px;
+  font-size: 14px;
   overflow-wrap: anywhere;
 }
 
 .primaryLocation small {
   color: var(--green);
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .detailMetrics {
@@ -635,11 +635,11 @@
 
 .detailMetrics span {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .detailMetrics strong {
-  font-size: 11px;
+  font-size: 13px;
   overflow-wrap: anywhere;
 }
 
@@ -651,7 +651,7 @@
   border: 1px solid #dce8f1;
   border-radius: 9px;
   background: #f5f9fc;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .movementDetails span,
@@ -673,7 +673,7 @@
 .detailNote p {
   margin: 0;
   color: #68573a;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
@@ -689,7 +689,7 @@
   border-radius: 8px;
   color: var(--green);
   background: #f8fcf9;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   text-decoration: none;
 }
@@ -703,7 +703,7 @@
   padding-top: 11px;
   border-top: 1px solid var(--line);
   color: var(--muted);
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.5;
 }
 
@@ -717,7 +717,7 @@
   gap: 8px;
   padding: 20px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
   text-align: center;
 }
 
@@ -731,7 +731,7 @@
   border-radius: 9px;
   color: var(--muted);
   background: #fbfcfb;
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.5;
 }
 
@@ -755,7 +755,7 @@
   }
 
   .main {
-    padding: 20px 16px 30px;
+    padding: 20px 16px 104px;
   }
 
   .topbar {

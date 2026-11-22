@@ -1,6 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from 'react';
 import {
   AlertTriangle,
   ArrowDownLeft,
@@ -10,8 +18,10 @@ import {
   Copy,
   MapPin,
   RefreshCw,
+  Search,
   Truck,
   Waypoints,
+  X,
 } from 'lucide-react';
 import {
   cancelMovement,
@@ -28,6 +38,7 @@ import type {
   MovementOptions,
 } from '@/frontend/types/movement';
 import OperationsSidebar from './operations-sidebar';
+import { useToast } from './toast-provider';
 import styles from './movement-workspace.module.css';
 
 const REFRESH_INTERVAL_MS = 30_000;
@@ -41,6 +52,189 @@ function formatDate(value: string) {
 
 function locationMatches(left: string, right: string | null) {
   return left.trim().toLowerCase() === (right ?? '').trim().toLowerCase();
+}
+
+type SearchableOption = {
+  value: string;
+  label: string;
+  detail: string;
+  searchText?: string;
+  scanCode?: string;
+};
+
+function SearchableSelect({
+  label,
+  placeholder,
+  emptyMessage,
+  helperText,
+  options,
+  value,
+  onChange,
+  disabled = false,
+  required = false,
+}: {
+  label: string;
+  placeholder: string;
+  emptyMessage: string;
+  helperText?: string;
+  options: SearchableOption[];
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  required?: boolean;
+}) {
+  const inputId = useId();
+  const listId = useId();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [query, setQuery] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const selectedOption = options.find((option) => option.value === value);
+  const inputValue = open ? (query ?? '') : (selectedOption?.label ?? query ?? '');
+  const filteredOptions = options.filter((option) =>
+    `${option.label} ${option.detail} ${option.searchText ?? ''}`
+      .toLowerCase()
+      .includes((query ?? '').trim().toLowerCase())
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    function closeOnOutsidePointer(event: PointerEvent) {
+      if (event.target instanceof Node && !containerRef.current?.contains(event.target)) {
+        setOpen(false);
+        setActiveIndex(-1);
+      }
+    }
+    document.addEventListener('pointerdown', closeOnOutsidePointer);
+    return () => document.removeEventListener('pointerdown', closeOnOutsidePointer);
+  }, [open]);
+
+  function chooseOption(option: SearchableOption) {
+    onChange(option.value);
+    setQuery(null);
+    setOpen(false);
+    setActiveIndex(-1);
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Escape') {
+      setOpen(false);
+      setActiveIndex(-1);
+      return;
+    }
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      if (!open) {
+        setOpen(true);
+        setQuery('');
+      }
+      if (!filteredOptions.length) return;
+      event.preventDefault();
+      setActiveIndex((current) => {
+        if (event.key === 'ArrowDown') return (current + 1) % filteredOptions.length;
+        return current <= 0 ? filteredOptions.length - 1 : current - 1;
+      });
+      return;
+    }
+    if (event.key === 'Enter' && open) {
+      event.preventDefault();
+      const normalizedQuery = (query ?? '').trim().toLowerCase();
+      const scanMatch = options.find(
+        (option) =>
+          option.scanCode?.toLowerCase() === normalizedQuery ||
+          option.value.toLowerCase() === normalizedQuery
+      );
+      const option =
+        (activeIndex >= 0 ? filteredOptions[activeIndex] : undefined) ??
+        scanMatch ??
+        (filteredOptions.length === 1 ? filteredOptions[0] : undefined);
+      if (option) chooseOption(option);
+    }
+  }
+
+  return (
+    <div className={styles.field}>
+      <label className={styles.searchFieldLabel} htmlFor={inputId}>
+        {label}
+      </label>
+      <div
+        className={`${styles.searchSelect} ${open ? styles.searchSelectOpen : ''}`}
+        ref={containerRef}
+      >
+        <div className={styles.searchInputWrap}>
+          <Search size={14} aria-hidden="true" />
+          <input
+            id={inputId}
+            className={styles.searchInput}
+            type="text"
+            role="combobox"
+            aria-required={required || undefined}
+            aria-autocomplete="list"
+            aria-expanded={open}
+            aria-controls={listId}
+            aria-activedescendant={
+              activeIndex >= 0 && filteredOptions[activeIndex]
+                ? `${listId}-${activeIndex}`
+                : undefined
+            }
+            autoComplete="off"
+            value={inputValue}
+            placeholder={placeholder}
+            disabled={disabled}
+            onFocus={() => {
+              if (query === null) setQuery('');
+              setOpen(true);
+              setActiveIndex(-1);
+            }}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setOpen(true);
+              setActiveIndex(-1);
+              if (value) onChange('');
+            }}
+            onKeyDown={handleKeyDown}
+          />
+          {value && !disabled ? (
+            <button
+              type="button"
+              className={styles.searchClear}
+              aria-label={`Clear ${label}`}
+              onClick={() => {
+                onChange('');
+                setQuery(null);
+                setOpen(false);
+                setActiveIndex(-1);
+              }}
+            >
+              <X size={14} />
+            </button>
+          ) : null}
+        </div>
+        {open ? (
+          <div className={styles.searchResults} id={listId} role="listbox" aria-label={label}>
+            {filteredOptions.length ? (
+              filteredOptions.map((option, index) => (
+                <button
+                  type="button"
+                  role="option"
+                  id={`${listId}-${index}`}
+                  aria-selected={option.value === value}
+                  className={`${styles.searchOption} ${activeIndex === index ? styles.searchOptionActive : ''}`}
+                  key={option.value}
+                  onClick={() => chooseOption(option)}
+                >
+                  <strong>{option.label}</strong>
+                  {option.detail ? <span>{option.detail}</span> : null}
+                </button>
+              ))
+            ) : (
+              <p className={styles.searchEmpty}>{emptyMessage}</p>
+            )}
+          </div>
+        ) : null}
+        {helperText ? <small>{helperText}</small> : null}
+      </div>
+    </div>
+  );
 }
 
 function MovementActionCard({
@@ -58,9 +252,7 @@ function MovementActionCard({
   const [forceOverride, setForceOverride] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [feedback, setFeedback] = useState<{ tone: 'success' | 'error'; text: string } | null>(
-    null
-  );
+  const showToast = useToast();
 
   const eligibleSkids = useMemo(
     () =>
@@ -88,20 +280,20 @@ function MovementActionCard({
   async function submitCompletion() {
     if (!canComplete || busy) return;
     setBusy(true);
-    setFeedback(null);
     try {
       await completeMovement(movement.id, {
         skidIdIn: returnedSkidId || undefined,
         note: note.trim() || undefined,
         forceOverride,
       });
-      setFeedback({ tone: 'success', text: 'Movement completed and fleet status updated.' });
+      showToast({ tone: 'success', title: 'Movement completed' });
       await onChanged();
       setAction(null);
     } catch (error) {
-      setFeedback({
+      showToast({
         tone: 'error',
-        text: error instanceof Error ? error.message : 'Unable to complete this movement.',
+        title: 'Unable to complete movement',
+        description: error instanceof Error ? error.message : 'Try again.',
       });
     } finally {
       setBusy(false);
@@ -111,15 +303,15 @@ function MovementActionCard({
   async function submitCancellation() {
     if (!confirmCancel || busy) return;
     setBusy(true);
-    setFeedback(null);
     try {
       await cancelMovement(movement.id, note.trim() || undefined);
-      setFeedback({ tone: 'success', text: 'Movement cancelled.' });
+      showToast({ tone: 'success', title: 'Movement cancelled' });
       await onChanged();
     } catch (error) {
-      setFeedback({
+      showToast({
         tone: 'error',
-        text: error instanceof Error ? error.message : 'Unable to cancel this movement.',
+        title: 'Unable to cancel movement',
+        description: error instanceof Error ? error.message : 'Try again.',
       });
     } finally {
       setBusy(false);
@@ -182,10 +374,10 @@ function MovementActionCard({
         <button
           type="button"
           className={styles.buttonPrimary}
+          disabled={busy}
           onClick={() => {
             setAction('complete');
             setConfirmCancel(false);
-            setFeedback(null);
           }}
         >
           <CheckCircle2 size={14} /> Complete
@@ -193,10 +385,10 @@ function MovementActionCard({
         <button
           type="button"
           className={styles.buttonDanger}
+          disabled={busy}
           onClick={() => {
             setAction('cancel');
             setConfirmCancel(false);
-            setFeedback(null);
           }}
         >
           Cancel
@@ -205,36 +397,35 @@ function MovementActionCard({
 
       {action === 'complete' ? (
         <div className={styles.actionPanel}>
-          <h3>Confirm return and complete movement</h3>
+          <h3>Complete movement</h3>
           <p>
-            The truck must be at Gastech Plant. A dispatch also needs a recorded inbound trip unless
-            a sensor override is confirmed.
+            Confirm the truck is at Gastech Plant and the inbound trip is recorded, or apply an
+            authorized sensor override.
           </p>
-          <label className={styles.field}>
-            <span>Returned or replacement skid</span>
-            <select
-              value={returnedSkidId}
-              onChange={(event) => setReturnedSkidId(event.target.value)}
-              disabled={busy}
-            >
-              <option value="">No skid returned</option>
-              {eligibleSkids.map((skid) => (
-                <option value={skid.id} key={skid.id}>
-                  {skid.skidNum} · {skid.currentLoc} · {skid.status.replaceAll('_', ' ')}
-                </option>
-              ))}
-            </select>
-          </label>
+          <SearchableSelect
+            label="Returned or replacement skid"
+            placeholder="Search or scan skid number"
+            emptyMessage="No eligible skids found."
+            options={eligibleSkids.map((skid) => ({
+              value: skid.id,
+              label: skid.skidNum,
+              detail: `${skid.currentLoc} · ${skid.status.replaceAll('_', ' ')}`,
+              scanCode: skid.skidNum,
+            }))}
+            value={returnedSkidId}
+            onChange={setReturnedSkidId}
+            disabled={busy}
+          />
           <label className={styles.field}>
             <span>
-              {returnedSkidId ? 'Completion note (optional)' : 'Completion note (required)'}
+              {returnedSkidId ? 'Completion notes (optional)' : 'Completion notes (required)'}
             </span>
             <textarea
               value={note}
               onChange={(event) => setNote(event.target.value)}
               rows={3}
               maxLength={2000}
-              placeholder="Record why no skid is returning, or add completion details"
+              placeholder="Enter completion notes"
               disabled={busy}
             />
           </label>
@@ -245,7 +436,7 @@ function MovementActionCard({
               onChange={(event) => setForceOverride(event.target.checked)}
               disabled={busy}
             />
-            <span>Override missing inbound or plant-location sensor confirmation</span>
+            <span>Override missing trip or plant-location confirmation</span>
           </label>
           {needsInboundLeg || needsPlantConfirmation || needsReturnNote ? (
             <p className={styles.inlineHint}>
@@ -261,6 +452,7 @@ function MovementActionCard({
               type="button"
               className={styles.buttonSecondary}
               onClick={() => setAction(null)}
+              disabled={busy}
             >
               Back
             </button>
@@ -279,9 +471,9 @@ function MovementActionCard({
       {action === 'cancel' ? (
         <div className={styles.actionPanel}>
           <h3>Cancel movement</h3>
-          <p>Active trip legs will be cancelled and eligible truck/skid states reset.</p>
+          <p>Cancel active trip legs and reset eligible truck and skid statuses.</p>
           <label className={styles.field}>
-            <span>Cancellation note (optional)</span>
+            <span>Cancellation notes (optional)</span>
             <textarea
               value={note}
               onChange={(event) => setNote(event.target.value)}
@@ -300,6 +492,7 @@ function MovementActionCard({
               type="button"
               className={styles.buttonSecondary}
               onClick={() => setAction(null)}
+              disabled={busy}
             >
               Keep movement
             </button>
@@ -317,12 +510,6 @@ function MovementActionCard({
           </div>
         </div>
       ) : null}
-
-      {feedback ? (
-        <div className={feedback.tone === 'error' ? styles.errorNotice : styles.successNotice}>
-          {feedback.text}
-        </div>
-      ) : null}
     </article>
   );
 }
@@ -332,7 +519,7 @@ export default function MovementWorkspace() {
   const [options, setOptions] = useState<MovementOptions | null>(null);
   const [activeMovements, setActiveMovements] = useState<ActiveMovement[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const refreshErrorRef = useRef<string | null>(null);
   const [dispatchTruckId, setDispatchTruckId] = useState('');
   const [dispatchCustomerId, setDispatchCustomerId] = useState('');
   const [dispatchSkidId, setDispatchSkidId] = useState('');
@@ -344,41 +531,51 @@ export default function MovementWorkspace() {
   const [pickupNote, setPickupNote] = useState('');
   const [pickupOverride, setPickupOverride] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [feedback, setFeedback] = useState<{ tone: 'success' | 'error'; text: string } | null>(
-    null
-  );
+  const showToast = useToast();
   const [dispatchResult, setDispatchResult] = useState<DirectDispatchResult | null>(null);
   const [notificationSent, setNotificationSent] = useState(false);
+  const [copyingNotice, setCopyingNotice] = useState(false);
 
-  const refresh = useCallback(async (showLoading = false) => {
-    if (showLoading) setLoading(true);
-    const [optionResult, movementResult] = await Promise.allSettled([
-      getMovementOptions(),
-      listActiveMovements(),
-    ]);
+  const refresh = useCallback(
+    async (showLoading = false) => {
+      if (showLoading) setLoading(true);
+      const [optionResult, movementResult] = await Promise.allSettled([
+        getMovementOptions(),
+        listActiveMovements(),
+      ]);
 
-    const failures: string[] = [];
-    if (optionResult.status === 'fulfilled') setOptions(optionResult.value);
-    else {
-      failures.push(
-        optionResult.reason instanceof Error
-          ? optionResult.reason.message
-          : 'Unable to load dispatch options.'
-      );
-    }
+      const failures: string[] = [];
+      if (optionResult.status === 'fulfilled') setOptions(optionResult.value);
+      else {
+        failures.push(
+          optionResult.reason instanceof Error
+            ? optionResult.reason.message
+            : 'Unable to load dispatch options.'
+        );
+      }
 
-    if (movementResult.status === 'fulfilled') setActiveMovements(movementResult.value);
-    else {
-      failures.push(
-        movementResult.reason instanceof Error
-          ? movementResult.reason.message
-          : 'Unable to load active movements.'
-      );
-    }
+      if (movementResult.status === 'fulfilled') setActiveMovements(movementResult.value);
+      else {
+        failures.push(
+          movementResult.reason instanceof Error
+            ? movementResult.reason.message
+            : 'Unable to load active movements.'
+        );
+      }
 
-    setError(failures.length ? failures.join(' ') : null);
-    if (showLoading) setLoading(false);
-  }, []);
+      if (failures.length) {
+        const message = failures.join(' ');
+        if (refreshErrorRef.current !== message) {
+          refreshErrorRef.current = message;
+          showToast({ tone: 'error', title: 'Movement data unavailable', description: message });
+        }
+      } else {
+        refreshErrorRef.current = null;
+      }
+      if (showLoading) setLoading(false);
+    },
+    [showToast]
+  );
 
   useEffect(() => {
     const initialTimer = window.setTimeout(() => void refresh(true), 0);
@@ -393,19 +590,69 @@ export default function MovementWorkspace() {
   const selectedPickupCustomer = options?.customers.find(
     (customer) => customer.id === pickupCustomerId
   );
-  const pickupSkids = (options?.skids ?? []).filter(
-    (skid) =>
-      skid.status === 'at_customer' &&
-      (pickupOverride ||
-        locationMatches(skid.currentLoc, selectedPickupCustomer?.geofenceName ?? null))
+  const truckSearchOptions = useMemo(
+    () =>
+      (options?.trucks ?? []).map((truck) => ({
+        value: truck.id,
+        label: truck.truckNum,
+        detail: truck.currentLoc,
+        searchText: `${truck.driverName ?? ''} ${truck.driverContact ?? ''}`,
+        scanCode: truck.truckNum,
+      })),
+    [options?.trucks]
   );
-  const availableSkids = (options?.skids ?? []).filter((skid) => skid.status === 'available');
+  const customerSearchOptions = useMemo(
+    () =>
+      (options?.customers ?? []).map((customer) => ({
+        value: customer.id,
+        label: customer.name,
+        detail: customer.geofenceName ?? 'No geofence assigned',
+        searchText: customer.geofenceName ?? '',
+        scanCode: customer.name,
+      })),
+    [options?.customers]
+  );
+  const pickupSkids = useMemo(
+    () =>
+      (options?.skids ?? []).filter(
+        (skid) =>
+          skid.status === 'at_customer' &&
+          (pickupOverride ||
+            locationMatches(skid.currentLoc, selectedPickupCustomer?.geofenceName ?? null))
+      ),
+    [options?.skids, pickupOverride, selectedPickupCustomer?.geofenceName]
+  );
+  const availableSkids = useMemo(
+    () => (options?.skids ?? []).filter((skid) => skid.status === 'available'),
+    [options?.skids]
+  );
+  const dispatchSkidSearchOptions = useMemo(
+    () =>
+      availableSkids.map((skid) => ({
+        value: skid.id,
+        label: skid.skidNum,
+        detail: skid.currentLoc,
+        searchText: skid.owner,
+        scanCode: skid.skidNum,
+      })),
+    [availableSkids]
+  );
+  const pickupSkidSearchOptions = useMemo(
+    () =>
+      pickupSkids.map((skid) => ({
+        value: skid.id,
+        label: skid.skidNum,
+        detail: skid.currentLoc,
+        searchText: skid.owner,
+        scanCode: skid.skidNum,
+      })),
+    [pickupSkids]
+  );
 
   async function submitDispatch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!dispatchTruckId || !dispatchCustomerId || !dispatchSkidId || busy) return;
     setBusy(true);
-    setFeedback(null);
     setDispatchResult(null);
     setNotificationSent(false);
     try {
@@ -417,16 +664,18 @@ export default function MovementWorkspace() {
         forceOverride: dispatchOverride,
       });
       setDispatchResult(result);
-      setFeedback({
+      showToast({
         tone: 'success',
-        text: 'Dispatch created. Copy the notice to send it manually; no message was sent automatically.',
+        title: 'Dispatch recorded',
+        description: 'Copy the customer notice and send it through the approved channel.',
       });
       setDispatchNote('');
       await refresh();
     } catch (actionError) {
-      setFeedback({
+      showToast({
         tone: 'error',
-        text: actionError instanceof Error ? actionError.message : 'Unable to create dispatch.',
+        title: 'Unable to create dispatch',
+        description: actionError instanceof Error ? actionError.message : 'Try again.',
       });
     } finally {
       setBusy(false);
@@ -437,7 +686,6 @@ export default function MovementWorkspace() {
     event.preventDefault();
     if (!pickupTruckId || !pickupCustomerId || busy) return;
     setBusy(true);
-    setFeedback(null);
     try {
       const result = await createPickup({
         truckId: pickupTruckId,
@@ -446,17 +694,19 @@ export default function MovementWorkspace() {
         note: pickupNote.trim() || undefined,
         forceOverride: pickupOverride,
       });
-      setFeedback({
+      showToast({
         tone: 'success',
-        text: `Pickup created as movement ${result.movementId}.`,
+        title: 'Pickup recorded',
+        description: `Movement ${result.movementId} is now active.`,
       });
       setPickupSkidId('');
       setPickupNote('');
       await refresh();
     } catch (actionError) {
-      setFeedback({
+      showToast({
         tone: 'error',
-        text: actionError instanceof Error ? actionError.message : 'Unable to create pickup.',
+        title: 'Unable to create pickup',
+        description: actionError instanceof Error ? actionError.message : 'Try again.',
       });
     } finally {
       setBusy(false);
@@ -464,32 +714,38 @@ export default function MovementWorkspace() {
   }
 
   async function copyDispatchNotice(text: string) {
+    if (copyingNotice) return;
+    setCopyingNotice(true);
     try {
       await navigator.clipboard.writeText(text);
-      setFeedback({
+      showToast({
         tone: 'success',
-        text: 'Dispatch notice copied. Send it through the approved channel.',
+        title: 'Dispatch notice copied',
+        description: 'Send it through the approved channel.',
       });
     } catch (copyError) {
-      setFeedback({
+      showToast({
         tone: 'error',
-        text:
-          copyError instanceof Error ? copyError.message : 'Unable to copy the dispatch notice.',
+        title: 'Unable to copy dispatch notice',
+        description: copyError instanceof Error ? copyError.message : 'Try again.',
       });
+    } finally {
+      setCopyingNotice(false);
     }
   }
 
   async function confirmDispatchSent(movementId: string) {
+    if (busy || notificationSent) return;
     setBusy(true);
-    setFeedback(null);
     try {
       await markMovementNotified(movementId);
       setNotificationSent(true);
-      setFeedback({ tone: 'success', text: 'Dispatch notice marked as sent.' });
+      showToast({ tone: 'success', title: 'Dispatch notice marked as sent' });
     } catch (actionError) {
-      setFeedback({
+      showToast({
         tone: 'error',
-        text: actionError instanceof Error ? actionError.message : 'Unable to confirm the notice.',
+        title: 'Unable to confirm notice',
+        description: actionError instanceof Error ? actionError.message : 'Try again.',
       });
     } finally {
       setBusy(false);
@@ -515,7 +771,7 @@ export default function MovementWorkspace() {
           <div>
             <p className={styles.eyebrow}>Fleet operations</p>
             <h1>Dispatch & movements</h1>
-            <p>Create direct dispatches or pickups and manage active truck movements.</p>
+            <p>Create dispatches and pickups, then manage active movements.</p>
           </div>
           <button
             type="button"
@@ -526,13 +782,6 @@ export default function MovementWorkspace() {
             <RefreshCw size={14} className={loading ? 'animate-spin' : undefined} /> Refresh
           </button>
         </header>
-
-        {error ? <div className={styles.errorNotice}>{error}</div> : null}
-        {feedback ? (
-          <div className={feedback.tone === 'error' ? styles.errorNotice : styles.successNotice}>
-            {feedback.text}
-          </div>
-        ) : null}
 
         <nav className={styles.tabs} aria-label="Dispatch and movement actions">
           <button
@@ -577,79 +826,62 @@ export default function MovementWorkspace() {
                 <Truck size={16} />
               </span>
               <div>
-                <h2>Record a direct dispatch</h2>
+                <h2>Create a dispatch</h2>
                 <p>
-                  Choose an available truck and outgoing skid. Sensor mismatches require a recorded
+                  Select an available truck, customer, and skid. Confirm any required location
                   override.
                 </p>
               </div>
             </header>
             <form className={styles.formGrid} onSubmit={submitDispatch}>
-              <label className={styles.field}>
-                <span>Truck *</span>
-                <select
-                  required
-                  value={dispatchTruckId}
-                  onChange={(event) => setDispatchTruckId(event.target.value)}
-                  disabled={busy}
-                >
-                  <option value="">Select an available truck</option>
-                  {options.trucks.map((truck) => (
-                    <option value={truck.id} key={truck.id}>
-                      {truck.truckNum} · {truck.currentLoc}
-                    </option>
-                  ))}
-                </select>
-                {selectedDispatchTruck?.driverName ? (
-                  <small>
-                    Driver: {selectedDispatchTruck.driverName}
-                    {selectedDispatchTruck.driverContact
-                      ? ` · ${selectedDispatchTruck.driverContact}`
-                      : ''}
-                  </small>
-                ) : null}
-              </label>
-              <label className={styles.field}>
-                <span>Customer *</span>
-                <select
-                  required
-                  value={dispatchCustomerId}
-                  onChange={(event) => setDispatchCustomerId(event.target.value)}
-                  disabled={busy}
-                >
-                  <option value="">Select a customer</option>
-                  {options.customers.map((customer) => (
-                    <option value={customer.id} key={customer.id}>
-                      {customer.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className={styles.field}>
-                <span>Outgoing skid *</span>
-                <select
-                  required
-                  value={dispatchSkidId}
-                  onChange={(event) => setDispatchSkidId(event.target.value)}
-                  disabled={busy}
-                >
-                  <option value="">Select an available skid</option>
-                  {availableSkids.map((skid) => (
-                    <option value={skid.id} key={skid.id}>
-                      {skid.skidNum} · {skid.currentLoc}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <SearchableSelect
+                label="Truck number *"
+                placeholder="Search or scan a truck number"
+                emptyMessage="No available trucks."
+                options={truckSearchOptions}
+                value={dispatchTruckId}
+                onChange={setDispatchTruckId}
+                disabled={busy}
+                required
+                helperText={
+                  selectedDispatchTruck?.driverName
+                    ? `Driver: ${selectedDispatchTruck.driverName}${
+                        selectedDispatchTruck.driverContact
+                          ? ` · ${selectedDispatchTruck.driverContact}`
+                          : ''
+                      }`
+                    : undefined
+                }
+              />
+              <SearchableSelect
+                label="Customer *"
+                placeholder="Search customer name or location"
+                emptyMessage="No customers found."
+                options={customerSearchOptions}
+                value={dispatchCustomerId}
+                onChange={setDispatchCustomerId}
+                disabled={busy}
+                required
+              />
+              <SearchableSelect
+                label="Outbound skid *"
+                placeholder="Search or scan a skid number"
+                emptyMessage="No available skids."
+                options={dispatchSkidSearchOptions}
+                value={dispatchSkidId}
+                onChange={setDispatchSkidId}
+                disabled={busy}
+                required
+              />
               <label className={`${styles.field} ${styles.fieldFull}`}>
-                <span>Movement note (optional)</span>
+                <span>Movement notes (optional)</span>
                 <textarea
                   value={dispatchNote}
                   onChange={(event) => setDispatchNote(event.target.value)}
                   rows={3}
                   maxLength={2000}
                   disabled={busy}
-                  placeholder="Add dispatch context for the operations team"
+                  placeholder="Enter movement notes"
                 />
               </label>
               <label className={`${styles.checkRow} ${styles.fieldFull}`}>
@@ -659,22 +891,18 @@ export default function MovementWorkspace() {
                   onChange={(event) => setDispatchOverride(event.target.checked)}
                   disabled={busy}
                 />
-                <span>
-                  Manual sensor override — use only when the displayed truck or skid location is
-                  inaccurate
-                </span>
+                <span>Override inaccurate truck or skid location data</span>
               </label>
               <div className={`${styles.formFooter} ${styles.fieldFull}`}>
                 <p>
-                  Creates the movement and outbound trip together. WhatsApp is never sent
-                  automatically.
+                  Creates the dispatch and outbound trip. No WhatsApp message is sent automatically.
                 </p>
                 <button
                   type="submit"
                   className={styles.buttonPrimary}
                   disabled={busy || !dispatchTruckId || !dispatchCustomerId || !dispatchSkidId}
                 >
-                  {busy ? 'Recording…' : 'Record dispatch'}
+                  {busy ? 'Creating…' : 'Create dispatch'}
                 </button>
               </div>
             </form>
@@ -686,7 +914,7 @@ export default function MovementWorkspace() {
                     <CheckCircle2 size={16} />
                   </span>
                   <div>
-                    <h3>Dispatch movement recorded</h3>
+                    <h3>Dispatch created</h3>
                     <p>
                       Movement {dispatchResult.movementId} · Reminder due{' '}
                       {formatDate(dispatchResult.notificationDueAt)}
@@ -699,8 +927,9 @@ export default function MovementWorkspace() {
                     type="button"
                     className={styles.buttonSecondary}
                     onClick={() => void copyDispatchNotice(dispatchResult.notificationText)}
+                    disabled={copyingNotice}
                   >
-                    <Copy size={13} /> Copy dispatch notice
+                    <Copy size={13} /> {copyingNotice ? 'Copying…' : 'Copy dispatch message'}
                   </button>
                   <button
                     type="button"
@@ -709,7 +938,7 @@ export default function MovementWorkspace() {
                     disabled={busy || notificationSent}
                   >
                     <CheckCircle2 size={13} />
-                    {notificationSent ? 'Marked as sent' : 'Confirm notice sent'}
+                    {notificationSent ? 'Marked as sent' : 'Mark message as sent'}
                   </button>
                 </div>
               </section>
@@ -722,72 +951,56 @@ export default function MovementWorkspace() {
                 <ArrowDownLeft size={16} />
               </span>
               <div>
-                <h2>Create a skid pickup</h2>
+                <h2>Create a pickup</h2>
                 <p>
-                  Start an inbound trip from a customer. A skid may be selected now or recorded when
-                  the truck reaches the plant.
+                  Create an inbound trip from a customer. Select the skid now or record it when the
+                  truck reaches the plant.
                 </p>
               </div>
             </header>
             <form className={styles.formGrid} onSubmit={submitPickup}>
+              <SearchableSelect
+                label="Truck number *"
+                placeholder="Search or scan a truck number"
+                emptyMessage="No available trucks."
+                options={truckSearchOptions}
+                value={pickupTruckId}
+                onChange={setPickupTruckId}
+                disabled={busy}
+                required
+              />
+              <SearchableSelect
+                label="Customer *"
+                placeholder="Search customer name or location"
+                emptyMessage="No customers found."
+                options={customerSearchOptions}
+                value={pickupCustomerId}
+                onChange={(value) => {
+                  setPickupCustomerId(value);
+                  setPickupSkidId('');
+                }}
+                disabled={busy}
+                required
+              />
+              <SearchableSelect
+                key={pickupCustomerId}
+                label="Pickup skid (optional)"
+                placeholder="Search or scan a skid number"
+                emptyMessage="No eligible pickup skids."
+                options={pickupSkidSearchOptions}
+                value={pickupSkidId}
+                onChange={setPickupSkidId}
+                disabled={busy || !pickupCustomerId}
+              />
               <label className={styles.field}>
-                <span>Available truck *</span>
-                <select
-                  required
-                  value={pickupTruckId}
-                  onChange={(event) => setPickupTruckId(event.target.value)}
-                  disabled={busy}
-                >
-                  <option value="">Select an available truck</option>
-                  {options.trucks.map((truck) => (
-                    <option value={truck.id} key={truck.id}>
-                      {truck.truckNum} · {truck.currentLoc}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className={styles.field}>
-                <span>Customer *</span>
-                <select
-                  required
-                  value={pickupCustomerId}
-                  onChange={(event) => {
-                    setPickupCustomerId(event.target.value);
-                    setPickupSkidId('');
-                  }}
-                  disabled={busy}
-                >
-                  <option value="">Select a customer</option>
-                  {options.customers.map((customer) => (
-                    <option value={customer.id} key={customer.id}>
-                      {customer.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className={styles.field}>
-                <span>Known pickup skid (optional)</span>
-                <select
-                  value={pickupSkidId}
-                  onChange={(event) => setPickupSkidId(event.target.value)}
-                  disabled={busy || !pickupCustomerId}
-                >
-                  <option value="">Record skid at plant</option>
-                  {pickupSkids.map((skid) => (
-                    <option value={skid.id} key={skid.id}>
-                      {skid.skidNum} · {skid.currentLoc}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className={styles.field}>
-                <span>Pickup note (optional)</span>
+                <span>Pickup notes (optional)</span>
                 <textarea
                   value={pickupNote}
                   onChange={(event) => setPickupNote(event.target.value)}
                   rows={3}
                   maxLength={2000}
                   disabled={busy}
+                  placeholder="Enter pickup notes"
                 />
               </label>
               <label className={`${styles.checkRow} ${styles.fieldFull}`}>
@@ -800,10 +1013,10 @@ export default function MovementWorkspace() {
                   }}
                   disabled={busy}
                 />
-                <span>Force override for an inaccurate truck or skid location sensor</span>
+                <span>Override inaccurate truck or skid location data</span>
               </label>
               <div className={`${styles.formFooter} ${styles.fieldFull}`}>
-                <p>A pickup creates an inbound trip and appears in the active movement worklist.</p>
+                <p>Creates an inbound trip and adds it to active movements.</p>
                 <button
                   type="submit"
                   className={styles.buttonPrimary}
@@ -823,8 +1036,8 @@ export default function MovementWorkspace() {
               <div>
                 <h2>Active movements</h2>
                 <p>
-                  {activeMovements.length} in progress · Dispatches change to returning after the
-                  inbound leg is detected.
+                  {activeMovements.length} active movement
+                  {activeMovements.length === 1 ? '' : 's'}
                 </p>
               </div>
             </header>
@@ -843,7 +1056,7 @@ export default function MovementWorkspace() {
               <div className={styles.emptyState}>
                 <CheckCircle2 size={19} />
                 <strong>No active movements</strong>
-                <span>New dispatches and pickups will appear here.</span>
+                <span>Create a dispatch or pickup to start tracking.</span>
               </div>
             )}
           </section>
@@ -852,11 +1065,11 @@ export default function MovementWorkspace() {
         <footer className={styles.footerNote}>
           <MapPin size={13} />
           <span>
-            Truck location and trip direction come from telemetry. Standby, maintenance, and
-            on-ground records remain separate from movement progress.
+            Truck location and direction use live telemetry. Standby, maintenance, and plant status
+            are tracked separately.
           </span>
           <Clock3 size={13} />
-          <span>Dispatch reminders are managed in Dispatch review.</span>
+          <span>Review dispatch reminders in Dispatch.</span>
         </footer>
       </main>
     </div>
