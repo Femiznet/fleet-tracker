@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     const json = await res.json() as HclTruckData;
     const newTrucks = json.data || [];
 
-      if (newTrucks.length > 0) {
+    if (newTrucks.length > 0) {
           await insertTrucks(newTrucks);
     }
 

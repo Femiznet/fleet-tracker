@@ -19,3 +19,20 @@ export async function listDashboardTrucks() {
     total: response.meta?.pagination.total ?? response.data.length,
   };
 }
+
+export async function updateTruckPlantStatus(id: string, input: {
+  isStandby?: boolean;
+  isOnMaintenance?: boolean;
+  maintenanceNote?: string | null;
+  note?: string | null;
+}) {
+  const response = parseResponse(
+    await requestJson(`/api/trucks/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+    z.object({ data: z.object({ id: z.string() }) }),
+    'Truck status update returned an invalid response.'
+  );
+  return response.data;
+}

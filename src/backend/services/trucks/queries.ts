@@ -23,6 +23,7 @@ export async function insertTrucks(newTrucks: HclTrackerTruck[]) {
     lat: item.lat,
     lon: item.lon,
     speed: parseInt(item.speed, 10) || 0,
+    group: item.group
   }));
 
     return (

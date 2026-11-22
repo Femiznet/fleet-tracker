@@ -1,9 +1,9 @@
 import Link from 'next/link';
-import { Gauge, Inbox, ShieldCheck, Truck } from 'lucide-react';
+import { ClipboardList, Gauge, Inbox, ShieldCheck, Truck, Waves } from 'lucide-react';
 import styles from './operations-sidebar.module.css';
 
 type OperationsSidebarProps = {
-  active: 'overview' | 'dispatch';
+  active: 'overview' | 'dispatch' | 'updates' | 'plant-report';
   pendingDispatchCount?: number;
 };
 
@@ -30,6 +30,22 @@ export default function OperationsSidebar({
           >
             <Gauge size={16} />
             <span>Overview</span>
+          </Link>
+          <Link
+            className={`${styles.navItem} ${active === 'updates' ? styles.navItemActive : ''}`}
+            href="/updates"
+            aria-current={active === 'updates' ? 'page' : undefined}
+          >
+            <Waves size={16} />
+            <span>Customer updates</span>
+          </Link>
+          <Link
+            className={`${styles.navItem} ${active === 'plant-report' ? styles.navItemActive : ''}`}
+            href="/plant-report"
+            aria-current={active === 'plant-report' ? 'page' : undefined}
+          >
+            <ClipboardList size={16} />
+            <span>Plant report</span>
           </Link>
           <Link
             className={`${styles.navItem} ${active === 'dispatch' ? styles.navItemActive : ''}`}

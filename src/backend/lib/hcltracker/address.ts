@@ -30,7 +30,7 @@ export async function getCleanAddress(lat: number, lon: number): Promise<string 
     const latStr = String(lat);
     const lonStr = String(lon);
 
-    const response = await queryHclTracker({
+    const data = await queryHclTracker({
       fetchApiWithCookies: (cookies: string) =>
         fetchAddress({ lat: latStr, lon: lonStr, cookies }),
       parseResponse: async (res) => ({
@@ -40,10 +40,7 @@ export async function getCleanAddress(lat: number, lon: number): Promise<string 
       }),
     });
 
-    if (!response.ok) return null;
-
-    const json = await response.json();
-    return json.data?.address?.trim() || null;
+    return data.address;
   } catch (error) {
     console.error('Failed to resolve location from HCL Tracker:', error);
     return null;

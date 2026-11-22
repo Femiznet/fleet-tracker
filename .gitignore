@@ -48,3 +48,6 @@ src/backend/db-functions/test/
 !scripts/
 scripts/*
 !scripts/append-db-sql.ts
+
+# Local implementation checklist
+todo.md

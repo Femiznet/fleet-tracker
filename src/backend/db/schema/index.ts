@@ -10,8 +10,9 @@ export {
     tripStatusEnum,
     truckStatusEnum,
     skidStatusEnum,
-    skidBayStateEnum,
+    skidBayEnum,
     skidFillStateEnum,
+    skidOwnerEnum,
     messageTypeEnum,
 } from './enums';
 export { drivers } from './drivers';
@@ -22,6 +23,8 @@ export { movements } from './movements';
 export { trips } from './trips';
 export { geofenceZones } from './geofence-zone';
 export { plantReports } from './plant-report';
+export { plantSkidStatuses } from './plant-skid-status';
+export { plantTruckStatuses } from './plant-truck-status';
 export type {NewCustomer, Customer, CustomerType } from './customers';
 export type { Truck, NewTruck } from './trucks';
 export type { Skid, NewSkid } from './skids';

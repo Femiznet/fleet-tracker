@@ -135,7 +135,7 @@ function SkidInventory({
         <div className={styles.tableWrap}>
           <table className={styles.table}>
             <thead>
-              <tr><th>Skid</th><th>Location</th><th>Availability</th><th>Fill</th><th>Yard</th></tr>
+              <tr><th>Skid</th><th>Location</th><th>Status</th><th>Owner</th><th>Maintenance</th></tr>
             </thead>
             <tbody>
               {skids.skids.map((skid) => (
@@ -143,8 +143,8 @@ function SkidInventory({
                   <td><strong>{skid.skidNum}</strong>{skid.isNew ? <span className={styles.subtle}>New skid</span> : null}</td>
                   <td>{skid.currentLoc === 'pending' ? 'Location pending' : skid.currentLoc}</td>
                   <td><span className={`${styles.pill} ${statusStyle(skid.status)}`}>{displayStatus(skid.status)}</span></td>
-                  <td><span className={`${styles.pill} ${statusStyle(skid.fillState)}`}>{skid.fillState}</span></td>
-                  <td><span className={`${styles.pill} ${statusStyle(skid.bayState)}`}>{displayStatus(skid.bayState)}</span></td>
+                  <td><span className={`${styles.pill} ${statusStyle(skid.owner)}`}>{displayStatus(skid.owner)}</span></td>
+                  <td><span className={`${styles.pill} ${skid.isOnMaintenance ? statusStyle('maintenance') : ''}`}>{skid.isOnMaintenance ? 'Maintenance' : 'No'}</span></td>
                 </tr>
               ))}
             </tbody>
@@ -224,49 +224,14 @@ function PlantReportSummary({
     return <div className={styles.empty}>{loading ? 'Loading plant report…' : 'Plant report is unavailable.'}</div>;
   }
 
-  const report = data.reports[0] ?? null;
-  const metrics = data.previousMetrics;
-  const gearbox = metrics?.landingGearBox;
-
   return (
     <div className={styles.panelBody}>
-      {report ? (
-        <>
-          <div className={styles.reportDetails}>
-            <div className={styles.reportMetric}>
-              <label>Inlet pressure</label>
-              <strong>{metrics?.inletPressureBar ?? '—'}{metrics?.inletPressureBar !== undefined ? ' bar' : ''}</strong>
-            </div>
-            <div className={styles.reportMetric}>
-              <label>Loading pressure</label>
-              <strong>{metrics?.loadingPressureBar ?? '—'}{metrics?.loadingPressureBar !== undefined ? ' bar' : ''}</strong>
-            </div>
-            <div className={styles.reportMetric}>
-              <label>Loading & washing bay</label>
-              <strong>{gearbox?.loadingAndWashingBay ?? '—'}</strong>
-            </div>
-            <div className={styles.reportMetric}>
-              <label>Workshop gearboxes</label>
-              <strong>{gearbox?.workshop ?? '—'}</strong>
-            </div>
-          </div>
-          <p className={styles.reportMeta}>
-            Latest report {formatTime(new Date(report.createdAt))}<br />
-            Officer on duty: {report.officersOnDuty || 'Not recorded'}
-          </p>
-          {metrics?.compressors && Object.keys(metrics.compressors).length ? (
-            <p className={styles.reportMeta}>
-              Compressors: {Object.entries(metrics.compressors).map(([name, state]) => `${name}: ${state}`).join(' · ')}
-            </p>
-          ) : null}
-        </>
-      ) : (
-        <div className={styles.empty}>
-          <Fuel size={18} />
-          <strong>No plant report submitted</strong>
-          <span>Live fleet status is available; pressure and shift metrics will appear after the first report.</span>
-        </div>
-      )}
+      <div className={styles.reportDetails}>
+        <div className={styles.reportMetric}><label>Loading</label><strong>{countSkids(data.fleetSnapshot.skidsLoading)}</strong></div>
+        <div className={styles.reportMetric}><label>Loaded</label><strong>{countSkids(data.fleetSnapshot.skidsLoaded)}</strong></div>
+        <div className={styles.reportMetric}><label>Empty</label><strong>{countSkids(data.fleetSnapshot.skidsEmpty)}</strong></div>
+        <div className={styles.reportMetric}><label>On hold</label><strong>{data.fleetSnapshot.skidsOnHold.length}</strong></div>
+      </div>
       <p className={styles.freshnessNote}>
         <Clock3 size={12} />
         {data.plantSkids.length} available skid{data.plantSkids.length === 1 ? '' : 's'} currently recorded at the plant.
@@ -328,10 +293,8 @@ export default function OperationsDashboard() {
   }, [refresh]);
 
   const snapshot = plantData?.fleetSnapshot ?? null;
-  const metrics = plantData?.previousMetrics ?? null;
   const loadingSkidCount = snapshot ? countSkids(snapshot.skidsLoading) : null;
   const inTransitCount = snapshot?.trucksInTransit.length ?? null;
-  const inletPressure = metrics?.inletPressureBar;
 
   return (
     <div className={styles.shell}>
@@ -371,7 +334,7 @@ export default function OperationsDashboard() {
           </div>
           <div className={styles.statCard}>
             <div className={styles.statIcon}><Fuel size={17} /></div>
-            <div><p className={styles.statLabel}>Inlet pressure</p><p className={styles.statValue}>{inletPressure === undefined ? '—' : `${inletPressure} bar`}</p></div>
+            <div><p className={styles.statLabel}>Skids at plant</p><p className={styles.statValue}>{plantData?.plantSkids.length ?? '—'}</p></div>
           </div>
         </section>
 
@@ -390,8 +353,8 @@ export default function OperationsDashboard() {
           <section className={styles.panel}>
             <header className={styles.panelHeader}>
               <div>
-                <h2 className={styles.panelTitle}>Latest plant report</h2>
-                <p className={styles.panelSubtitle}>Most recently submitted shift metrics.</p>
+                <h2 className={styles.panelTitle}>Live plant status</h2>
+                <p className={styles.panelSubtitle}>Current skid categories and bay states.</p>
               </div>
               <Fuel size={17} />
             </header>

@@ -3,8 +3,9 @@ CREATE TYPE "public"."message_type" AS ENUM('update', 'dispatch');--> statement-
 CREATE TYPE "public"."movement_status" AS ENUM('in_progress', 'completed', 'cancelled');--> statement-breakpoint
 CREATE TYPE "public"."movement_type" AS ENUM('dispatch', 'service', 'others', 'pickup');--> statement-breakpoint
 CREATE TYPE "public"."processing_status" AS ENUM('needs review', 'pending', 'failed', 'processed');--> statement-breakpoint
-CREATE TYPE "public"."skid_bay_state" AS ENUM('idle', 'on_hold', 'washing');--> statement-breakpoint
-CREATE TYPE "public"."skid_fill_state" AS ENUM('empty', 'loading', 'loaded');--> statement-breakpoint
+CREATE TYPE "public"."skid_bay" AS ENUM('washing_bay', 'loading_bay', 'parking_bay');--> statement-breakpoint
+CREATE TYPE "public"."skid_fill_state" AS ENUM('empty', 'loading', 'loaded', 'on_hold');--> statement-breakpoint
+CREATE TYPE "public"."skid_owner" AS ENUM('customer', 'gastech');--> statement-breakpoint
 CREATE TYPE "public"."skid_status" AS ENUM('available', 'in_transit', 'at_customer', 'maintenance');--> statement-breakpoint
 CREATE TYPE "public"."direction" AS ENUM('outbound', 'inbound');--> statement-breakpoint
 CREATE TYPE "public"."trip_status" AS ENUM('in_transit', 'arrived', 'cancelled');--> statement-breakpoint
@@ -100,6 +101,30 @@ CREATE TABLE "plant_reports" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "plant_skid_statuses" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"skid_id" uuid NOT NULL,
+	"fill_state" "skid_fill_state" DEFAULT 'empty' NOT NULL,
+	"bay" "skid_bay" DEFAULT 'parking_bay' NOT NULL,
+	"is_on_maintenance" boolean DEFAULT false NOT NULL,
+	"maintenance_note" text,
+	"note" text,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "plant_skid_statuses_skid_id_unique" UNIQUE("skid_id"),
+	CONSTRAINT "plant_skid_status_loading_bay" CHECK ("plant_skid_statuses"."fill_state" <> 'loading' OR "plant_skid_statuses"."bay" = 'loading_bay')
+);
+--> statement-breakpoint
+CREATE TABLE "plant_truck_statuses" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"truck_id" uuid NOT NULL,
+	"is_standby" boolean DEFAULT false NOT NULL,
+	"is_on_maintenance" boolean DEFAULT false NOT NULL,
+	"maintenance_note" text,
+	"note" text,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "plant_truck_statuses_truck_id_unique" UNIQUE("truck_id")
+);
+--> statement-breakpoint
 CREATE TABLE "processed_messages" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"message_id" uuid NOT NULL,
@@ -127,8 +152,7 @@ CREATE TABLE "skids" (
 	"customer_id" uuid,
 	"current_loc" varchar(255) DEFAULT 'pending' NOT NULL,
 	"status" "skid_status" DEFAULT 'available' NOT NULL,
-	"fill_state" "skid_fill_state" DEFAULT 'empty' NOT NULL,
-	"bay_state" "skid_bay_state" DEFAULT 'idle' NOT NULL,
+	"owner" "skid_owner" DEFAULT 'gastech' NOT NULL,
 	"is_new" boolean DEFAULT false NOT NULL,
 	CONSTRAINT "skids_skid_num_unique" UNIQUE("skid_num"),
 	CONSTRAINT "skids_slug_num_unique" UNIQUE("slug_num")
@@ -149,11 +173,13 @@ CREATE TABLE "trucks" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"truck_num" varchar(100) NOT NULL,
 	"slug_num" varchar(100),
+	"group" varchar(50),
 	"lat" double precision NOT NULL,
 	"lon" double precision NOT NULL,
 	"current_loc" varchar(255) DEFAULT 'pending' NOT NULL,
 	"speed" integer NOT NULL,
 	"status" "truck_status" DEFAULT 'available' NOT NULL,
+	"note" text,
 	CONSTRAINT "trucks_truck_num_unique" UNIQUE("truck_num"),
 	CONSTRAINT "trucks_slug_num_unique" UNIQUE("slug_num")
 );
@@ -165,6 +191,8 @@ ALTER TABLE "movements" ADD CONSTRAINT "movements_truck_id_trucks_id_fk" FOREIGN
 ALTER TABLE "movements" ADD CONSTRAINT "movements_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "movements" ADD CONSTRAINT "movements_skid_id_out_skids_id_fk" FOREIGN KEY ("skid_id_out") REFERENCES "public"."skids"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "movements" ADD CONSTRAINT "movements_skid_id_in_skids_id_fk" FOREIGN KEY ("skid_id_in") REFERENCES "public"."skids"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "plant_skid_statuses" ADD CONSTRAINT "plant_skid_statuses_skid_id_skids_id_fk" FOREIGN KEY ("skid_id") REFERENCES "public"."skids"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "plant_truck_statuses" ADD CONSTRAINT "plant_truck_statuses_truck_id_trucks_id_fk" FOREIGN KEY ("truck_id") REFERENCES "public"."trucks"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "processed_messages" ADD CONSTRAINT "processed_messages_message_id_messages_id_fk" FOREIGN KEY ("message_id") REFERENCES "public"."messages"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "processed_messages" ADD CONSTRAINT "processed_messages_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "processed_messages" ADD CONSTRAINT "processed_messages_movement_id_movements_id_fk" FOREIGN KEY ("movement_id") REFERENCES "public"."movements"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint

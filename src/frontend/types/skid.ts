@@ -7,8 +7,7 @@ export const SkidStatusSchema = z.enum([
   'maintenance',
 ]);
 
-export const SkidFillStateSchema = z.enum(['empty', 'loading', 'loaded']);
-export const SkidBayStateSchema = z.enum(['idle', 'on_hold', 'washing']);
+export const SkidOwnerSchema = z.enum(['customer', 'gastech']);
 
 export const SkidSchema = z.object({
   id: z.string(),
@@ -17,12 +16,11 @@ export const SkidSchema = z.object({
   customerId: z.string().nullable(),
   currentLoc: z.string(),
   status: SkidStatusSchema,
-  fillState: SkidFillStateSchema,
-  bayState: SkidBayStateSchema,
   isNew: z.boolean(),
+  owner: SkidOwnerSchema,
+  isOnMaintenance: z.boolean(),
 });
 
 export type SkidStatus = z.infer<typeof SkidStatusSchema>;
-export type SkidFillState = z.infer<typeof SkidFillStateSchema>;
-export type SkidBayState = z.infer<typeof SkidBayStateSchema>;
+export type SkidOwner = z.infer<typeof SkidOwnerSchema>;
 export type Skid = z.infer<typeof SkidSchema>;

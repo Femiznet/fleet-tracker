@@ -26,7 +26,6 @@ export async function GET(request: Request) {
   
   await processBatchTruckLocations(data);
   
-
     return apiSuccess({ processed: data.length });
   } catch (error) {
     console.error('Sync locations cron error:', error);

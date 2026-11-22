@@ -1,43 +1,49 @@
 import { NextRequest } from 'next/server';
-import { count, desc, eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { db } from '@/backend/db';
 import { skids } from '@/backend/db/schema/skids';
+import { plantSkidStatuses } from '@/backend/db/schema/plant-skid-status';
+import { plantTruckStatuses } from '@/backend/db/schema/plant-truck-status';
+import { trucks } from '@/backend/db/schema/trucks';
 import { customers } from '@/backend/db/schema/customers';
-import { plantReports, PlantReportMetrics } from '@/backend/db/schema/plant-report';
+import { PlantReportMetrics } from '@/backend/db/schema/plant-report';
 import {
   getLivePlantFleetSnapshot,
-  submitHourlyPlantReport,
+  submitPlantStatus,
   SkidYardUpdate,
-} from '@/backend/services/plant/report'; // adjust path to your service file
+} from '@/backend/services/plant/report';
 import { apiDbError, apiError, apiSuccess } from '@/backend/lib/api-response';
-import { getPagination, getPaginationMeta } from '@/backend/lib/pagination';
 import { createPlantReportSchema } from '@/backend/services/schema/validators';
 
 /**
  * GET /api/plant-reports
  * Loads everything the officer needs to render the hourly Plant Status form:
  * 1. Live fleet snapshot (trucks on ground, in transit, returning, etc.)
- * 2. Editable skids currently at GASTECH PLANT (for toggling fillState / bayState)
+ * 2. Editable skids currently at GASTECH PLANT (for updating fill state and bay)
  * 3. Latest saved report's metrics (to pre-fill compressors, gearbox counts, officers, etc.)
  */
 export async function GET(request: NextRequest) {
   try {
-    const pagination = getPagination(request.nextUrl.searchParams);
-    const [fleetSnapshot, plantSkids, [latestReport], reportsResult] = await Promise.all([
+    void request;
+    const [fleetSnapshot, plantSkids, plantTrucks] = await Promise.all([
       getLivePlantFleetSnapshot(),
 
-      // Fetch editable skids at GASTECH PLANT so the officer can toggle fillState / bayState
       db
         .select({
           id: skids.id,
           skidNum: skids.skidNum,
-          fillState: skids.fillState,
-          bayState: skids.bayState,
+          fillState: plantSkidStatuses.fillState,
+          bay: plantSkidStatuses.bay,
+          isOnMaintenance: plantSkidStatuses.isOnMaintenance,
+          maintenanceNote: plantSkidStatuses.maintenanceNote,
           isNew: skids.isNew,
+          owner: skids.owner,
           customerName: customers.name,
+          note: plantSkidStatuses.note,
         })
         .from(skids)
         .leftJoin(customers, eq(skids.customerId, customers.id))
+        .leftJoin(plantSkidStatuses, eq(plantSkidStatuses.skidId, skids.id))
         .where(
           and(
             eq(skids.status, 'available'),
@@ -45,33 +51,26 @@ export async function GET(request: NextRequest) {
           )
         ),
 
-      // Fetch the most recent report to pre-fill recurring shift metrics
       db
-        .select()
-        .from(plantReports)
-        .orderBy(desc(plantReports.createdAt))
-        .limit(1),
-      db
-        .select()
-        .from(plantReports)
-        .orderBy(desc(plantReports.createdAt))
-        .limit(pagination.limit)
-        .offset(pagination.offset),
+        .select({
+          id: trucks.id,
+          truckNum: trucks.truckNum,
+          currentLoc: trucks.currentLoc,
+          status: trucks.status,
+          isStandby: plantTruckStatuses.isStandby,
+          isOnMaintenance: plantTruckStatuses.isOnMaintenance,
+          maintenanceNote: plantTruckStatuses.maintenanceNote,
+          note: plantTruckStatuses.note,
+        })
+        .from(trucks)
+        .leftJoin(plantTruckStatuses, eq(plantTruckStatuses.truckId, trucks.id))
+        .where(sql`UPPER(TRIM(${trucks.group})) = 'GASTECH VEHICLES'`)
     ]);
-
-    const [totalRows] = await db
-      .select({ value: count() })
-      .from(plantReports);
-    const reports = reportsResult;
 
     return apiSuccess({
       fleetSnapshot,
       plantSkids,
-      previousMetrics: latestReport?.metrics ?? null,
-      previousOfficers: latestReport?.officersOnDuty ?? '',
-      reports,
-    }, {
-      pagination: getPaginationMeta(pagination.page, pagination.limit, Number(totalRows?.value ?? 0)),
+      plantTrucks,
     });
   } catch (error) {
     return apiDbError(error);
@@ -80,7 +79,7 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/plant-reports
- * Submits the hourly yard updates + metrics, saves the report, and returns the WhatsApp text
+ * Applies staged skid changes and returns the live plant-status snapshot and WhatsApp text.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -95,16 +94,13 @@ export async function POST(req: NextRequest) {
 
     const metrics = parsed.data.metrics as PlantReportMetrics;
     const skidUpdates = parsed.data.skidUpdates as SkidYardUpdate[];
-    const notes = parsed.data.notes ?? undefined;
-
-    const { report, formattedMessage } = await submitHourlyPlantReport({
+    const { snapshot, formattedMessage } = await submitPlantStatus({
       officersOnDuty: parsed.data.officersOnDuty,
       metrics,
       skidUpdates,
-      notes,
     });
 
-    return apiSuccess({ report, formattedMessage }, { status: 201 });
+    return apiSuccess({ snapshot, formattedMessage }, { status: 200 });
   } catch (error) {
     return apiDbError(error);
   }

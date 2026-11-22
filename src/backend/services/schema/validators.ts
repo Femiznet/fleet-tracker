@@ -4,7 +4,8 @@ import {
   truckStatusEnum,
   skidStatusEnum,
   skidFillStateEnum,
-  skidBayStateEnum,
+  skidBayEnum,
+  skidOwnerEnum,
   tripDirectionEnum,
   tripStatusEnum,
 } from '@/backend/db/schema';
@@ -37,9 +38,8 @@ export const createSkidSchema = z.object({
   customerId: z.string().uuid().nullish(),
   currentLoc: z.string().trim().min(1).default('pending'),
   status: z.enum(skidStatusEnum.enumValues).default('available'),
-  fillState: z.enum(skidFillStateEnum.enumValues).default('empty'),
-  bayState: z.enum(skidBayStateEnum.enumValues).default('idle'),
   isNew: z.boolean().default(false),
+  owner: z.enum(skidOwnerEnum.enumValues).default('gastech'),
 });
 
 export const updateSkidSchema = createSkidSchema.partial();
@@ -69,7 +69,8 @@ export const createPlantReportSchema = z.object({
   skidUpdates: z.array(z.object({
     id: z.string().uuid(),
     fillState: z.enum(skidFillStateEnum.enumValues).optional(),
-    bayState: z.enum(skidBayStateEnum.enumValues).optional(),
+    bay: z.enum(skidBayEnum.enumValues).optional(),
+    note: z.string().trim().nullish(),
   })).default([]),
   notes: z.string().trim().nullish(),
 });
@@ -78,4 +79,19 @@ export const updatePlantReportSchema = z.object({
   officersOnDuty: z.string().trim().min(1).optional(),
   metrics: z.record(z.string(), z.unknown()).optional(),
   notes: z.string().nullish(),
+});
+
+export const updatePlantSkidStatusSchema = z.object({
+  fillState: z.enum(skidFillStateEnum.enumValues),
+  bay: z.enum(skidBayEnum.enumValues),
+  isOnMaintenance: z.boolean().optional(),
+  maintenanceNote: z.string().trim().nullish(),
+  note: z.string().trim().nullish(),
+});
+
+export const updatePlantTruckStatusSchema = z.object({
+  isStandby: z.boolean().optional(),
+  isOnMaintenance: z.boolean().optional(),
+  maintenanceNote: z.string().trim().nullish(),
+  note: z.string().trim().nullish(),
 });

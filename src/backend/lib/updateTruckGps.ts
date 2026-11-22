@@ -6,7 +6,7 @@ import {
   getDistanceMeters,
   learnGeofencePointsBatch,
 } from '@/backend/lib/geofence';
-import { inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { getCleanAddress } from '@/backend/lib/hcltracker/address';
 
 const APP_URL = process.env.APP_URL;
@@ -48,7 +48,12 @@ export async function processBatchTruckLocations(inputs: TruckLocationInput[]) {
   // 1. Fetch matching trucks AND all geofence zones in parallel (2 queries total)
   const truckNums = inputs.map((t) => t.truckNum);
   const [existingTrucks, allZones] = await Promise.all([
-    db.select().from(trucks).where(inArray(trucks.truckNum, truckNums)),
+    db.select().from(trucks).where(
+      and(
+        inArray(trucks.truckNum, truckNums),
+        eq(trucks.group, 'GASTECH VEHICLES')
+      )
+    ),
     db.select().from(geofenceZones),
   ]);
 

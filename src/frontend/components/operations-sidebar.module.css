@@ -139,6 +139,11 @@
     padding: 0;
   }
 
+  .sidebar > div {
+    min-width: 0;
+    flex: 1 1 0;
+  }
+
   .navLabel,
   .sidebarNote {
     display: none;
@@ -146,10 +151,15 @@
 
   .navigation {
     display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
     gap: 5px;
+    justify-content: flex-end;
+    overflow-x: auto;
   }
 
   .navItem {
+    flex: 0 0 auto;
     min-height: 38px;
     padding: 0 10px;
     font-size: 11px;
