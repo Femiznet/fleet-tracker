@@ -7,10 +7,7 @@ import { parseCustomerUpdateHistoryQuery } from '@/backend/services/customer-upd
 export async function GET(request: NextRequest) {
   const filters = parseCustomerUpdateHistoryQuery(request.nextUrl.searchParams);
   if (!filters.success) {
-    return apiError(
-      { code: 'VALIDATION_ERROR', message: filters.message },
-      400
-    );
+    return apiError({ code: 'VALIDATION_ERROR', message: filters.message }, 400);
   }
 
   try {

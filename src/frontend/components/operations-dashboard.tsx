@@ -82,8 +82,7 @@ function GeofenceBoard({
         <div>
           <h2 className={styles.panelTitle}>Geofence activity</h2>
           <p className={styles.panelSubtitle}>
-            Tracked Gastech trucks matched to known geofences using their latest stored
-            coordinates.
+            Tracked Gastech trucks matched to known geofences using their latest stored coordinates.
           </p>
         </div>
         <MapPinned size={18} />
@@ -141,9 +140,7 @@ export default function OperationsDashboard() {
       setLastChecked(new Date());
     } catch (loadError) {
       setError(
-        loadError instanceof Error
-          ? loadError.message
-          : 'Unable to load the operations overview.'
+        loadError instanceof Error ? loadError.message : 'Unable to load the operations overview.'
       );
     } finally {
       if (showLoading) setLoading(false);

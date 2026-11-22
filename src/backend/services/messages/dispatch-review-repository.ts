@@ -340,11 +340,11 @@ export async function listDispatchNotifications(overdueOnly = false) {
 
   return [
     ...messageRows.map((row) => ({
-        ...row,
-        source: 'message' as const,
-        notificationId: `message:${row.messageId}`,
-        overdue: row.dueAt !== null && row.dueAt <= now,
-      })),
+      ...row,
+      source: 'message' as const,
+      notificationId: `message:${row.messageId}`,
+      overdue: row.dueAt !== null && row.dueAt <= now,
+    })),
     ...movementRows.map((row) => ({
       ...row,
       messageId: null,

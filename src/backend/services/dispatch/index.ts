@@ -181,7 +181,10 @@ export async function completeMovement(
 /**
  * 4. Cancel an in-progress 'dispatch' or 'pickup' and reset truck/skid statuses
  */
-export async function cancelMovement(input: CancelMovementInput, tx?: DbTransaction): Promise<void> {
+export async function cancelMovement(
+  input: CancelMovementInput,
+  tx?: DbTransaction
+): Promise<void> {
   try {
     await dbtx(tx).execute(sql`
       SELECT cancel_dispatch(

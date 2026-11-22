@@ -16,8 +16,13 @@ databaseTest('dispatch and pickup lifecycle operations enforce movement rules', 
     import('./index'),
   ]);
   const { customers, movements, skids, trips, trucks } = schema;
-  const { cancelMovement, completeMovement, createDirectDispatch, createPickup, markMovementNotified } =
-    dispatch;
+  const {
+    cancelMovement,
+    completeMovement,
+    createDirectDispatch,
+    createPickup,
+    markMovementNotified,
+  } = dispatch;
   const suffix = randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase();
   const rollback = new Error('Roll back movement integration fixtures');
 
@@ -111,10 +116,7 @@ databaseTest('dispatch and pickup lifecycle operations enforce movement rules', 
       assert.ok(notifiedMovement.notifiedAt instanceof Date);
 
       const duplicateSkid = await addSkid('DUPLICATE', 'GASTECH PLANT');
-      await tx
-        .update(trucks)
-        .set({ status: 'available' })
-        .where(eq(trucks.id, plantTruck.id));
+      await tx.update(trucks).set({ status: 'available' }).where(eq(trucks.id, plantTruck.id));
       await expectFailure((nested) =>
         createDirectDispatch(
           {
@@ -126,10 +128,7 @@ databaseTest('dispatch and pickup lifecycle operations enforce movement rules', 
         )
       );
 
-      await tx
-        .update(trucks)
-        .set({ status: 'in_transit' })
-        .where(eq(trucks.id, plantTruck.id));
+      await tx.update(trucks).set({ status: 'in_transit' }).where(eq(trucks.id, plantTruck.id));
       await expectFailure((nested) =>
         completeMovement({ movementId: direct.movementId, skidIdIn: plantSkid.id }, nested)
       );
@@ -190,22 +189,14 @@ databaseTest('dispatch and pickup lifecycle operations enforce movement rules', 
       await tx
         .update(trips)
         .set({ status: 'arrived', arrived: true })
-        .where(
-          and(
-            eq(trips.movementId, overridden.movementId),
-            eq(trips.direction, 'outbound')
-          )
-        );
+        .where(and(eq(trips.movementId, overridden.movementId), eq(trips.direction, 'outbound')));
       await tx.insert(trips).values({
         movementId: overridden.movementId,
         direction: 'inbound',
         origin: customer.geofenceName ?? 'CUSTOMER SITE',
         destination: 'GASTECH PLANT',
       });
-      await completeMovement(
-        { movementId: overridden.movementId, skidIdIn: overrideSkid.id },
-        tx
-      );
+      await completeMovement({ movementId: overridden.movementId, skidIdIn: overrideSkid.id }, tx);
 
       const [completedMovement] = await tx
         .select()
@@ -215,10 +206,7 @@ databaseTest('dispatch and pickup lifecycle operations enforce movement rules', 
         .select()
         .from(trucks)
         .where(eq(trucks.id, overrideTruck.id));
-      const [completedSkid] = await tx
-        .select()
-        .from(skids)
-        .where(eq(skids.id, overrideSkid.id));
+      const [completedSkid] = await tx.select().from(skids).where(eq(skids.id, overrideSkid.id));
       assert.equal(completedMovement.status, 'completed');
       assert.equal(completedTruck.status, 'available');
       assert.equal(completedSkid.status, 'available');
@@ -234,10 +222,7 @@ databaseTest('dispatch and pickup lifecycle operations enforce movement rules', 
         },
         tx
       );
-      const [pickupTrip] = await tx
-        .select()
-        .from(trips)
-        .where(eq(trips.movementId, pickupId));
+      const [pickupTrip] = await tx.select().from(trips).where(eq(trips.movementId, pickupId));
       assert.equal(pickupTrip.direction, 'inbound');
       assert.equal(pickupTrip.status, 'in_transit');
       await tx

@@ -56,7 +56,12 @@ function statusClass(status: string) {
   if (status === 'available' || status === 'loaded' || status === 'idle') {
     return styles.statusGreen;
   }
-  if (status === 'in_transit' || status === 'returning' || status === 'loading' || status === 'at_customer') {
+  if (
+    status === 'in_transit' ||
+    status === 'returning' ||
+    status === 'loading' ||
+    status === 'at_customer'
+  ) {
     return styles.statusBlue;
   }
   if (status === 'standby' || status === 'maintenance' || status === 'on_hold') {
@@ -74,7 +79,9 @@ function summarizeLocations(items: { currentLoc: string }[]) {
     if (current) current.count += 1;
     else locations.set(key, { label, count: 1 });
   }
-  return [...locations.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  return [...locations.values()].sort(
+    (a, b) => b.count - a.count || a.label.localeCompare(b.label)
+  );
 }
 
 function LocationBoard({
@@ -188,13 +195,19 @@ function Overview({
       <section className={styles.overviewActions}>
         <div>
           <h2 className={styles.panelTitle}>Track a specific asset</h2>
-          <p className={styles.panelSubtitle}>Search its latest location and operational details.</p>
+          <p className={styles.panelSubtitle}>
+            Search its latest location and operational details.
+          </p>
         </div>
         <div className={styles.overviewButtons}>
           <button type="button" className={styles.primaryButton} onClick={() => onSelect('trucks')}>
             <Truck size={15} /> Find a truck
           </button>
-          <button type="button" className={styles.secondaryButton} onClick={() => onSelect('skids')}>
+          <button
+            type="button"
+            className={styles.secondaryButton}
+            onClick={() => onSelect('skids')}
+          >
             <Box size={15} /> Find a skid
           </button>
         </div>
@@ -247,7 +260,9 @@ function TruckDetails({ truck }: { truck: TruckTrackerItem }) {
         <div>
           <span>Coordinates</span>
           <strong>
-            {coordinatesAreValid ? `${truck.lat.toFixed(5)}, ${truck.lon.toFixed(5)}` : 'Unavailable'}
+            {coordinatesAreValid
+              ? `${truck.lat.toFixed(5)}, ${truck.lon.toFixed(5)}`
+              : 'Unavailable'}
           </strong>
         </div>
         <div>
@@ -291,7 +306,9 @@ function TruckDetails({ truck }: { truck: TruckTrackerItem }) {
           <MapPin size={14} /> Open location in Maps
         </a>
       ) : (
-        <div className={styles.detailHint}>No usable GPS coordinates are available for this truck.</div>
+        <div className={styles.detailHint}>
+          No usable GPS coordinates are available for this truck.
+        </div>
       )}
     </aside>
   );
@@ -544,7 +561,14 @@ export default function TruckSkidTracker() {
               >
                 <option value="all">All statuses</option>
                 {(view === 'trucks'
-                  ? ['available', 'in_transit', 'returning', 'standby', 'at_customer', 'maintenance']
+                  ? [
+                      'available',
+                      'in_transit',
+                      'returning',
+                      'standby',
+                      'at_customer',
+                      'maintenance',
+                    ]
                   : ['available', 'in_transit', 'at_customer', 'maintenance']
                 ).map((status) => (
                   <option value={status} key={status}>
@@ -669,7 +693,9 @@ export default function TruckSkidTracker() {
                           <span className={`${styles.statusPill} ${statusClass(availability)}`}>
                             {statusLabel(availability)}
                           </span>
-                          <small>{skid.fillState ? statusLabel(skid.fillState) : 'No fill state'}</small>
+                          <small>
+                            {skid.fillState ? statusLabel(skid.fillState) : 'No fill state'}
+                          </small>
                         </span>
                       </button>
                     );

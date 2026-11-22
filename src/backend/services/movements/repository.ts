@@ -57,7 +57,9 @@ export async function listActiveMovements() {
       inboundTrips,
       and(eq(inboundTrips.movementId, movements.id), eq(inboundTrips.direction, 'inbound'))
     )
-    .where(and(eq(movements.status, 'in_progress'), inArray(movements.type, ['dispatch', 'pickup'])))
+    .where(
+      and(eq(movements.status, 'in_progress'), inArray(movements.type, ['dispatch', 'pickup']))
+    )
     .orderBy(desc(movements.createdAt))
     .limit(100);
 
@@ -90,10 +92,7 @@ export async function getMovementOptions() {
       .from(trucks)
       .leftJoin(drivers, eq(drivers.currentTruck, trucks.truckNum))
       .where(
-        and(
-          eq(trucks.status, 'available'),
-          sql`UPPER(TRIM(${trucks.group})) = 'GASTECH VEHICLES'`
-        )
+        and(eq(trucks.status, 'available'), sql`UPPER(TRIM(${trucks.group})) = 'GASTECH VEHICLES'`)
       )
       .orderBy(trucks.truckNum),
     db

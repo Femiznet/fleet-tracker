@@ -22,7 +22,11 @@ import {
   listActiveMovements,
   markMovementNotified,
 } from '@/frontend/actions/movements';
-import type { ActiveMovement, DirectDispatchResult, MovementOptions } from '@/frontend/types/movement';
+import type {
+  ActiveMovement,
+  DirectDispatchResult,
+  MovementOptions,
+} from '@/frontend/types/movement';
 import OperationsSidebar from './operations-sidebar';
 import styles from './movement-workspace.module.css';
 
@@ -156,9 +160,7 @@ function MovementActionCard({
         </div>
         <div>
           <span>Trip state</span>
-          <strong>
-            {movement.currentTripStatus?.replaceAll('_', ' ') ?? 'Trip not detected'}
-          </strong>
+          <strong>{movement.currentTripStatus?.replaceAll('_', ' ') ?? 'Trip not detected'}</strong>
         </div>
         <div>
           <span>Outgoing skid</span>
@@ -224,7 +226,9 @@ function MovementActionCard({
             </select>
           </label>
           <label className={styles.field}>
-            <span>{returnedSkidId ? 'Completion note (optional)' : 'Completion note (required)'}</span>
+            <span>
+              {returnedSkidId ? 'Completion note (optional)' : 'Completion note (required)'}
+            </span>
             <textarea
               value={note}
               onChange={(event) => setNote(event.target.value)}
@@ -253,7 +257,11 @@ function MovementActionCard({
             </p>
           ) : null}
           <div className={styles.actionButtons}>
-            <button type="button" className={styles.buttonSecondary} onClick={() => setAction(null)}>
+            <button
+              type="button"
+              className={styles.buttonSecondary}
+              onClick={() => setAction(null)}
+            >
               Back
             </button>
             <button
@@ -388,7 +396,8 @@ export default function MovementWorkspace() {
   const pickupSkids = (options?.skids ?? []).filter(
     (skid) =>
       skid.status === 'at_customer' &&
-      (pickupOverride || locationMatches(skid.currentLoc, selectedPickupCustomer?.geofenceName ?? null))
+      (pickupOverride ||
+        locationMatches(skid.currentLoc, selectedPickupCustomer?.geofenceName ?? null))
   );
   const availableSkids = (options?.skids ?? []).filter((skid) => skid.status === 'available');
 
@@ -457,11 +466,15 @@ export default function MovementWorkspace() {
   async function copyDispatchNotice(text: string) {
     try {
       await navigator.clipboard.writeText(text);
-      setFeedback({ tone: 'success', text: 'Dispatch notice copied. Send it through the approved channel.' });
+      setFeedback({
+        tone: 'success',
+        text: 'Dispatch notice copied. Send it through the approved channel.',
+      });
     } catch (copyError) {
       setFeedback({
         tone: 'error',
-        text: copyError instanceof Error ? copyError.message : 'Unable to copy the dispatch notice.',
+        text:
+          copyError instanceof Error ? copyError.message : 'Unable to copy the dispatch notice.',
       });
     }
   }
@@ -711,8 +724,8 @@ export default function MovementWorkspace() {
               <div>
                 <h2>Create a skid pickup</h2>
                 <p>
-                  Start an inbound trip from a customer. A skid may be selected now or recorded
-                  when the truck reaches the plant.
+                  Start an inbound trip from a customer. A skid may be selected now or recorded when
+                  the truck reaches the plant.
                 </p>
               </div>
             </header>
@@ -787,14 +800,10 @@ export default function MovementWorkspace() {
                   }}
                   disabled={busy}
                 />
-                <span>
-                  Force override for an inaccurate truck or skid location sensor
-                </span>
+                <span>Force override for an inaccurate truck or skid location sensor</span>
               </label>
               <div className={`${styles.formFooter} ${styles.fieldFull}`}>
-                <p>
-                  A pickup creates an inbound trip and appears in the active movement worklist.
-                </p>
+                <p>A pickup creates an inbound trip and appears in the active movement worklist.</p>
                 <button
                   type="submit"
                   className={styles.buttonPrimary}
