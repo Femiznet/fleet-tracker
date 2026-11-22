@@ -8,7 +8,11 @@ import { movements } from '@/backend/db/schema/movements';
 import { trips } from '@/backend/db/schema/trips';
 import { customers } from '@/backend/db/schema/customers';
 import { drivers } from '@/backend/db/schema/drivers';
-import { PlantReportMetrics, PlantFleetSnapshot } from '@/backend/db/schema/plant-report';
+import {
+  plantReports,
+  PlantReportMetrics,
+  PlantFleetSnapshot,
+} from '@/backend/db/schema/plant-report';
 
 export interface SkidYardUpdate {
   id: string;
@@ -332,16 +336,28 @@ export async function submitPlantStatus(input: {
   officersOnDuty: string;
   metrics: PlantReportMetrics;
   skidUpdates?: SkidYardUpdate[];
+  notes?: string | null;
 }) {
-  const snapshot = await db.transaction(async (tx) => {
+  const { snapshot, report } = await db.transaction(async (tx) => {
     if (input.skidUpdates && input.skidUpdates.length > 0) {
       await batchUpdateSkidYardStates(input.skidUpdates, tx);
     }
 
-    return getLivePlantFleetSnapshot(tx);
+    const snapshot = await getLivePlantFleetSnapshot(tx);
+    const [report] = await tx
+      .insert(plantReports)
+      .values({
+        officersOnDuty: input.officersOnDuty,
+        metrics: input.metrics,
+        fleetSnapshot: snapshot,
+        notes: input.notes ?? null,
+      })
+      .returning({ id: plantReports.id, createdAt: plantReports.createdAt });
+
+    return { snapshot, report };
   });
 
   const formattedMessage = formatPlantReportMessage(input.officersOnDuty, input.metrics, snapshot);
 
-  return { snapshot, formattedMessage };
+  return { snapshot, formattedMessage, report };
 }

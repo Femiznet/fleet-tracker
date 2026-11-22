@@ -45,6 +45,17 @@ export const PlantYardSkidSchema = z.object({
 
 export const PlantDashboardDataSchema = z.object({
   fleetSnapshot: PlantFleetSnapshotSchema,
+  latestReport: z
+    .object({
+      id: z.string(),
+      officersOnDuty: z.string(),
+      metrics: PlantReportMetricsSchema,
+      fleetSnapshot: PlantFleetSnapshotSchema.nullable(),
+      notes: z.string().nullable(),
+      createdAt: z.string(),
+      formattedMessage: z.string().nullable(),
+    })
+    .nullable(),
   plantSkids: z.array(PlantYardSkidSchema),
   plantTrucks: z.array(
     z.object({
@@ -69,6 +80,7 @@ export const PlantReportSubmissionResponseSchema = z.object({
   data: z.object({
     snapshot: PlantFleetSnapshotSchema,
     formattedMessage: z.string(),
+    report: z.object({ id: z.string(), createdAt: z.string() }),
   }),
 });
 

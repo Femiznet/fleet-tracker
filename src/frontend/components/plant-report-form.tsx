@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Copy, Filter, Plus, RefreshCw, Save, Trash2 } from 'lucide-react';
 import {
   getPlantDashboard,
@@ -20,7 +20,14 @@ import styles from './plant-report-form.module.css';
 type SkidFill = 'empty' | 'loading' | 'loaded' | 'on_hold';
 type SkidBay = 'washing_bay' | 'loading_bay' | 'parking_bay';
 type PlantStatusSection =
-  'skids' | 'trucks' | 'pressures' | 'equipment' | 'compressors' | 'preview';
+  'overview' | 'skids' | 'trucks' | 'pressures' | 'equipment' | 'compressors' | 'preview';
+type SkidStatusDraft = {
+  fillState: SkidFill;
+  bay: SkidBay;
+  note: string;
+  isOnMaintenance: boolean;
+  maintenanceNote: string;
+};
 type CompressorRow = { id: number; name: string; status: 'on' | 'off'; note: string };
 type ExtraFieldRow = { id: number; name: string; value: string };
 type TruckStatusDraft = {
@@ -30,21 +37,26 @@ type TruckStatusDraft = {
   note: string;
 };
 
+function countSkids(groups: { customer: string[]; gastech: string[] }) {
+  return groups.customer.length + groups.gastech.length;
+}
+
+function formatReportDate(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value));
+}
+
 export default function PlantReportForm() {
-  const [activeSection, setActiveSection] = useState<PlantStatusSection>('skids');
+  const [activeSection, setActiveSection] = useState<PlantStatusSection>('overview');
   const [dashboard, setDashboard] = useState<PlantDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [searchOpen, setSearchOpen] = useState(false);
-  const searchRef = useRef<HTMLDivElement>(null);
-  const [selectedId, setSelectedId] = useState('');
-  const [fillState, setFillState] = useState<SkidFill | ''>('');
-  const [bay, setBay] = useState<SkidBay | ''>('');
-  const [note, setNote] = useState('');
-  const [isOnMaintenance, setIsOnMaintenance] = useState(false);
-  const [maintenanceNote, setMaintenanceNote] = useState('');
+  const [truckSearch, setTruckSearch] = useState('');
+  const [skidStatuses, setSkidStatuses] = useState<Record<string, SkidStatusDraft>>({});
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filterFill, setFilterFill] = useState<SkidFill | ''>('');
   const [filterOwner, setFilterOwner] = useState<'customer' | 'gastech' | ''>('');
@@ -99,12 +111,16 @@ export default function PlantReportForm() {
   }, [loadStatus]);
 
   useEffect(() => {
+    if (!dashboard) return;
+    const initialMetrics = Object.keys(metrics).length
+      ? metrics
+      : (dashboard.latestReport?.metrics ?? {});
     setCompressors((current) =>
       current.length
         ? current
         : Array.from({ length: 10 }, (_, index) => {
             const name = `COMP ${index + 1}`;
-            const saved = metrics.compressors?.[name];
+            const saved = initialMetrics.compressors?.[name];
             const status: 'on' | 'off' = saved?.toLowerCase().startsWith('off') ? 'off' : 'on';
             const note = saved?.includes('(')
               ? saved.slice(saved.indexOf('(') + 1, saved.lastIndexOf(')')).trim()
@@ -115,37 +131,26 @@ export default function PlantReportForm() {
     setExtraFields((current) =>
       current.length
         ? current
-        : Object.entries(metrics.extraFields ?? {}).map(([name, value]) => ({
+        : Object.entries(initialMetrics.extraFields ?? {}).map(([name, value]) => ({
             id: nextRowId.current++,
             name,
             value: String(value),
           }))
     );
-  }, [metrics.compressors, metrics.extraFields]);
+  }, [dashboard, metrics]);
 
   useEffect(() => {
-    function closeSearch(event: MouseEvent | TouchEvent) {
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
-        setSearchOpen(false);
-      }
+    const latestReport = dashboard?.latestReport;
+    if (!latestReport) return;
+    if (!officersOnDuty.trim()) setOfficersOnDuty(latestReport.officersOnDuty);
+    if (!Object.keys(metrics).length && Object.keys(latestReport.metrics).length) {
+      setMetrics(latestReport.metrics);
     }
-    document.addEventListener('mousedown', closeSearch);
-    document.addEventListener('touchstart', closeSearch);
-    return () => {
-      document.removeEventListener('mousedown', closeSearch);
-      document.removeEventListener('touchstart', closeSearch);
-    };
-  }, []);
+  }, [dashboard?.latestReport, metrics, officersOnDuty, setMetrics, setOfficersOnDuty]);
 
   const filteredSkids = useMemo(() => {
     if (!dashboard) return [];
-    const filtersActive =
-      filterFill !== '' ||
-      filterOwner !== '' ||
-      filterBay !== '' ||
-      filterMaintenance !== '' ||
-      filterNew !== '';
-    if (!search.trim() && !filtersActive) return [];
+    if (!search.trim()) return [];
     const query = search.trim().toLowerCase();
     return dashboard.plantSkids.filter((skid) => {
       if (
@@ -163,71 +168,24 @@ export default function PlantReportForm() {
     });
   }, [dashboard, search, filterFill, filterOwner, filterBay, filterMaintenance, filterNew]);
 
-  function clearRow() {
-    setSelectedId('');
-    setSearch('');
-    setFillState('');
-    setBay('');
-    setNote('');
-    setIsOnMaintenance(false);
-    setMaintenanceNote('');
-  }
+  const filteredPlantTrucks = useMemo(() => {
+    const query = truckSearch.trim().toLowerCase();
+    if (!dashboard || !query) return [];
+    return dashboard.plantTrucks.filter((truck) => truck.truckNum.toLowerCase().includes(query));
+  }, [dashboard, truckSearch]);
 
-  function selectSkid(skid: PlantYardSkid) {
-    setSelectedId(skid.id);
-    setSearch(skid.skidNum);
-    const nextFillState = skid.fillState ?? 'empty';
-    setFillState(nextFillState);
-    setBay(nextFillState === 'loading' ? 'loading_bay' : (skid.bay ?? 'parking_bay'));
-    setNote(skid.note ?? '');
-    setIsOnMaintenance(skid.isOnMaintenance ?? false);
-    setMaintenanceNote(skid.maintenanceNote ?? '');
-  }
-
-  async function recordRow(event?: FormEvent) {
-    event?.preventDefault();
-    if (!selectedId) {
-      const exact = filteredSkids.find(
-        (skid) => skid.skidNum.toLowerCase() === search.trim().toLowerCase()
-      );
-      const match = exact ?? filteredSkids[0];
-      if (!match) return;
-      setSaving(true);
-      setError(null);
-      try {
-        await updateSkidStatus(match.id, {
-          fillState: match.fillState ?? 'empty',
-          bay: match.bay ?? 'parking_bay',
-          isOnMaintenance: match.isOnMaintenance ?? false,
-          maintenanceNote: match.maintenanceNote,
-          note: match.note,
-        });
-        await loadStatus();
-        clearRow();
-      } catch (saveError) {
-        setError(saveError instanceof Error ? saveError.message : 'Unable to record skid status.');
-      } finally {
-        setSaving(false);
-      }
-      return;
-    }
-    if (!fillState || !bay) {
-      setError('Complete fill state and bay.');
-      return;
-    }
-
+  async function recordSkidStatus(skid: PlantYardSkid, status: SkidStatusDraft) {
     setSaving(true);
     setError(null);
     try {
-      await updateSkidStatus(selectedId, {
-        fillState,
-        bay,
-        isOnMaintenance,
-        maintenanceNote: maintenanceNote.trim() || null,
-        note: note.trim() || null,
+      await updateSkidStatus(skid.id, {
+        fillState: status.fillState,
+        bay: status.bay,
+        isOnMaintenance: status.isOnMaintenance,
+        maintenanceNote: status.maintenanceNote.trim() || null,
+        note: status.note.trim() || null,
       });
       await loadStatus();
-      clearRow();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Unable to record skid status.');
     } finally {
@@ -302,6 +260,7 @@ export default function PlantReportForm() {
         skidUpdates: [],
       });
       setFormattedMessage(result.formattedMessage);
+      await loadStatus();
       setActiveSection('preview');
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Unable to generate plant status.');
@@ -311,10 +270,38 @@ export default function PlantReportForm() {
   }
 
   async function copyStatus() {
-    if (!formattedMessage) return;
-    await navigator.clipboard.writeText(formattedMessage);
-    setCopied(true);
+    const message = dashboard?.latestReport?.formattedMessage ?? formattedMessage;
+    if (!message) return;
+    setError(null);
+    try {
+      await navigator.clipboard.writeText(message);
+      setCopied(true);
+    } catch (copyError) {
+      setError(copyError instanceof Error ? copyError.message : 'Unable to copy plant status.');
+    }
   }
+
+  const snapshot = dashboard?.fleetSnapshot;
+  const truckSummary = snapshot
+    ? [
+        { label: 'On ground', count: snapshot.trucksOnGround.length },
+        { label: 'In transit', count: snapshot.trucksInTransit.length },
+        { label: 'Returning', count: snapshot.returningTrucks.length },
+        { label: 'Standby', count: snapshot.standbyTrucks.length },
+        { label: 'Maintenance', count: snapshot.maintenance.trucks.length },
+      ]
+    : [];
+  const skidSummary = snapshot
+    ? [
+        { label: 'Loading', count: countSkids(snapshot.skidsLoading) },
+        { label: 'Loaded', count: countSkids(snapshot.skidsLoaded) },
+        { label: 'Empty', count: countSkids(snapshot.skidsEmpty) },
+        { label: 'On hold', count: snapshot.skidsOnHold.length },
+        { label: 'Washing', count: snapshot.skidsForWashing.length },
+        { label: 'New loaded', count: snapshot.newLoadedSkids.length },
+        { label: 'Maintenance', count: snapshot.maintenance.skids.length },
+      ]
+    : [];
 
   return (
     <div className={styles.shell}>
@@ -325,7 +312,7 @@ export default function PlantReportForm() {
             <p className={styles.eyebrow}>Plant operations</p>
             <h1 className={styles.title}>Plant status</h1>
             <p className={styles.subtitle}>
-              Search or filter plant skids, update them, then record.
+              Live plant operations, fleet status, and reporting in one workspace.
             </p>
           </div>
           <button
@@ -345,6 +332,15 @@ export default function PlantReportForm() {
         ) : null}
 
         <div className={styles.statusTabs} role="tablist" aria-label="Plant status section">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeSection === 'overview'}
+            className={`${styles.statusTab} ${activeSection === 'overview' ? styles.statusTabActive : ''}`}
+            onClick={() => setActiveSection('overview')}
+          >
+            Overview
+          </button>
           <button
             type="button"
             role="tab"
@@ -401,210 +397,252 @@ export default function PlantReportForm() {
           </button>
         </div>
 
-        {activeSection === 'trucks' ? (
+        {activeSection === 'overview' ? (
+          <div className={styles.plantDashboard}>
+            <section className={styles.dashboardActions} aria-label="Plant status actions">
+              <button
+                type="button"
+                className={styles.dashboardAction}
+                onClick={() => void copyStatus()}
+                disabled={
+                  saving || !(dashboard?.latestReport?.formattedMessage ?? formattedMessage)
+                }
+              >
+                <span className={styles.dashboardActionIcon}>
+                  <Copy size={17} />
+                </span>
+                <span className={styles.dashboardActionCopy}>
+                  <strong>{copied ? 'Plant status copied' : 'Copy latest plant status'}</strong>
+                  <small>
+                    {dashboard?.latestReport
+                      ? `Last recorded ${formatReportDate(dashboard.latestReport.createdAt)}`
+                      : 'Record a plant status before copying it'}
+                  </small>
+                </span>
+              </button>
+              <button
+                type="button"
+                className={`${styles.dashboardAction} ${styles.dashboardActionPrimary}`}
+                onClick={() => {
+                  setError(null);
+                  setCopied(false);
+                  setActiveSection('skids');
+                }}
+              >
+                <span className={styles.dashboardActionIcon}>
+                  <Plus size={18} />
+                </span>
+                <span className={styles.dashboardActionCopy}>
+                  <strong>Record a new plant status</strong>
+                  <small>Update skids, trucks, and plant readings</small>
+                </span>
+              </button>
+            </section>
+
+            <section className={styles.snapshotPanel}>
+              <header className={styles.panelHeader}>
+                <div>
+                  <h2 className={styles.panelTitle}>Live plant snapshot</h2>
+                  <p className={styles.panelHint}>Current truck movements and skid yard status.</p>
+                </div>
+              </header>
+              {loading && !dashboard ? (
+                <div className={styles.emptyState}>Loading live plant status...</div>
+              ) : snapshot ? (
+                <div className={styles.snapshotGroups}>
+                  <section className={styles.snapshotGroup}>
+                    <h3>Trucks</h3>
+                    <div className={styles.snapshotMetricGrid}>
+                      {truckSummary.map((item) => (
+                        <div className={styles.snapshotMetric} key={item.label}>
+                          <span>{item.label}</span>
+                          <strong>{item.count}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                  <section className={styles.snapshotGroup}>
+                    <h3>Skids</h3>
+                    <div className={styles.snapshotMetricGrid}>
+                      {skidSummary.map((item) => (
+                        <div className={styles.snapshotMetric} key={item.label}>
+                          <span>{item.label}</span>
+                          <strong>{item.count}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                </div>
+              ) : (
+                <div className={styles.emptyState}>Plant status is unavailable.</div>
+              )}
+              {dashboard?.latestReport ? (
+                <div className={styles.latestReportNote}>
+                  <span>Latest report · {formatReportDate(dashboard.latestReport.createdAt)}</span>
+                  <strong>{dashboard.latestReport.officersOnDuty}</strong>
+                  {dashboard.latestReport.metrics.inletPressureBar !== undefined ? (
+                    <span>
+                      Inlet pressure: {dashboard.latestReport.metrics.inletPressureBar} bar
+                    </span>
+                  ) : null}
+                </div>
+              ) : (
+                <div className={styles.latestReportNote}>
+                  No plant status report has been recorded.
+                </div>
+              )}
+            </section>
+          </div>
+        ) : activeSection === 'trucks' ? (
           <section className={styles.truckStatus}>
             <header className={styles.skidListHeader}>
-              <strong>Truck status</strong>
-              <span>Gastech vehicles</span>
+              <strong>Plant trucks</strong>
+              <span>{filteredPlantTrucks.length} found</span>
             </header>
-            <div className={styles.truckGrid}>
-              {(dashboard?.plantTrucks ?? []).map((truck) => {
-                const status = truckStatuses[truck.id] ?? {
-                  isStandby: truck.isStandby ?? false,
-                  isOnMaintenance: truck.isOnMaintenance ?? false,
-                  maintenanceNote: truck.maintenanceNote ?? '',
-                  note: truck.note ?? '',
-                };
-                return (
-                  <article className={styles.truckCard} key={truck.id}>
-                    <div>
-                      <strong>{truck.truckNum}</strong>
-                      <span>{truck.currentLoc}</span>
-                    </div>
-                    <div className={styles.truckToggles}>
-                      <label>
-                        Standby
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={status.isStandby}
-                          className={`${styles.toggle} ${status.isStandby ? styles.toggleOn : ''}`}
-                          onClick={() =>
+            <div className={styles.truckSearch}>
+              <label htmlFor="truck-search">Search plant trucks</label>
+              <input
+                id="truck-search"
+                value={truckSearch}
+                onChange={(event) => setTruckSearch(event.target.value)}
+                placeholder="Truck number..."
+              />
+            </div>
+            <div className={styles.truckList}>
+              {loading ? (
+                <div className={styles.emptyState}>Loading plant trucks...</div>
+              ) : !truckSearch.trim() ? (
+                <div className={styles.emptyState}>
+                  Search by truck number to update its status.
+                </div>
+              ) : filteredPlantTrucks.length ? (
+                filteredPlantTrucks.map((truck) => {
+                  const status = truckStatuses[truck.id] ?? {
+                    isStandby: truck.isStandby ?? false,
+                    isOnMaintenance: truck.isOnMaintenance ?? false,
+                    maintenanceNote: truck.maintenanceNote ?? '',
+                    note: truck.note ?? '',
+                  };
+                  return (
+                    <article className={styles.truckRow} key={truck.id}>
+                      <div className={styles.truckIdentity}>
+                        <strong>{truck.truckNum}</strong>
+                        <span>{truck.currentLoc}</span>
+                      </div>
+                      <div className={styles.truckToggles}>
+                        <label>
+                          Standby
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={status.isStandby}
+                            aria-label={`${truck.truckNum} standby`}
+                            className={`${styles.toggle} ${status.isStandby ? styles.toggleOn : ''}`}
+                            onClick={() =>
+                              setTruckStatuses((current) => ({
+                                ...current,
+                                [truck.id]: { ...status, isStandby: !status.isStandby },
+                              }))
+                            }
+                          >
+                            <span />
+                          </button>
+                        </label>
+                        <label>
+                          Maintenance
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={status.isOnMaintenance}
+                            aria-label={`${truck.truckNum} maintenance`}
+                            className={`${styles.toggle} ${status.isOnMaintenance ? styles.toggleOn : ''}`}
+                            onClick={() =>
+                              setTruckStatuses((current) => ({
+                                ...current,
+                                [truck.id]: { ...status, isOnMaintenance: !status.isOnMaintenance },
+                              }))
+                            }
+                          >
+                            <span />
+                          </button>
+                        </label>
+                      </div>
+                      {status.isOnMaintenance ? (
+                        <input
+                          className={styles.truckMaintenanceNote}
+                          aria-label={`${truck.truckNum} maintenance note`}
+                          value={status.maintenanceNote}
+                          onChange={(event) =>
                             setTruckStatuses((current) => ({
                               ...current,
-                              [truck.id]: { ...status, isStandby: !status.isStandby },
+                              [truck.id]: { ...status, maintenanceNote: event.target.value },
                             }))
                           }
-                        >
-                          <span />
-                        </button>
-                      </label>
-                      <label>
-                        Maintenance
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={status.isOnMaintenance}
-                          className={`${styles.toggle} ${status.isOnMaintenance ? styles.toggleOn : ''}`}
-                          onClick={() =>
-                            setTruckStatuses((current) => ({
-                              ...current,
-                              [truck.id]: { ...status, isOnMaintenance: !status.isOnMaintenance },
-                            }))
+                          placeholder="Why is it in maintenance?"
+                        />
+                      ) : null}
+                      <button
+                        type="button"
+                        className={`${styles.recordButton} ${styles.truckRecordButton}`}
+                        disabled={saving}
+                        onClick={async () => {
+                          setSaving(true);
+                          setError(null);
+                          try {
+                            await updateTruckPlantStatus(truck.id, {
+                              isStandby: status.isStandby,
+                              isOnMaintenance: status.isOnMaintenance,
+                              maintenanceNote: status.maintenanceNote.trim() || null,
+                              note: status.note.trim() || null,
+                            });
+                            await loadStatus();
+                          } catch (saveError) {
+                            setError(
+                              saveError instanceof Error
+                                ? saveError.message
+                                : 'Unable to record truck status.'
+                            );
+                          } finally {
+                            setSaving(false);
                           }
-                        >
-                          <span />
-                        </button>
-                      </label>
-                    </div>
-                    {status.isOnMaintenance ? (
-                      <input
-                        value={status.maintenanceNote}
-                        onChange={(event) =>
-                          setTruckStatuses((current) => ({
-                            ...current,
-                            [truck.id]: { ...status, maintenanceNote: event.target.value },
-                          }))
-                        }
-                        placeholder="Why is it in maintenance?"
-                      />
-                    ) : null}
-                    <button
-                      type="button"
-                      className={styles.recordButton}
-                      onClick={async () => {
-                        await updateTruckPlantStatus(truck.id, {
-                          isStandby: status.isStandby,
-                          isOnMaintenance: status.isOnMaintenance,
-                          maintenanceNote: status.maintenanceNote.trim() || null,
-                          note: status.note.trim() || null,
-                        });
-                        await loadStatus();
-                      }}
-                    >
-                      <Save size={13} /> Save
-                    </button>
-                  </article>
-                );
-              })}
+                        }}
+                      >
+                        <Save size={13} /> Record
+                      </button>
+                    </article>
+                  );
+                })
+              ) : (
+                <div className={styles.emptyState}>No matching plant trucks.</div>
+              )}
             </div>
           </section>
         ) : activeSection === 'skids' ? (
-          <>
-            <form className={styles.skidEntry} onSubmit={recordRow}>
-              <div className={styles.skidSearch} ref={searchRef}>
-                <label htmlFor="skid-search">Search</label>
+          <section className={styles.skidListPanel}>
+            <div className={styles.skidListHeader}>
+              <strong>Plant skids</strong>
+              <span>{filteredSkids.length} found</span>
+            </div>
+            <div className={styles.skidToolbar}>
+              <div className={styles.skidSearchControl}>
+                <label htmlFor="plant-skid-search">Search plant skids</label>
                 <input
-                  id="skid-search"
+                  id="plant-skid-search"
                   value={search}
-                  onChange={(event) => {
-                    setSearch(event.target.value);
-                    setSelectedId('');
-                    setSearchOpen(true);
-                  }}
-                  onFocus={() => setSearchOpen(true)}
-                  placeholder="Skid number..."
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Skid number or customer..."
                 />
-                {searchOpen && search.trim() ? (
-                  <div className={styles.searchSuggestions}>
-                    {filteredSkids.slice(0, 6).map((skid) => (
-                      <button
-                        type="button"
-                        key={skid.id}
-                        onClick={() => {
-                          selectSkid(skid);
-                          setSearchOpen(false);
-                        }}
-                      >
-                        <strong>{skid.skidNum}</strong>
-                        <span>
-                          {skid.owner} · {skid.fillState?.replace('_', ' ') ?? 'No fill state'}
-                        </span>
-                      </button>
-                    ))}
-                    {!filteredSkids.length ? (
-                      <div className={styles.noSearchMatches}>No matching skids</div>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-              <div className={styles.skidField}>
-                <label htmlFor="skid-fill">Fill state</label>
-                <select
-                  id="skid-fill"
-                  value={fillState}
-                  onChange={(event) => {
-                    const nextFillState = event.target.value as SkidFill;
-                    setFillState(nextFillState);
-                    if (nextFillState === 'loading') setBay('loading_bay');
-                  }}
-                >
-                  <option value="" disabled>
-                    Fill state
-                  </option>
-                  <option value="empty">Empty</option>
-                  <option value="loading">Loading</option>
-                  <option value="loaded">Loaded</option>
-                  <option value="on_hold">On hold</option>
-                </select>
-              </div>
-              <div className={styles.skidField}>
-                <label htmlFor="skid-bay">Bay</label>
-                <select
-                  id="skid-bay"
-                  value={bay}
-                  onChange={(event) => setBay(event.target.value as SkidBay)}
-                  disabled={fillState === 'loading'}
-                >
-                  <option value="" disabled>
-                    Bay
-                  </option>
-                  <option value="washing_bay">Washing</option>
-                  <option value="loading_bay">Loading</option>
-                  <option value="parking_bay">Parking</option>
-                </select>
-              </div>
-              <div className={styles.skidNote}>
-                <label htmlFor="skid-note">Note</label>
-                <input
-                  id="skid-note"
-                  value={note}
-                  onChange={(event) => setNote(event.target.value)}
-                  placeholder="Note..."
-                />
-              </div>
-              <div className={styles.skidMaintenance}>
-                <label>Maintenance</label>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={isOnMaintenance}
-                  className={`${styles.toggle} ${isOnMaintenance ? styles.toggleOn : ''}`}
-                  onClick={() => setIsOnMaintenance((value) => !value)}
-                >
-                  <span />
-                </button>
-                {isOnMaintenance ? (
-                  <input
-                    value={maintenanceNote}
-                    onChange={(event) => setMaintenanceNote(event.target.value)}
-                    placeholder="Why is it in maintenance?"
-                  />
-                ) : null}
               </div>
               <button
                 type="button"
-                className={styles.filterButton}
+                className={styles.skidFilterButton}
                 onClick={() => setFiltersOpen((open) => !open)}
                 aria-label="Filter skids"
                 aria-expanded={filtersOpen}
               >
                 <Filter size={15} />
               </button>
-              <button type="submit" className={styles.recordButton} disabled={saving || loading}>
-                <Save size={14} /> {saving ? 'Saving...' : 'Record'}
-              </button>
-            </form>
+            </div>
 
             {filtersOpen ? (
               <div className={styles.filterPanel}>
@@ -665,37 +703,148 @@ export default function PlantReportForm() {
               </div>
             ) : null}
 
-            <section className={styles.skidListPanel}>
-              <div className={styles.skidListHeader}>
-                <strong>Plant skids</strong>
-                <span>{filteredSkids.length} found</span>
-              </div>
-              <div className={styles.skidList}>
-                {loading ? (
-                  <div className={styles.emptyState}>Loading skids...</div>
-                ) : filteredSkids.length ? (
-                  filteredSkids.map((skid) => (
-                    <button
-                      type="button"
-                      className={`${styles.skidListRow} ${selectedId === skid.id ? styles.skidListRowActive : ''}`}
-                      key={skid.id}
-                      onClick={() => selectSkid(skid)}
-                    >
-                      <strong>{skid.skidNum}</strong>
-                      <span>{skid.fillState?.replace('_', ' ') ?? 'Not set'}</span>
-                      <span>{skid.owner}</span>
-                      <span>{skid.bay?.replace('_bay', '') ?? 'Not set'}</span>
-                      <span>{skid.isOnMaintenance ? 'Maintenance' : 'Operational'}</span>
-                      <span>{skid.isNew ? 'New' : 'Existing'}</span>
-                      <span>{skid.note || '—'}</span>
-                    </button>
-                  ))
-                ) : (
-                  <div className={styles.emptyState}>No matching plant skids.</div>
-                )}
-              </div>
-            </section>
-          </>
+            <div className={styles.skidList}>
+              {loading ? (
+                <div className={styles.emptyState}>Loading skids...</div>
+              ) : !search.trim() ? (
+                <div className={styles.emptyState}>Search by skid number or customer to begin.</div>
+              ) : filteredSkids.length ? (
+                filteredSkids.map((skid) => {
+                  const status = skidStatuses[skid.id] ?? {
+                    fillState: skid.fillState ?? 'empty',
+                    bay: skid.fillState === 'loading' ? 'loading_bay' : (skid.bay ?? 'parking_bay'),
+                    note: skid.note ?? '',
+                    isOnMaintenance: skid.isOnMaintenance ?? false,
+                    maintenanceNote: skid.maintenanceNote ?? '',
+                  };
+
+                  return (
+                    <article className={styles.skidRow} key={skid.id}>
+                      <div className={styles.skidRowMain}>
+                        <div className={styles.skidIdentity}>
+                          <strong>{skid.skidNum}</strong>
+                          <span>
+                            {skid.owner === 'customer' && skid.customerName
+                              ? skid.customerName
+                              : skid.owner}
+                            {skid.isNew ? ' · New' : ''}
+                          </span>
+                        </div>
+                        <div className={styles.skidField}>
+                          <label htmlFor={`skid-fill-${skid.id}`}>Fill state</label>
+                          <select
+                            id={`skid-fill-${skid.id}`}
+                            value={status.fillState}
+                            disabled={saving || loading}
+                            onChange={(event) => {
+                              const fillState = event.target.value as SkidFill;
+                              setSkidStatuses((current) => ({
+                                ...current,
+                                [skid.id]: {
+                                  ...status,
+                                  fillState,
+                                  ...(fillState === 'loading' ? { bay: 'loading_bay' } : {}),
+                                },
+                              }));
+                            }}
+                          >
+                            <option value="empty">Empty</option>
+                            <option value="loading">Loading</option>
+                            <option value="loaded">Loaded</option>
+                            <option value="on_hold">On hold</option>
+                          </select>
+                        </div>
+                        <div className={styles.skidField}>
+                          <label htmlFor={`skid-bay-${skid.id}`}>Bay</label>
+                          <select
+                            id={`skid-bay-${skid.id}`}
+                            value={status.bay}
+                            disabled={saving || loading || status.fillState === 'loading'}
+                            onChange={(event) =>
+                              setSkidStatuses((current) => ({
+                                ...current,
+                                [skid.id]: {
+                                  ...status,
+                                  bay: event.target.value as SkidBay,
+                                },
+                              }))
+                            }
+                          >
+                            <option value="washing_bay">Washing</option>
+                            <option value="loading_bay">Loading</option>
+                            <option value="parking_bay">Parking</option>
+                          </select>
+                        </div>
+                        <div className={styles.skidField}>
+                          <label htmlFor={`skid-note-${skid.id}`}>Note</label>
+                          <input
+                            id={`skid-note-${skid.id}`}
+                            value={status.note}
+                            disabled={saving || loading}
+                            onChange={(event) =>
+                              setSkidStatuses((current) => ({
+                                ...current,
+                                [skid.id]: { ...status, note: event.target.value },
+                              }))
+                            }
+                            placeholder="Note..."
+                          />
+                        </div>
+                        <div className={styles.skidMaintenance}>
+                          <span>Maintenance</span>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={status.isOnMaintenance}
+                            aria-label={`${skid.skidNum} maintenance`}
+                            disabled={saving || loading}
+                            className={`${styles.toggle} ${status.isOnMaintenance ? styles.toggleOn : ''}`}
+                            onClick={() =>
+                              setSkidStatuses((current) => ({
+                                ...current,
+                                [skid.id]: {
+                                  ...status,
+                                  isOnMaintenance: !status.isOnMaintenance,
+                                },
+                              }))
+                            }
+                          >
+                            <span />
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          className={`${styles.recordButton} ${styles.skidRecordButton}`}
+                          disabled={saving || loading}
+                          onClick={() => void recordSkidStatus(skid, status)}
+                        >
+                          <Save size={13} /> Record
+                        </button>
+                      </div>
+                      {status.isOnMaintenance ? (
+                        <textarea
+                          className={styles.skidMaintenanceNote}
+                          aria-label={`${skid.skidNum} maintenance note`}
+                          value={status.maintenanceNote}
+                          disabled={saving || loading}
+                          onChange={(event) =>
+                            setSkidStatuses((current) => ({
+                              ...current,
+                              [skid.id]: { ...status, maintenanceNote: event.target.value },
+                            }))
+                          }
+                          placeholder="Why is it in maintenance?"
+                          rows={3}
+                        />
+                      ) : null}
+                    </article>
+                  );
+                })
+              ) : (
+                <div className={styles.emptyState}>No matching plant skids.</div>
+              )}
+            </div>
+          </section>
         ) : activeSection === 'pressures' ? (
           <section className={styles.panel}>
             <header className={styles.panelHeader}>
@@ -907,8 +1056,10 @@ export default function PlantReportForm() {
           <section className={styles.panel}>
             <header className={styles.panelHeader}>
               <div>
-                <h2 className={styles.panelTitle}>WhatsApp preview</h2>
-                <p className={styles.panelHint}>Review, copy, and paste manually.</p>
+                <h2 className={styles.panelTitle}>Record plant status</h2>
+                <p className={styles.panelHint}>
+                  Save the report and review its copy-ready WhatsApp message.
+                </p>
               </div>
               <button
                 type="button"
@@ -917,7 +1068,7 @@ export default function PlantReportForm() {
                 disabled={saving}
               >
                 {saving ? <RefreshCw size={14} /> : <Save size={14} />}
-                {saving ? 'Generating...' : 'Generate status'}
+                {saving ? 'Recording...' : 'Record status'}
               </button>
             </header>
             <div className={styles.panelBody}>
@@ -935,7 +1086,7 @@ export default function PlantReportForm() {
                 </>
               ) : (
                 <div className={styles.emptyState}>
-                  Generate the status to preview the WhatsApp message.
+                  Record the plant status to preview the WhatsApp message.
                 </div>
               )}
             </div>

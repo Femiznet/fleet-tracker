@@ -1,13 +1,14 @@
 import { NextRequest } from 'next/server';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { db } from '@/backend/db';
 import { skids } from '@/backend/db/schema/skids';
 import { plantSkidStatuses } from '@/backend/db/schema/plant-skid-status';
 import { plantTruckStatuses } from '@/backend/db/schema/plant-truck-status';
 import { trucks } from '@/backend/db/schema/trucks';
 import { customers } from '@/backend/db/schema/customers';
-import { PlantReportMetrics } from '@/backend/db/schema/plant-report';
+import { plantReports, PlantReportMetrics } from '@/backend/db/schema/plant-report';
 import {
+  formatPlantReportMessage,
   getLivePlantFleetSnapshot,
   submitPlantStatus,
   SkidYardUpdate,
@@ -25,7 +26,7 @@ import { createPlantReportSchema } from '@/backend/services/schema/validators';
 export async function GET(request: NextRequest) {
   try {
     void request;
-    const [fleetSnapshot, plantSkids, plantTrucks] = await Promise.all([
+    const [fleetSnapshot, plantSkids, plantTrucks, latestReports] = await Promise.all([
       getLivePlantFleetSnapshot(),
 
       db
@@ -61,13 +62,45 @@ export async function GET(request: NextRequest) {
         })
         .from(trucks)
         .leftJoin(plantTruckStatuses, eq(plantTruckStatuses.truckId, trucks.id))
-        .where(sql`UPPER(TRIM(${trucks.group})) = 'GASTECH VEHICLES'`),
+        .where(
+          and(
+            sql`UPPER(TRIM(${trucks.group})) = 'GASTECH VEHICLES'`,
+            sql`UPPER(TRIM(${trucks.currentLoc})) = 'GASTECH PLANT'`
+          )
+        ),
+
+      db
+        .select({
+          id: plantReports.id,
+          officersOnDuty: plantReports.officersOnDuty,
+          metrics: plantReports.metrics,
+          fleetSnapshot: plantReports.fleetSnapshot,
+          notes: plantReports.notes,
+          createdAt: plantReports.createdAt,
+        })
+        .from(plantReports)
+        .orderBy(desc(plantReports.createdAt))
+        .limit(1),
     ]);
+
+    const latestReport = latestReports[0] ?? null;
 
     return apiSuccess({
       fleetSnapshot,
       plantSkids,
       plantTrucks,
+      latestReport: latestReport
+        ? {
+            ...latestReport,
+            formattedMessage: latestReport.fleetSnapshot
+              ? formatPlantReportMessage(
+                  latestReport.officersOnDuty,
+                  latestReport.metrics,
+                  latestReport.fleetSnapshot
+                )
+              : null,
+          }
+        : null,
     });
   } catch (error) {
     return apiDbError(error);
@@ -94,13 +127,14 @@ export async function POST(req: NextRequest) {
 
     const metrics = parsed.data.metrics as PlantReportMetrics;
     const skidUpdates = parsed.data.skidUpdates as SkidYardUpdate[];
-    const { snapshot, formattedMessage } = await submitPlantStatus({
+    const { snapshot, formattedMessage, report } = await submitPlantStatus({
       officersOnDuty: parsed.data.officersOnDuty,
       metrics,
       skidUpdates,
+      notes: parsed.data.notes,
     });
 
-    return apiSuccess({ snapshot, formattedMessage }, { status: 200 });
+    return apiSuccess({ snapshot, formattedMessage, report }, { status: 201 });
   } catch (error) {
     return apiDbError(error);
   }

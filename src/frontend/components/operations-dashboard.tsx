@@ -1,29 +1,24 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import {
-  Box,
-  Clock3,
-  Fuel,
-  Gauge,
-  PackageCheck,
+  ArrowUpRight,
+  ClipboardList,
+  MapPinned,
+  MessageSquareText,
   RefreshCw,
   Truck as TruckIcon,
+  Box,
 } from 'lucide-react';
-import { getPlantDashboard } from '@/frontend/actions/plant-reports';
-import { listDashboardSkids } from '@/frontend/actions/skids';
-import { listDashboardTrucks } from '@/frontend/actions/trucks';
-import type { PlantDashboardData, PlantFleetSnapshot } from '@/frontend/types/plant-report';
-import type { Skid } from '@/frontend/types/skid';
-import type { Truck } from '@/frontend/types/truck';
+import {
+  getOperationsOverview,
+  type OperationsOverviewData,
+} from '@/frontend/actions/operations-overview';
 import OperationsSidebar from './operations-sidebar';
 import styles from './operations-dashboard.module.css';
 
 const REFRESH_INTERVAL_MS = 30_000;
-
-type TruckData = { trucks: Truck[]; total: number };
-type SkidData = { skids: Skid[]; total: number };
 
 function formatTime(value: Date | null) {
   if (!value) return 'Not checked yet';
@@ -32,358 +27,127 @@ function formatTime(value: Date | null) {
   );
 }
 
-function displayStatus(value: string) {
-  return value.replaceAll('_', ' ');
-}
-
-function statusStyle(status: string) {
-  if (status === 'available' || status === 'loaded' || status === 'idle') return styles.pillGreen;
-  if (status === 'in_transit' || status === 'loading') return styles.pillBlue;
-  if (status === 'maintenance' || status === 'on_hold' || status === 'washing')
-    return styles.pillAmber;
-  if (status === 'at_customer') return styles.pillBlue;
-  return '';
-}
-
-function countSkids(groups: { customer: string[]; gastech: string[] }) {
-  return groups.customer.length + groups.gastech.length;
-}
-
-function TruckLocations({
-  trucks,
-  total,
-  loading,
-  error,
-}: {
-  trucks: TruckData | null;
-  total: number | null;
-  loading: boolean;
-  error: string | null;
-}) {
-  return (
-    <section className={styles.panel}>
-      <header className={styles.panelHeader}>
-        <div>
-          <h2 className={styles.panelTitle}>Truck locations</h2>
-          <p className={styles.panelSubtitle}>
-            Stored HCL Tracker coordinates and last resolved location.
-          </p>
-        </div>
-        <TruckIcon size={17} />
-      </header>
-      {error ? (
-        <div className={styles.error} role="alert">
-          {error}
-        </div>
-      ) : null}
-      {loading && !trucks ? (
-        <div className={styles.empty}>
-          <RefreshCw size={17} className="animate-spin" /> Loading trucks…
-        </div>
-      ) : !trucks?.trucks.length ? (
-        <div className={styles.empty}>
-          <TruckIcon size={18} />
-          <strong>No trucks registered</strong>
-          <span>Truck locations will appear after trucks are added and synced.</span>
-        </div>
-      ) : (
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Truck</th>
-                <th>Status</th>
-                <th>Location</th>
-                <th>Speed</th>
-                <th>Coordinates</th>
-              </tr>
-            </thead>
-            <tbody>
-              {trucks.trucks.map((truck) => (
-                <tr key={truck.id}>
-                  <td>
-                    <strong>{truck.truckNum}</strong>
-                    {truck.slugNum ? <span className={styles.subtle}>{truck.slugNum}</span> : null}
-                  </td>
-                  <td>
-                    <span className={`${styles.pill} ${statusStyle(truck.status)}`}>
-                      {displayStatus(truck.status)}
-                    </span>
-                  </td>
-                  <td>{truck.currentLoc === 'pending' ? 'Location pending' : truck.currentLoc}</td>
-                  <td>{truck.speed.toLocaleString()} km/h</td>
-                  <td>
-                    {truck.lat.toFixed(4)}, {truck.lon.toFixed(4)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className={styles.listFooter}>
-            Showing {trucks.trucks.length} of {total ?? trucks.total} trucks
-          </div>
-        </div>
-      )}
-      <p className={styles.freshnessNote}>
-        <Clock3 size={12} />
-        The API does not store a location-sync timestamp, so coordinate freshness cannot yet be
-        confirmed here.
-      </p>
-    </section>
-  );
-}
-
-function SkidInventory({
-  skids,
-  total,
-  loading,
-  error,
-}: {
-  skids: SkidData | null;
-  total: number | null;
-  loading: boolean;
-  error: string | null;
-}) {
-  return (
-    <section className={styles.panel}>
-      <header className={styles.panelHeader}>
-        <div>
-          <h2 className={styles.panelTitle}>Skid inventory</h2>
-          <p className={styles.panelSubtitle}>
-            Current recorded location, fill state, and yard status.
-          </p>
-        </div>
-        <Box size={17} />
-      </header>
-      {error ? (
-        <div className={styles.error} role="alert">
-          {error}
-        </div>
-      ) : null}
-      {loading && !skids ? (
-        <div className={styles.empty}>
-          <RefreshCw size={17} className="animate-spin" /> Loading skids…
-        </div>
-      ) : !skids?.skids.length ? (
-        <div className={styles.empty}>
-          <Box size={18} />
-          <strong>No skids registered</strong>
-          <span>Skid inventory will appear when skids are added.</span>
-        </div>
-      ) : (
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Skid</th>
-                <th>Location</th>
-                <th>Status</th>
-                <th>Owner</th>
-                <th>Maintenance</th>
-              </tr>
-            </thead>
-            <tbody>
-              {skids.skids.map((skid) => (
-                <tr key={skid.id}>
-                  <td>
-                    <strong>{skid.skidNum}</strong>
-                    {skid.isNew ? <span className={styles.subtle}>New skid</span> : null}
-                  </td>
-                  <td>{skid.currentLoc === 'pending' ? 'Location pending' : skid.currentLoc}</td>
-                  <td>
-                    <span className={`${styles.pill} ${statusStyle(skid.status)}`}>
-                      {displayStatus(skid.status)}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`${styles.pill} ${statusStyle(skid.owner)}`}>
-                      {displayStatus(skid.owner)}
-                    </span>
-                  </td>
-                  <td>
-                    <span
-                      className={`${styles.pill} ${skid.isOnMaintenance ? statusStyle('maintenance') : ''}`}
-                    >
-                      {skid.isOnMaintenance ? 'Maintenance' : 'No'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className={styles.listFooter}>
-            Showing {skids.skids.length} of {total ?? skids.total} skids
-          </div>
-        </div>
-      )}
-    </section>
-  );
-}
-
-function LivePlantSnapshot({
-  snapshot,
-  loading,
-  error,
-}: {
-  snapshot: PlantFleetSnapshot | null;
-  loading: boolean;
-  error: string | null;
-}) {
-  if (error)
-    return (
-      <div className={styles.error} role="alert">
-        {error}
-      </div>
-    );
-  if (!snapshot) {
-    return (
-      <div className={styles.empty}>
-        {loading ? 'Loading live plant status…' : 'Plant status is unavailable.'}
-      </div>
-    );
-  }
-
-  const truckStatuses = [
-    { label: 'On ground', count: snapshot.trucksOnGround.length },
-    { label: 'In transit', count: snapshot.trucksInTransit.length },
-    { label: 'Returning', count: snapshot.returningTrucks.length },
-    { label: 'Standby', count: snapshot.standbyTrucks.length },
-    { label: 'Truck maintenance', count: snapshot.maintenance.trucks.length },
-  ];
-  const skidStatuses = [
-    { label: 'Loading', count: countSkids(snapshot.skidsLoading) },
-    { label: 'Loaded', count: countSkids(snapshot.skidsLoaded) },
-    { label: 'Empty', count: countSkids(snapshot.skidsEmpty) },
-    { label: 'On hold', count: snapshot.skidsOnHold.length },
-    { label: 'For washing', count: snapshot.skidsForWashing.length },
-    { label: 'Skid maintenance', count: snapshot.maintenance.skids.length },
-  ];
-
-  return (
-    <div className={styles.panelBody}>
-      <div className={styles.statusGrid}>
-        {truckStatuses.map((status) => (
-          <div className={styles.statusTile} key={status.label}>
-            <span className={styles.statusLabel}>{status.label}</span>
-            <strong className={styles.statusNumber}>{status.count}</strong>
-          </div>
-        ))}
-      </div>
-      <div className={styles.skidSummary}>
-        {skidStatuses.map((status) => (
-          <div className={styles.summaryItem} key={status.label}>
-            <span className={styles.summaryLabel}>{status.label}</span>
-            <strong className={styles.summaryCount}>{status.count}</strong>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function PlantReportSummary({
+function SummaryPanel({
+  title,
+  description,
   data,
   loading,
-  error,
+  icon,
+  totalLabel,
+  metrics,
 }: {
-  data: PlantDashboardData | null;
+  title: string;
+  description: string;
+  data: OperationsOverviewData['trucks'] | OperationsOverviewData['skids'] | null;
   loading: boolean;
-  error: string | null;
+  icon: ReactNode;
+  totalLabel: string;
+  metrics: { label: string; value: number | undefined }[];
 }) {
-  if (error)
-    return (
-      <div className={styles.error} role="alert">
-        {error}
-      </div>
-    );
-  if (!data) {
-    return (
-      <div className={styles.empty}>
-        {loading ? 'Loading plant report…' : 'Plant report is unavailable.'}
-      </div>
-    );
-  }
-
   return (
-    <div className={styles.panelBody}>
-      <div className={styles.reportDetails}>
-        <div className={styles.reportMetric}>
-          <label>Loading</label>
-          <strong>{countSkids(data.fleetSnapshot.skidsLoading)}</strong>
+    <section className={styles.summaryPanel}>
+      <header className={styles.summaryHeader}>
+        <span className={styles.summaryIcon}>{icon}</span>
+        <div>
+          <h2 className={styles.panelTitle}>{title}</h2>
+          <p className={styles.panelSubtitle}>{description}</p>
         </div>
-        <div className={styles.reportMetric}>
-          <label>Loaded</label>
-          <strong>{countSkids(data.fleetSnapshot.skidsLoaded)}</strong>
-        </div>
-        <div className={styles.reportMetric}>
-          <label>Empty</label>
-          <strong>{countSkids(data.fleetSnapshot.skidsEmpty)}</strong>
-        </div>
-        <div className={styles.reportMetric}>
-          <label>On hold</label>
-          <strong>{data.fleetSnapshot.skidsOnHold.length}</strong>
-        </div>
+      </header>
+      <div className={styles.summaryTotal}>
+        <strong>{data ? data.total.toLocaleString() : loading ? '—' : 'Unavailable'}</strong>
+        <span>{totalLabel}</span>
       </div>
+      <div className={styles.summaryMetrics}>
+        {metrics.map((metric) => (
+          <div className={styles.summaryMetric} key={metric.label}>
+            <span>{metric.label}</span>
+            <strong>{metric.value?.toLocaleString() ?? '—'}</strong>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function GeofenceBoard({
+  overview,
+  loading,
+}: {
+  overview: OperationsOverviewData | null;
+  loading: boolean;
+}) {
+  return (
+    <section className={styles.geofencePanel}>
+      <header className={styles.panelHeader}>
+        <div>
+          <h2 className={styles.panelTitle}>Geofence activity</h2>
+          <p className={styles.panelSubtitle}>
+            Tracked Gastech trucks matched to known geofences using their latest stored
+            coordinates.
+          </p>
+        </div>
+        <MapPinned size={18} />
+      </header>
+      {loading && !overview ? (
+        <div className={styles.empty}>Loading geofences…</div>
+      ) : !overview ? (
+        <div className={styles.empty}>Geofence data is unavailable.</div>
+      ) : !overview.geofences.length ? (
+        <div className={styles.empty}>
+          <MapPinned size={19} />
+          <strong>No geofences available</strong>
+          <span>Known locations will appear here after geofences are created.</span>
+        </div>
+      ) : (
+        <div className={styles.geofenceGrid}>
+          {overview.geofences.map((geofence) => (
+            <article className={styles.geofenceCard} key={geofence.name}>
+              <span className={styles.geofenceName}>{geofence.name}</span>
+              <strong className={styles.geofenceCount}>{geofence.trucks}</strong>
+              <span className={styles.geofenceCaption}>
+                {geofence.trucks === 1 ? 'truck here' : 'trucks here'}
+              </span>
+              {!geofence.configured ? (
+                <span className={styles.geofenceUnconfigured}>Awaiting location data</span>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      )}
+      {overview ? (
+        <div className={styles.geofenceFooter}>
+          <span>{overview.trucksOutsideGeofences} outside known geofences</span>
+          <span>{overview.trucksWithoutGps} without usable GPS coordinates</span>
+        </div>
+      ) : null}
       <p className={styles.freshnessNote}>
-        <Clock3 size={12} />
-        {data.plantSkids.length} available skid{data.plantSkids.length === 1 ? '' : 's'} currently
-        recorded at the plant.
+        Location timestamps are not available, so counts may reflect an older GPS update.
       </p>
-    </div>
+    </section>
   );
 }
 
 export default function OperationsDashboard() {
-  const [truckData, setTruckData] = useState<TruckData | null>(null);
-  const [skidData, setSkidData] = useState<SkidData | null>(null);
-  const [plantData, setPlantData] = useState<PlantDashboardData | null>(null);
-  const [truckError, setTruckError] = useState<string | null>(null);
-  const [skidError, setSkidError] = useState<string | null>(null);
-  const [plantError, setPlantError] = useState<string | null>(null);
+  const [overview, setOverview] = useState<OperationsOverviewData | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
-    const [trucksResult, skidsResult, plantResult] = await Promise.allSettled([
-      listDashboardTrucks(),
-      listDashboardSkids(),
-      getPlantDashboard(),
-    ]);
-
-    if (trucksResult.status === 'fulfilled') {
-      setTruckData(trucksResult.value);
-      setTruckError(null);
-    } else {
-      setTruckError(
-        trucksResult.reason instanceof Error
-          ? trucksResult.reason.message
-          : 'Unable to load trucks.'
+    try {
+      setOverview(await getOperationsOverview());
+      setError(null);
+      setLastChecked(new Date());
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : 'Unable to load the operations overview.'
       );
+    } finally {
+      if (showLoading) setLoading(false);
     }
-
-    if (skidsResult.status === 'fulfilled') {
-      setSkidData(skidsResult.value);
-      setSkidError(null);
-    } else {
-      setSkidError(
-        skidsResult.reason instanceof Error ? skidsResult.reason.message : 'Unable to load skids.'
-      );
-    }
-
-    if (plantResult.status === 'fulfilled') {
-      setPlantData(plantResult.value);
-      setPlantError(null);
-    } else {
-      setPlantError(
-        plantResult.reason instanceof Error
-          ? plantResult.reason.message
-          : 'Unable to load plant status.'
-      );
-    }
-
-    setLastChecked(new Date());
-    if (showLoading) setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -394,10 +158,6 @@ export default function OperationsDashboard() {
       window.clearInterval(timer);
     };
   }, [refresh]);
-
-  const snapshot = plantData?.fleetSnapshot ?? null;
-  const loadingSkidCount = snapshot ? countSkids(snapshot.skidsLoading) : null;
-  const inTransitCount = snapshot?.trucksInTransit.length ?? null;
 
   return (
     <div className={styles.shell}>
@@ -410,10 +170,12 @@ export default function OperationsDashboard() {
             <strong>Overview</strong>
           </div>
           <div className={styles.refreshInfo}>
-            <span className={styles.liveDot} />
-            {lastChecked
-              ? `Dashboard checked ${formatTime(lastChecked)}`
-              : 'Checking operational data…'}
+            <span className={`${styles.liveDot} ${error ? styles.liveDotError : ''}`} />
+            {error
+              ? 'Dashboard refresh failed'
+              : lastChecked
+                ? `Dashboard checked ${formatTime(lastChecked)}`
+                : 'Checking operational data…'}
           </div>
         </div>
 
@@ -422,7 +184,7 @@ export default function OperationsDashboard() {
             <p className={styles.eyebrow}>Fleet operations</p>
             <h1 className={styles.title}>Operations overview</h1>
             <p className={styles.subtitle}>
-              Plant condition, fleet positions, and skid availability in one view.
+              A live snapshot of fleet, plant inventory, and customer locations.
             </p>
           </div>
           <button
@@ -435,95 +197,103 @@ export default function OperationsDashboard() {
           </button>
         </header>
 
-        <section className={styles.stats} aria-label="Fleet overview">
-          <div className={styles.statCard}>
-            <div className={styles.statIcon}>
-              <TruckIcon size={17} />
-            </div>
-            <div>
-              <p className={styles.statLabel}>Registered trucks</p>
-              <p className={styles.statValue}>{truckData?.total ?? '—'}</p>
-            </div>
+        {error ? (
+          <div className={styles.errorBanner} role="alert">
+            {overview ? `Refresh failed: ${error}. Showing the last loaded data.` : error}
           </div>
-          <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.statIconBlue}`}>
-              <Gauge size={17} />
-            </div>
+        ) : null}
+
+        <section className={styles.summaryGrid} aria-label="Fleet and skid summaries">
+          <SummaryPanel
+            title="Fleet"
+            description="Current status across all registered trucks."
+            data={overview?.trucks ?? null}
+            loading={loading}
+            icon={<TruckIcon size={18} />}
+            totalLabel="registered trucks"
+            metrics={[
+              { label: 'At plant', value: overview?.trucks.atPlant },
+              { label: 'In transit', value: overview?.trucks.inTransit },
+              { label: 'Standby', value: overview?.trucks.standby },
+              { label: 'Maintenance', value: overview?.trucks.maintenance },
+            ]}
+          />
+          <SummaryPanel
+            title="Skid inventory"
+            description="Current status across all registered skids."
+            data={overview?.skids ?? null}
+            loading={loading}
+            icon={<Box size={18} />}
+            totalLabel="registered skids"
+            metrics={[
+              { label: 'At plant', value: overview?.skids.atPlant },
+              { label: 'In transit', value: overview?.skids.inTransit },
+              { label: 'At customer', value: overview?.skids.atCustomer },
+              { label: 'Maintenance', value: overview?.skids.maintenance },
+            ]}
+          />
+        </section>
+
+        <GeofenceBoard overview={overview} loading={loading} />
+
+        <section className={styles.quickActions}>
+          <header className={styles.quickActionsHeader}>
             <div>
-              <p className={styles.statLabel}>Trucks in transit</p>
-              <p className={styles.statValue}>{inTransitCount ?? '—'}</p>
+              <h2 className={styles.panelTitle}>Quick actions</h2>
+              <p className={styles.panelSubtitle}>Jump straight to common operations.</p>
             </div>
-          </div>
-          <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.statIconAmber}`}>
-              <PackageCheck size={17} />
-            </div>
-            <div>
-              <p className={styles.statLabel}>Skids loading</p>
-              <p className={styles.statValue}>{loadingSkidCount ?? '—'}</p>
-            </div>
-          </div>
-          <div className={styles.statCard}>
-            <div className={styles.statIcon}>
-              <Fuel size={17} />
-            </div>
-            <div>
-              <p className={styles.statLabel}>Skids at plant</p>
-              <p className={styles.statValue}>{plantData?.plantSkids.length ?? '—'}</p>
-            </div>
+          </header>
+          <div className={styles.actionGrid}>
+            <Link className={styles.actionCard} href="/dispatch">
+              <span className={styles.actionIcon}>
+                <ClipboardList size={17} />
+              </span>
+              <span className={styles.actionCopy}>
+                <strong>Review dispatches</strong>
+                <small>Check incoming dispatch requests</small>
+              </span>
+              <ArrowUpRight size={15} />
+            </Link>
+            <Link className={styles.actionCard} href="/tracker">
+              <span className={styles.actionIcon}>
+                <MapPinned size={17} />
+              </span>
+              <span className={styles.actionCopy}>
+                <strong>Track trucks & skids</strong>
+                <small>View location and availability</small>
+              </span>
+              <ArrowUpRight size={15} />
+            </Link>
+            <Link className={styles.actionCard} href="/plant-report">
+              <span className={styles.actionIcon}>
+                <TruckIcon size={17} />
+              </span>
+              <span className={styles.actionCopy}>
+                <strong>Record plant status</strong>
+                <small>Update skids, trucks, and readings</small>
+              </span>
+              <ArrowUpRight size={15} />
+            </Link>
+            <Link className={styles.actionCard} href="/updates">
+              <span className={styles.actionIcon}>
+                <MessageSquareText size={17} />
+              </span>
+              <span className={styles.actionCopy}>
+                <strong>View customer updates</strong>
+                <small>See recent customer messages</small>
+              </span>
+              <ArrowUpRight size={15} />
+            </Link>
           </div>
         </section>
 
-        <div className={styles.panelGrid}>
-          <section className={styles.panel}>
-            <header className={styles.panelHeader}>
-              <div>
-                <h2 className={styles.panelTitle}>Live plant & fleet status</h2>
-                <p className={styles.panelSubtitle}>
-                  Current movement and yard categories from the backend snapshot.
-                </p>
-              </div>
-              <Gauge size={17} />
-            </header>
-            <LivePlantSnapshot snapshot={snapshot} loading={loading} error={plantError} />
-          </section>
-
-          <section className={styles.panel}>
-            <header className={styles.panelHeader}>
-              <div>
-                <h2 className={styles.panelTitle}>Live plant status</h2>
-                <p className={styles.panelSubtitle}>Current skid categories and bay states.</p>
-              </div>
-              <Fuel size={17} />
-            </header>
-            <PlantReportSummary data={plantData} loading={loading} error={plantError} />
-          </section>
-        </div>
-
-        <div className={styles.panelGrid}>
-          <TruckLocations
-            trucks={truckData}
-            total={truckData?.total ?? null}
-            loading={loading}
-            error={truckError}
-          />
-          <SkidInventory
-            skids={skidData}
-            total={skidData?.total ?? null}
-            loading={loading}
-            error={skidError}
-          />
-        </div>
-
-        <div className={styles.panelHeader}>
-          <p className={styles.panelSubtitle}>
+        <div className={styles.dashboardFooter}>
+          <span>
             {lastChecked
-              ? `Dashboard refreshes every 30 seconds · Last checked ${formatTime(lastChecked)}`
-              : 'Dashboard refreshes every 30 seconds.'}
-          </p>
-          <Link className={styles.link} href="/dispatch">
-            Open dispatch review
-          </Link>
+              ? `Last successful refresh: ${formatTime(lastChecked)}`
+              : 'Overview refreshes automatically every 30 seconds.'}
+          </span>
+          <span>Refresh interval: 30 seconds</span>
         </div>
       </main>
     </div>

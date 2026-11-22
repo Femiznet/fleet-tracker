@@ -182,107 +182,212 @@
   padding: 16px 17px;
 }
 
-.skidEntry {
+.plantDashboard {
   display: grid;
-  grid-template-columns: minmax(150px, 1.35fr) repeat(2, minmax(110px, 0.75fr)) minmax(
-      150px,
-      1fr
-    ) minmax(170px, 1fr) 38px auto;
-  align-items: end;
-  gap: 8px;
-  margin-bottom: 10px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface);
+  gap: 14px;
 }
 
-.skidSearch,
-.skidField,
-.skidNote {
+.dashboardActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dashboardAction {
+  display: flex;
+  min-width: 0;
+  min-height: 84px;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 15px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink);
+  background: var(--surface);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.15s ease;
+}
+
+.dashboardAction:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: #c9d6cd;
+  background: #fbfdfb;
+}
+
+.dashboardAction:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
+}
+
+.dashboardActionPrimary {
+  border-color: var(--green);
+  color: #fff;
+  background: var(--green);
+}
+
+.dashboardActionPrimary:hover:not(:disabled) {
+  border-color: #10563b;
+  background: #10563b;
+}
+
+.dashboardActionIcon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 11px;
+  color: var(--green);
+  background: var(--green-soft);
+}
+
+.dashboardActionPrimary .dashboardActionIcon {
+  color: #fff;
+  background: rgb(255 255 255 / 16%);
+}
+
+.dashboardActionCopy {
   display: grid;
   min-width: 0;
   gap: 5px;
 }
 
-.skidSearch {
-  position: relative;
+.dashboardActionCopy strong {
+  font-size: 12px;
+}
+
+.dashboardActionCopy small {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.dashboardActionPrimary .dashboardActionCopy small {
+  color: rgb(255 255 255 / 80%);
+}
+
+.snapshotPanel {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.snapshotGroups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 14px;
+}
+
+.snapshotGroup {
+  min-width: 0;
+}
+
+.snapshotGroup h3 {
+  margin: 0 0 9px;
+  font-size: 11px;
+}
+
+.snapshotMetricGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.snapshotMetric {
+  display: grid;
+  min-width: 0;
+  min-height: 58px;
+  align-content: space-between;
+  gap: 7px;
+  padding: 9px;
+  border: 1px solid #e8eee9;
+  border-radius: 9px;
+  background: #fbfcfb;
+}
+
+.snapshotMetric span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.snapshotMetric strong {
+  font-size: 16px;
+}
+
+.latestReportNote {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px 12px;
+  padding: 11px 14px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  background: #fbfcfb;
+  font-size: 10px;
+}
+
+.latestReportNote strong {
+  color: var(--ink);
+}
+
+.skidToolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38px;
+  align-items: end;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.skidSearchControl,
+.skidField {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.skidSearchControl label,
+.skidField label {
+  color: #68756c;
+  font-size: 9px;
+  font-weight: 700;
 }
 
 .skidMaintenance {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: auto 38px minmax(120px, 1fr);
-  align-items: end;
-  gap: 6px;
-}
-
-.skidMaintenance label {
-  grid-column: 1 / -1;
-  color: #68756c;
-  font-size: 9px;
-  font-weight: 700;
-}
-
-.skidMaintenance input {
-  min-width: 0;
-}
-
-.searchSuggestions {
-  max-height: 220px;
-  overflow-y: auto;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-}
-
-.searchSuggestions button {
   display: flex;
-  width: 100%;
-  min-height: 40px;
+  min-width: 0;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 7px 9px;
-  border: 0;
-  border-bottom: 1px solid #eff2ef;
+  justify-content: center;
+  gap: 7px;
+  color: #68756c;
+  font-size: 10px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.skidMaintenanceNote {
+  width: 100%;
+  min-width: 0;
+  min-height: 76px;
+  margin-top: 8px;
+  padding: 8px 9px;
+  border: 1px solid #dfe7e1;
+  border-radius: 8px;
   color: var(--ink);
   background: #fff;
-  cursor: pointer;
-  font-size: 10px;
-  text-align: left;
+  font-size: 11px;
+  resize: vertical;
 }
 
-.searchSuggestions button:last-child {
-  border-bottom: 0;
-}
-
-.searchSuggestions button:hover {
-  background: #f4f8f5;
-}
-
-.searchSuggestions button span {
-  color: var(--muted);
-  font-size: 9px;
-  text-align: right;
-}
-
-.noSearchMatches {
-  padding: 10px 9px;
-  color: var(--muted);
-  font-size: 10px;
-}
-
-.skidSearch label,
-.skidField label,
-.skidNote label {
-  color: #68756c;
-  font-size: 9px;
-  font-weight: 700;
-}
-
-.skidEntry input,
-.skidEntry select,
+.skidSearchControl input,
+.skidField input,
+.skidField select,
 .filterPanel select {
   width: 100%;
   min-width: 0;
@@ -295,7 +400,7 @@
   font-size: 11px;
 }
 
-.filterButton,
+.skidFilterButton,
 .recordButton {
   display: inline-flex;
   min-height: 38px;
@@ -305,7 +410,7 @@
   cursor: pointer;
 }
 
-.filterButton {
+.skidFilterButton {
   width: 38px;
   border: 1px solid var(--line);
   color: #59685f;
@@ -326,7 +431,7 @@
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
   gap: 8px;
-  margin-bottom: 10px;
+  margin: 10px 12px;
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -358,13 +463,16 @@
   display: flex;
   gap: 5px;
   margin-bottom: 10px;
+  overflow-x: auto;
   padding: 4px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: #edf3ef;
+  scrollbar-width: thin;
 }
 
 .statusTab {
+  flex: 0 0 auto;
   min-height: 36px;
   padding: 0 14px;
   border: 0;
@@ -389,83 +497,140 @@
   background: var(--surface);
 }
 
-.truckGrid {
+.truckSearch {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  padding: 12px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 5px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
 }
 
-.truckCard {
-  min-width: 0;
-  padding: 12px;
-  border: 1px solid #e1e8e3;
-  border-radius: 9px;
-  background: #fbfcfb;
-}
-
-.truckCard div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.truckCard div strong {
-  font-size: 11px;
-}
-
-.truckToggles {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.truckToggles label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+.truckSearch label {
   color: #68756c;
   font-size: 9px;
   font-weight: 700;
 }
 
-.truckCard > input {
+.truckSearch input {
   width: 100%;
   min-height: 36px;
-  margin: 8px 0;
+  padding: 0 9px;
+  border: 1px solid #dfe7e1;
+  border-radius: 8px;
+  color: var(--ink);
+  background: #fff;
+  font-size: 11px;
+}
+
+.truckList {
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.truckRow {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.8fr) minmax(220px, 1.4fr) minmax(180px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 12px;
+  border-bottom: 1px solid #eff2ef;
+}
+
+.truckRow:last-child {
+  border-bottom: 0;
+}
+
+.truckIdentity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.truckIdentity strong {
+  color: var(--ink);
+  font-size: 11px;
+}
+
+.truckIdentity span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.truckToggles {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.truckToggles label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #68756c;
+  font-size: 10px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.truckMaintenanceNote {
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
   padding: 0 8px;
   border: 1px solid #dfe7e1;
   border-radius: 8px;
+  color: var(--ink);
   background: #fff;
   font-size: 10px;
 }
 
-.truckCard > .recordButton {
-  width: 100%;
+.truckRecordButton {
+  grid-column: -2;
+  min-height: 34px;
+  padding: 0 10px;
 }
 
-.truckCard div span {
-  display: grid;
-  min-width: 24px;
-  height: 24px;
-  place-items: center;
-  border-radius: 999px;
-  color: var(--green);
-  background: var(--green-soft);
-  font-size: 10px;
-  font-weight: 700;
+@media (max-width: 900px) {
+  .truckRow {
+    grid-template-columns: minmax(100px, 0.8fr) minmax(200px, 1.2fr) minmax(150px, 1fr) auto;
+  }
 }
 
-.truckCard p {
-  min-height: 32px;
-  margin: 8px 0 0;
-  color: #526158;
-  font-size: 10px;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
+@media (max-width: 780px) {
+  .truckRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .truckMaintenanceNote {
+    grid-column: 1 / -1;
+  }
+
+  .truckRecordButton {
+    justify-self: end;
+  }
+}
+
+@media (max-width: 560px) {
+  .truckRow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .truckToggles {
+    justify-content: space-between;
+  }
+
+  .truckMaintenanceNote,
+  .truckRecordButton {
+    grid-column: 1;
+  }
+
+  .truckRecordButton {
+    justify-self: end;
+  }
 }
 
 .skidList {
@@ -473,35 +638,48 @@
   overflow-y: auto;
 }
 
-.skidListRow {
-  display: grid;
-  grid-template-columns: minmax(90px, 1fr) repeat(5, minmax(80px, 0.75fr)) minmax(100px, 1fr);
-  width: 100%;
-  min-height: 46px;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 14px;
-  border: 0;
+.skidRow {
+  padding: 8px 12px;
   border-bottom: 1px solid #eff2ef;
-  color: #526158;
-  background: #fff;
-  cursor: pointer;
-  font-size: 10px;
-  text-align: left;
 }
 
-.skidListRow:last-child {
+.skidRow:last-child {
   border-bottom: 0;
 }
 
-.skidListRow strong {
+.skidRowMain {
+  display: grid;
+  grid-template-columns:
+    minmax(90px, 0.8fr) minmax(110px, 1fr) minmax(110px, 1fr) minmax(120px, 1.1fr)
+    minmax(115px, 0.8fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.skidIdentity {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.skidIdentity strong {
   color: var(--ink);
   font-size: 11px;
 }
 
-.skidListRow:hover,
-.skidListRowActive {
-  background: #f4f8f5;
+.skidIdentity span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skidRecordButton {
+  grid-column: -2;
+  min-height: 34px;
+  padding: 0 10px;
+  justify-self: end;
 }
 
 .emptyState {
@@ -1178,11 +1356,11 @@
     padding: 20px 16px 30px;
   }
 
-  .fieldGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .snapshotGroups {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .skidEntry {
+  .fieldGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1190,31 +1368,30 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .skidSearch,
-  .skidNote {
+  .skidRowMain {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .skidIdentity {
     grid-column: 1 / -1;
   }
 
   .filterPanel {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
-  .skidList {
-    overflow-x: auto;
-  }
-
-  .skidListRow {
-    min-width: 680px;
-  }
 }
 
 @media (max-width: 560px) {
-  .truckGrid {
+  .dashboardActions {
     grid-template-columns: minmax(0, 1fr);
   }
-  .skidEntry,
+
+  .snapshotMetricGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .filterPanel {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .statusGrid {

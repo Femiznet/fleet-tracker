@@ -59,6 +59,11 @@
   box-shadow: 0 0 0 3px #e3f2e9;
 }
 
+.liveDotError {
+  background: #c45047;
+  box-shadow: 0 0 0 3px #fdebe8;
+}
+
 .pageHeading {
   display: flex;
   align-items: flex-end;
@@ -115,28 +120,38 @@
   opacity: 0.6;
 }
 
-.stats {
+.summaryGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 13px;
-  margin-bottom: 17px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px;
+  margin-bottom: 15px;
 }
 
-.statCard {
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  min-height: 82px;
-  padding: 15px 17px;
+.summaryPanel,
+.geofencePanel,
+.quickActions {
+  min-width: 0;
+  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--surface);
 }
 
-.statIcon {
+.summaryPanel {
+  padding: 16px;
+}
+
+.summaryHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+}
+
+.summaryIcon,
+.actionIcon {
   display: grid;
-  width: 37px;
-  height: 37px;
+  width: 38px;
+  height: 38px;
   flex: 0 0 auto;
   place-items: center;
   border-radius: 11px;
@@ -144,42 +159,50 @@
   background: var(--green-soft);
 }
 
-.statIconAmber {
-  color: var(--amber);
-  background: var(--amber-soft);
+.summaryTotal {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin: 18px 0 14px;
 }
 
-.statIconBlue {
-  color: #37648b;
-  background: #eaf2f8;
+.summaryTotal strong {
+  font-size: 32px;
+  font-weight: 750;
+  letter-spacing: -0.04em;
 }
 
-.statLabel {
-  margin: 0 0 4px;
+.summaryTotal span {
   color: var(--muted);
   font-size: 11px;
 }
 
-.statValue {
-  margin: 0;
-  font-size: 19px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-.panelGrid {
+.summaryMetrics {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(310px, 0.85fr);
-  gap: 15px;
-  margin-bottom: 15px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
 }
 
-.panel {
+.summaryMetric {
+  display: grid;
   min-width: 0;
+  gap: 6px;
+  padding: 9px;
+  border: 1px solid #e8eee9;
+  border-radius: 9px;
+  background: #fbfcfb;
+}
+
+.summaryMetric span {
   overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface);
+  color: var(--muted);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summaryMetric strong {
+  font-size: 16px;
 }
 
 .panelHeader {
@@ -204,182 +227,156 @@
   line-height: 1.45;
 }
 
-.panelBody {
-  padding: 15px 17px;
+.geofencePanel {
+  margin-bottom: 15px;
 }
 
-.statusGrid {
+.geofenceGrid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  padding: 14px;
 }
 
-.statusTile {
+.geofenceCard {
+  display: grid;
   min-width: 0;
-  padding: 10px 9px;
+  min-height: 112px;
+  align-content: start;
+  gap: 5px;
+  padding: 11px;
   border: 1px solid #e8eee9;
-  border-radius: 9px;
+  border-radius: 10px;
   background: #fbfcfb;
 }
 
-.statusLabel {
-  display: block;
+.geofenceName {
   overflow: hidden;
-  margin-bottom: 6px;
-  color: var(--muted);
-  font-size: 9px;
+  color: #536159;
+  font-size: 10px;
+  font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.statusNumber {
-  font-size: 17px;
-  font-weight: 720;
+.geofenceCount {
+  margin-top: 5px;
+  font-size: 23px;
+  letter-spacing: -0.03em;
 }
 
-.skidSummary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 13px;
-  padding-top: 13px;
+.geofenceCaption {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.geofenceUnconfigured {
+  width: fit-content;
+  margin-top: 3px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  color: #895408;
+  background: #fff0cf;
+  font-size: 8px;
+  font-weight: 650;
+}
+
+.geofenceFooter {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 15px;
+  padding: 10px 14px;
   border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 10px;
 }
 
-.summaryItem {
+.quickActions {
+  margin-bottom: 15px;
+}
+
+.quickActionsHeader {
+  padding: 15px 17px 0;
+}
+
+.actionGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  padding: 13px;
+}
+
+.actionCard {
+  display: flex;
   min-width: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  text-decoration: none;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
 
-.summaryLabel {
-  display: block;
-  margin-bottom: 5px;
+.actionCard:hover {
+  border-color: #c9d6cd;
+  background: #fbfdfb;
+}
+
+.actionCard > svg {
+  flex: 0 0 auto;
+  margin-left: auto;
   color: var(--muted);
-  font-size: 10px;
 }
 
-.summaryCount {
-  font-size: 14px;
-  font-weight: 700;
+.actionIcon {
+  width: 34px;
+  height: 34px;
 }
 
-.reportDetails {
+.actionCopy {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 13px;
+  min-width: 0;
+  gap: 4px;
 }
 
-.reportMetric {
-  padding: 10px;
-  border-radius: 9px;
-  background: #f7faf7;
-}
-
-.reportMetric label {
-  display: block;
-  margin-bottom: 5px;
-  color: var(--muted);
+.actionCopy strong {
+  overflow: hidden;
   font-size: 10px;
-}
-
-.reportMetric strong {
-  font-size: 16px;
-}
-
-.reportMeta {
-  margin: 13px 0 0;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
-  color: var(--muted);
-  font-size: 10px;
-  line-height: 1.5;
-}
-
-.tableWrap {
-  max-height: 390px;
-  overflow: auto;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.table th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  padding: 10px 13px;
-  color: var(--muted);
-  background: #f8faf8;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.table td {
-  padding: 11px 13px;
-  border-top: 1px solid #eff2ef;
-  color: #46534b;
-  font-size: 11px;
-}
-
-.table strong {
-  color: var(--ink);
-  font-size: 11px;
-}
-
-.subtle {
-  display: block;
-  margin-top: 3px;
+.actionCopy small {
   color: var(--muted);
   font-size: 9px;
+  line-height: 1.35;
 }
 
-.pill {
-  display: inline-flex;
-  align-items: center;
-  min-height: 21px;
-  padding: 0 8px;
-  border-radius: 999px;
-  color: #57635b;
-  background: #eef1ee;
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: capitalize;
-}
-
-.pillGreen {
-  color: #176b4a;
-  background: #e5f4eb;
-}
-
-.pillAmber {
-  color: #895408;
-  background: #fff0cf;
-}
-
-.pillBlue {
-  color: #37648b;
-  background: #eaf2f8;
-}
-
-.pillRed {
-  color: #9e3f38;
-  background: #fdebe8;
-}
-
-.listFooter {
-  padding: 9px 13px;
-  border-top: 1px solid var(--line);
+.dashboardFooter {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 7px 14px;
   color: var(--muted);
   font-size: 10px;
 }
 
-.empty,
-.error {
+.errorBanner {
+  margin-bottom: 14px;
+  padding: 11px 13px;
+  border: 1px solid #f1ceca;
+  border-radius: 9px;
+  color: #9e3f38;
+  background: #fff8f7;
+  font-size: 11px;
+}
+
+.empty {
   display: grid;
   min-height: 150px;
   padding: 22px;
@@ -394,11 +391,6 @@
 .empty strong {
   color: var(--ink);
   font-size: 12px;
-}
-
-.error {
-  color: #9e3f38;
-  background: #fff8f7;
 }
 
 .freshnessNote {
@@ -419,28 +411,17 @@
   margin-top: 1px;
 }
 
-.link {
-  color: var(--green);
-  font-size: 11px;
-  font-weight: 650;
-  text-decoration: none;
-}
-
-.link:hover {
-  text-decoration: underline;
-}
-
 @media (max-width: 1120px) {
   .shell {
     grid-template-columns: 190px minmax(0, 1fr);
   }
 
-  .stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .geofenceGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .panelGrid {
-    grid-template-columns: minmax(0, 1fr);
+  .actionGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -457,8 +438,12 @@
     margin-bottom: 20px;
   }
 
-  .statusGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .summaryGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .actionGrid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -472,20 +457,11 @@
     min-height: 34px;
   }
 
-  .stats {
-    gap: 8px;
-  }
-
-  .statCard {
-    min-height: 68px;
-    padding: 12px;
-  }
-
-  .statusGrid {
+  .summaryMetrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .skidSummary {
+  .geofenceGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
