@@ -65,6 +65,36 @@ test('marks estimates from flagged updates for review', () => {
   assert.deepEqual(forecast.warnings, ['totalflow_decreased']);
 });
 
+test('marks failed reports for review and keeps missing readings unavailable', () => {
+  const forecast = calculateCustomerUpdateForecast({
+    messageId: 'message-failed',
+    receivedAt: null,
+    parseStatus: 'failed',
+    warnings: ['parse_failed'],
+    data: {
+      ...update,
+      PRMS: [{ ...update.PRMS[0], pressure: null, flowrate: null, skidinuse: null }],
+    },
+  });
+
+  assert.equal(forecast.parseStatus, 'failed');
+  assert.equal(forecast.prmsForecasts[0].estimatedHoursRemaining, null);
+  assert.equal(forecast.prmsForecasts[0].status, 'unavailable');
+  assert.deepEqual(forecast.prmsForecasts[0].warnings, ['missing_pressure', 'missing_skid_in_use']);
+});
+
+test('returns no forecast entries for updates without PRMS readings', () => {
+  const forecast = calculateCustomerUpdateForecast({
+    messageId: 'message-empty',
+    receivedAt: null,
+    parseStatus: 'needs_review',
+    warnings: [],
+    data: { ...update, PRMS: [] },
+  });
+
+  assert.deepEqual(forecast.prmsForecasts, []);
+});
+
 test('formats rounded minutes and carries an hour overflow', () => {
   assert.equal(formatForecastDuration(1.5), '1h:30mins');
   assert.equal(formatForecastDuration(1 + 59.6 / 60), '2h:00mins');
