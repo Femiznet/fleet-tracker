@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
         .select({
           id: skids.id,
           skidNum: skids.skidNum,
+          slugNum: skids.slugNum,
           fillState: plantSkidStatuses.fillState,
           bay: plantSkidStatuses.bay,
           isOnMaintenance: plantSkidStatuses.isOnMaintenance,
@@ -53,6 +54,7 @@ export async function GET(request: NextRequest) {
         .select({
           id: trucks.id,
           truckNum: trucks.truckNum,
+          slugNum: trucks.slugNum,
           currentLoc: trucks.currentLoc,
           status: trucks.status,
           isStandby: plantTruckStatuses.isStandby,

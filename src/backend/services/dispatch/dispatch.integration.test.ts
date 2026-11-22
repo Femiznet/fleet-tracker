@@ -10,10 +10,11 @@ dotenv.config({ path: '.env.local' });
 const databaseTest = process.env.DATABASE_URL ? test : test.skip;
 
 databaseTest('dispatch and pickup lifecycle operations enforce movement rules', async () => {
-  const [{ db }, schema, dispatch] = await Promise.all([
+  const [{ db }, schema, dispatch, dispatchReview] = await Promise.all([
     import('../../db'),
     import('../../db/schema'),
     import('./index'),
+    import('../messages/dispatch-review-repository'),
   ]);
   const { customers, movements, skids, trips, trucks } = schema;
   const {
@@ -23,6 +24,7 @@ databaseTest('dispatch and pickup lifecycle operations enforce movement rules', 
     createPickup,
     markMovementNotified,
   } = dispatch;
+  const { findSkidByIdentifier, findTruckByIdentifier } = dispatchReview;
   const suffix = randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase();
   const rollback = new Error('Roll back movement integration fixtures');
 
@@ -40,7 +42,8 @@ databaseTest('dispatch and pickup lifecycle operations enforce movement rules', 
         name: string,
         currentLoc: string,
         group = 'GASTECH VEHICLES',
-        status: 'available' | 'standby' = 'available'
+        status: 'available' | 'standby' = 'available',
+        slugNum?: string
       ) {
         const [truck] = await tx
           .insert(trucks)
@@ -52,6 +55,7 @@ databaseTest('dispatch and pickup lifecycle operations enforce movement rules', 
             currentLoc,
             speed: 0,
             status,
+            slugNum,
           })
           .returning();
         return truck;
@@ -61,7 +65,8 @@ databaseTest('dispatch and pickup lifecycle operations enforce movement rules', 
         name: string,
         currentLoc: string,
         status: 'available' | 'at_customer' = 'available',
-        owner: 'gastech' | 'customer' = 'gastech'
+        owner: 'gastech' | 'customer' = 'gastech',
+        slugNum?: string
       ) {
         const [skid] = await tx
           .insert(skids)
@@ -71,6 +76,7 @@ databaseTest('dispatch and pickup lifecycle operations enforce movement rules', 
             status,
             owner,
             customerId: owner === 'customer' ? customer.id : null,
+            slugNum,
           })
           .returning();
         return skid;
@@ -82,6 +88,24 @@ databaseTest('dispatch and pickup lifecycle operations enforce movement rules', 
 
       const plantTruck = await addTruck('PLANT', 'GASTECH PLANT');
       const plantSkid = await addSkid('PLANT', 'GASTECH PLANT');
+      const slugTruck = await addTruck(
+        'SLUG-MATCH',
+        'GASTECH PLANT',
+        'GASTECH VEHICLES',
+        'available',
+        `TRK${suffix}`
+      );
+      const slugSkid = await addSkid(
+        'SLUG-MATCH',
+        'GASTECH PLANT',
+        'available',
+        'gastech',
+        `SKD${suffix}`
+      );
+      assert.equal((await findTruckByIdentifier(tx, slugTruck.slugNum!))?.id, slugTruck.id);
+      assert.equal((await findTruckByIdentifier(tx, slugTruck.truckNum))?.id, slugTruck.id);
+      assert.equal((await findSkidByIdentifier(tx, slugSkid.slugNum!))?.id, slugSkid.id);
+      assert.equal((await findSkidByIdentifier(tx, slugSkid.skidNum))?.id, slugSkid.id);
       const direct = await createDirectDispatch(
         {
           truckId: plantTruck.id,

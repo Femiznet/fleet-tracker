@@ -60,6 +60,7 @@ type SearchableOption = {
   detail: string;
   searchText?: string;
   scanCode?: string;
+  scanCodes?: string[];
 };
 
 function SearchableSelect({
@@ -140,7 +141,9 @@ function SearchableSelect({
       const normalizedQuery = (query ?? '').trim().toLowerCase();
       const scanMatch = options.find(
         (option) =>
-          option.scanCode?.toLowerCase() === normalizedQuery ||
+          [option.scanCode, ...(option.scanCodes ?? [])]
+            .filter(Boolean)
+            .some((code) => code?.toLowerCase() === normalizedQuery) ||
           option.value.toLowerCase() === normalizedQuery
       );
       const option =
@@ -319,7 +322,7 @@ function MovementActionCard({
   }
 
   return (
-    <article className={styles.movementCard}>
+    <article className={styles.movementCard} id={`movement-${movement.id}`}>
       <header className={styles.movementCardHeader}>
         <div className={styles.movementIcon}>
           {movement.currentDirection === 'inbound' ? (
@@ -535,6 +538,43 @@ export default function MovementWorkspace() {
   const [dispatchResult, setDispatchResult] = useState<DirectDispatchResult | null>(null);
   const [notificationSent, setNotificationSent] = useState(false);
   const [copyingNotice, setCopyingNotice] = useState(false);
+  const alertMovementIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    function focusMovement(href: string) {
+      const url = new URL(href, window.location.origin);
+      if (url.pathname !== '/movements') return;
+      alertMovementIdRef.current = url.searchParams.get('movementId');
+      setView('active');
+    }
+
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('view') === 'active') {
+        alertMovementIdRef.current = params.get('movementId');
+        setView('active');
+      }
+    }, 0);
+
+    function handleAlertNavigation(event: Event) {
+      const alert = (event as CustomEvent<{ id: string; href: string }>).detail;
+      if (alert?.id === 'movement-completion') focusMovement(alert.href);
+    }
+
+    window.addEventListener('officer-alert-navigate', handleAlertNavigation);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('officer-alert-navigate', handleAlertNavigation);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (view !== 'active') return;
+    const targetId = alertMovementIdRef.current
+      ? `movement-${alertMovementIdRef.current}`
+      : 'movement-completion';
+    document.getElementById(targetId)?.scrollIntoView({ block: 'center' });
+  }, [activeMovements, view]);
 
   const refresh = useCallback(
     async (showLoading = false) => {
@@ -595,9 +635,10 @@ export default function MovementWorkspace() {
       (options?.trucks ?? []).map((truck) => ({
         value: truck.id,
         label: truck.truckNum,
-        detail: truck.currentLoc,
-        searchText: `${truck.driverName ?? ''} ${truck.driverContact ?? ''}`,
+        detail: [truck.slugNum, truck.currentLoc].filter(Boolean).join(' · '),
+        searchText: `${truck.slugNum ?? ''} ${truck.driverName ?? ''} ${truck.driverContact ?? ''}`,
         scanCode: truck.truckNum,
+        scanCodes: truck.slugNum ? [truck.slugNum] : [],
       })),
     [options?.trucks]
   );
@@ -631,9 +672,10 @@ export default function MovementWorkspace() {
       availableSkids.map((skid) => ({
         value: skid.id,
         label: skid.skidNum,
-        detail: skid.currentLoc,
-        searchText: skid.owner,
+        detail: [skid.slugNum, skid.currentLoc].filter(Boolean).join(' · '),
+        searchText: `${skid.slugNum ?? ''} ${skid.owner}`,
         scanCode: skid.skidNum,
+        scanCodes: skid.slugNum ? [skid.slugNum] : [],
       })),
     [availableSkids]
   );
@@ -642,9 +684,10 @@ export default function MovementWorkspace() {
       pickupSkids.map((skid) => ({
         value: skid.id,
         label: skid.skidNum,
-        detail: skid.currentLoc,
-        searchText: skid.owner,
+        detail: [skid.slugNum, skid.currentLoc].filter(Boolean).join(' · '),
+        searchText: `${skid.slugNum ?? ''} ${skid.owner}`,
         scanCode: skid.skidNum,
+        scanCodes: skid.slugNum ? [skid.slugNum] : [],
       })),
     [pickupSkids]
   );
@@ -1028,7 +1071,7 @@ export default function MovementWorkspace() {
             </form>
           </section>
         ) : (
-          <section className={styles.activeSection}>
+          <section className={styles.activeSection} id="movement-completion">
             <header className={styles.sectionHeader}>
               <span className={styles.sectionIcon}>
                 <Waypoints size={16} />

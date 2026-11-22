@@ -1,5 +1,5 @@
-import { and, desc, eq, ilike, ne, sql } from 'drizzle-orm';
-import { db } from '@/backend/db';
+import { and, desc, eq, ne, sql } from 'drizzle-orm';
+import { db, type DbTransaction } from '@/backend/db';
 import {
   customers,
   messages,
@@ -28,6 +28,40 @@ export class DispatchReviewError extends Error {
   ) {
     super(message);
   }
+}
+
+export async function findTruckByIdentifier(transaction: DbTransaction, identifier: string) {
+  const normalizedIdentifier = identifier.trim();
+  const [byPlate] = await transaction
+    .select({ id: trucks.id })
+    .from(trucks)
+    .where(sql`LOWER(TRIM(${trucks.truckNum})) = LOWER(${normalizedIdentifier})`)
+    .limit(1);
+  if (byPlate) return byPlate;
+
+  const [bySlug] = await transaction
+    .select({ id: trucks.id })
+    .from(trucks)
+    .where(sql`LOWER(TRIM(${trucks.slugNum})) = LOWER(${normalizedIdentifier})`)
+    .limit(1);
+  return bySlug;
+}
+
+export async function findSkidByIdentifier(transaction: DbTransaction, identifier: string) {
+  const normalizedIdentifier = identifier.trim();
+  const [byNumber] = await transaction
+    .select({ id: skids.id })
+    .from(skids)
+    .where(sql`LOWER(TRIM(${skids.skidNum})) = LOWER(${normalizedIdentifier})`)
+    .limit(1);
+  if (byNumber) return byNumber;
+
+  const [bySlug] = await transaction
+    .select({ id: skids.id })
+    .from(skids)
+    .where(sql`LOWER(TRIM(${skids.slugNum})) = LOWER(${normalizedIdentifier})`)
+    .limit(1);
+  return bySlug;
 }
 
 export async function listMessages(input: {
@@ -171,11 +205,7 @@ export async function approveDispatchMessage(
         return { status: 'duplicate' as const, duplicateOfMessageId: existingApproved.messageId };
       }
 
-      const [truck] = await tx
-        .select({ id: trucks.id })
-        .from(trucks)
-        .where(ilike(trucks.truckNum, details.truckNumber))
-        .limit(1);
+      const truck = await findTruckByIdentifier(tx, details.truckNumber);
       if (!truck) {
         throw new DispatchReviewError(
           `Truck ${details.truckNumber} was not found`,
@@ -184,11 +214,7 @@ export async function approveDispatchMessage(
         );
       }
 
-      const [skid] = await tx
-        .select({ id: skids.id })
-        .from(skids)
-        .where(ilike(skids.skidNum, details.skidNumber))
-        .limit(1);
+      const skid = await findSkidByIdentifier(tx, details.skidNumber);
       if (!skid) {
         throw new DispatchReviewError(
           `Skid ${details.skidNumber} was not found`,

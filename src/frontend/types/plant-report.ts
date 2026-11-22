@@ -33,6 +33,7 @@ export const PlantReportMetricsSchema = z.object({
 export const PlantYardSkidSchema = z.object({
   id: z.string(),
   skidNum: z.string(),
+  slugNum: z.string().nullable(),
   fillState: z.enum(['empty', 'loading', 'loaded', 'on_hold']).nullable(),
   bay: z.enum(['washing_bay', 'loading_bay', 'parking_bay']).nullable(),
   isNew: z.boolean(),
@@ -61,6 +62,7 @@ export const PlantDashboardDataSchema = z.object({
     z.object({
       id: z.string(),
       truckNum: z.string(),
+      slugNum: z.string().nullable(),
       currentLoc: z.string(),
       status: z.enum(['available', 'in_transit', 'standby', 'at_customer', 'maintenance']),
       isStandby: z.boolean().nullable(),

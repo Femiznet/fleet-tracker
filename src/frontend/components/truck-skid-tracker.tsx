@@ -1,6 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from 'react';
 import {
   Activity,
   Box,
@@ -13,6 +21,11 @@ import {
   Truck,
 } from 'lucide-react';
 import { getTrackerData } from '@/frontend/actions/tracker';
+import {
+  recordSkidAtCustomer,
+  searchSkidGeofences,
+  type SkidGeofenceOption,
+} from '@/frontend/actions/skids';
 import type { SkidTrackerItem, TrackerData, TruckTrackerItem } from '@/frontend/types/tracker';
 import OperationsSidebar from './operations-sidebar';
 import { useToast } from './toast-provider';
@@ -230,7 +243,7 @@ function TruckDetails({ truck }: { truck: TruckTrackerItem }) {
   const mapUrl = `https://www.google.com/maps/search/?api=1&query=${truck.lat},${truck.lon}`;
 
   return (
-    <aside className={styles.detailPanel}>
+    <aside className={styles.detailPanel} id={`tracker-truck-${truck.id}`}>
       <header className={styles.detailHeader}>
         <div>
           <span className={styles.detailEyebrow}>Truck details</span>
@@ -315,8 +328,88 @@ function TruckDetails({ truck }: { truck: TruckTrackerItem }) {
   );
 }
 
-function SkidDetails({ skid }: { skid: SkidTrackerItem }) {
+function SkidDetails({
+  skid,
+  onLocationUpdated,
+}: {
+  skid: SkidTrackerItem;
+  onLocationUpdated: () => Promise<void>;
+}) {
   const availability = skidAvailability(skid);
+  const showToast = useToast();
+  const [customerGeofenceQuery, setCustomerGeofenceQuery] = useState(
+    skid.status === 'at_customer' ? skid.currentLoc : ''
+  );
+  const [selectedGeofence, setSelectedGeofence] = useState('');
+  const [customerGeofenceOptions, setCustomerGeofenceOptions] = useState<SkidGeofenceOption[]>([]);
+  const [searchingGeofences, setSearchingGeofences] = useState(false);
+  const [geofenceSearchError, setGeofenceSearchError] = useState('');
+  const [geofencePickerOpen, setGeofencePickerOpen] = useState(false);
+  const [activeGeofenceIndex, setActiveGeofenceIndex] = useState(-1);
+  const [savingLocation, setSavingLocation] = useState(false);
+  useEffect(() => {
+    const query = customerGeofenceQuery.trim();
+    if (
+      skid.owner !== 'gastech' ||
+      query.length < 2 ||
+      (selectedGeofence && query === selectedGeofence)
+    ) {
+      return;
+    }
+
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      setSearchingGeofences(true);
+      setGeofenceSearchError('');
+      try {
+        const customers = await searchSkidGeofences(query);
+        if (active) setCustomerGeofenceOptions(customers);
+      } catch (error) {
+        if (active) {
+          setGeofenceSearchError(
+            error instanceof Error ? error.message : 'Customer geofence search failed.'
+          );
+        }
+      } finally {
+        if (active) setSearchingGeofences(false);
+      }
+    }, 250);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [customerGeofenceQuery, selectedGeofence, skid.owner]);
+
+  function selectGeofence(geofence: SkidGeofenceOption, index: number) {
+    setCustomerGeofenceQuery(geofence.geofenceName);
+    setSelectedGeofence(geofence.geofenceName);
+    setActiveGeofenceIndex(index);
+    setGeofencePickerOpen(false);
+  }
+
+  async function submitCustomerLocation(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedGeofence) {
+      showToast({ tone: 'error', title: 'Select a customer geofence' });
+      return;
+    }
+
+    setSavingLocation(true);
+    try {
+      await recordSkidAtCustomer(skid.id, selectedGeofence);
+      await onLocationUpdated();
+      showToast({ tone: 'success', title: 'Skid location recorded' });
+    } catch (error) {
+      showToast({
+        tone: 'error',
+        title: 'Unable to record skid location',
+        description: error instanceof Error ? error.message : 'Please try again.',
+      });
+    } finally {
+      setSavingLocation(false);
+    }
+  }
 
   return (
     <aside className={styles.detailPanel}>
@@ -333,11 +426,115 @@ function SkidDetails({ skid }: { skid: SkidTrackerItem }) {
       <div className={styles.primaryLocation}>
         <MapPinned size={17} />
         <div>
-          <span>Last recorded location</span>
+          <span>Current location</span>
           <strong>{formatLocation(skid.currentLoc)}</strong>
-          {skid.customerName ? <small>{skid.customerName}</small> : null}
         </div>
       </div>
+      {skid.owner === 'gastech' ? (
+        <form className={styles.locationEditor} onSubmit={submitCustomerLocation}>
+          <label htmlFor={`customer-geofence-${skid.id}`}>Found at customer</label>
+          <div className={styles.geofenceSearch}>
+            <input
+              id={`customer-geofence-${skid.id}`}
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded={geofencePickerOpen && customerGeofenceQuery.trim().length >= 2}
+              aria-controls={`customer-geofence-options-${skid.id}`}
+              aria-activedescendant={
+                geofencePickerOpen && activeGeofenceIndex >= 0
+                  ? `customer-geofence-option-${skid.id}-${activeGeofenceIndex}`
+                  : undefined
+              }
+              value={customerGeofenceQuery}
+              onFocus={() => setGeofencePickerOpen(true)}
+              onBlur={() => setGeofencePickerOpen(false)}
+              onKeyDown={(event) => {
+                if (event.key === 'ArrowDown' && customerGeofenceOptions.length) {
+                  event.preventDefault();
+                  setGeofencePickerOpen(true);
+                  setActiveGeofenceIndex((current) =>
+                    Math.min(current + 1, customerGeofenceOptions.length - 1)
+                  );
+                } else if (event.key === 'ArrowUp' && customerGeofenceOptions.length) {
+                  event.preventDefault();
+                  setActiveGeofenceIndex((current) => Math.max(current - 1, 0));
+                } else if (
+                  event.key === 'Enter' &&
+                  geofencePickerOpen &&
+                  customerGeofenceOptions[activeGeofenceIndex]
+                ) {
+                  event.preventDefault();
+                  selectGeofence(customerGeofenceOptions[activeGeofenceIndex], activeGeofenceIndex);
+                } else if (event.key === 'Escape') {
+                  setGeofencePickerOpen(false);
+                }
+              }}
+              onChange={(event) => {
+                setCustomerGeofenceQuery(event.target.value);
+                setSelectedGeofence('');
+                setActiveGeofenceIndex(-1);
+                setCustomerGeofenceOptions([]);
+                setSearchingGeofences(false);
+                setGeofenceSearchError('');
+                setGeofencePickerOpen(true);
+              }}
+              placeholder="Search customer or geofence name"
+              autoComplete="off"
+              disabled={savingLocation}
+            />
+            {geofencePickerOpen && customerGeofenceQuery.trim().length >= 2 ? (
+              <div
+                className={styles.geofenceOptions}
+                id={`customer-geofence-options-${skid.id}`}
+                role="listbox"
+                aria-label="Customer geofences"
+              >
+                {customerGeofenceOptions.map((customer, index) => (
+                  <button
+                    type="button"
+                    role="option"
+                    id={`customer-geofence-option-${skid.id}-${index}`}
+                    aria-selected={activeGeofenceIndex === index}
+                    key={customer.id}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => selectGeofence(customer, index)}
+                  >
+                    <strong>{customer.geofenceName}</strong>
+                    <span>{customer.name}</span>
+                  </button>
+                ))}
+                {searchingGeofences ? (
+                  <div className={styles.geofenceOptionMessage}>Searching geofences...</div>
+                ) : null}
+                {!searchingGeofences &&
+                !geofenceSearchError &&
+                customerGeofenceOptions.length === 0 ? (
+                  <div className={styles.geofenceOptionMessage}>
+                    No matching customer geofences.
+                  </div>
+                ) : null}
+                {geofenceSearchError ? (
+                  <div className={styles.geofenceOptionError} role="alert">
+                    {geofenceSearchError}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+          <small>Select a geofence to mark the skid as at the customer.</small>
+          <button
+            className={styles.primaryButton}
+            type="submit"
+            disabled={savingLocation || !selectedGeofence}
+          >
+            {savingLocation ? 'Saving...' : 'Record location'}
+          </button>
+        </form>
+      ) : (
+        <div className={styles.detailHint}>
+          Customer-owned skid locations are not tracked and remain pending.
+        </div>
+      )}
       <div className={styles.detailMetrics}>
         <div>
           <span>Fill state</span>
@@ -351,6 +548,12 @@ function SkidDetails({ skid }: { skid: SkidTrackerItem }) {
           <span>Owner</span>
           <strong>{statusLabel(skid.owner)}</strong>
         </div>
+        {skid.customerName ? (
+          <div>
+            <span>Owned by</span>
+            <strong>{skid.customerName}</strong>
+          </div>
+        ) : null}
         <div>
           <span>New skid</span>
           <strong>{skid.isNew ? 'Yes' : 'No'}</strong>
@@ -387,7 +590,41 @@ export default function TruckSkidTracker() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const lastErrorRef = useRef<string | null>(null);
+  const alertTruckIdRef = useRef<string | null>(null);
   const showToast = useToast();
+
+  useEffect(() => {
+    function focusTruck(href: string) {
+      const url = new URL(href, window.location.origin);
+      if (url.pathname !== '/tracker') return;
+      alertTruckIdRef.current = url.searchParams.get('truckId');
+      setSelectedTruckId(alertTruckIdRef.current);
+      setView('trucks');
+      setSearch('');
+      setStatusFilter('all');
+      setLocationFilter('all');
+    }
+
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('view') === 'trucks') {
+        alertTruckIdRef.current = params.get('truckId');
+        setSelectedTruckId(alertTruckIdRef.current);
+        setView('trucks');
+      }
+    }, 0);
+
+    function handleAlertNavigation(event: Event) {
+      const alert = (event as CustomEvent<{ id: string; href: string }>).detail;
+      if (alert?.id === 'tracker-location') focusTruck(alert.href);
+    }
+
+    window.addEventListener('officer-alert-navigate', handleAlertNavigation);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('officer-alert-navigate', handleAlertNavigation);
+    };
+  }, []);
 
   const refresh = useCallback(
     async (showLoading = false) => {
@@ -488,6 +725,14 @@ export default function TruckSkidTracker() {
     filteredTrucks.find((truck) => truck.id === selectedTruckId) ?? filteredTrucks[0] ?? null;
   const selectedSkid =
     filteredSkids.find((skid) => skid.id === selectedSkidId) ?? filteredSkids[0] ?? null;
+
+  useEffect(() => {
+    if (view !== 'trucks') return;
+    const targetId = alertTruckIdRef.current
+      ? `tracker-truck-${alertTruckIdRef.current}`
+      : 'tracker-location';
+    document.getElementById(targetId)?.scrollIntoView({ block: 'center' });
+  }, [data, filteredTrucks, view]);
 
   return (
     <div className={styles.shell}>
@@ -630,7 +875,7 @@ export default function TruckSkidTracker() {
           <Overview data={data} onSelect={setView} />
         ) : view === 'trucks' ? (
           <div className={styles.trackerLayout}>
-            <section className={styles.assetListPanel}>
+            <section className={styles.assetListPanel} id="tracker-location">
               <header className={styles.listHeader}>
                 <div>
                   <h2>Trucks</h2>
@@ -719,7 +964,11 @@ export default function TruckSkidTracker() {
               </div>
             </section>
             {selectedSkid ? (
-              <SkidDetails skid={selectedSkid} />
+              <SkidDetails
+                key={selectedSkid.id}
+                skid={selectedSkid}
+                onLocationUpdated={() => refresh()}
+              />
             ) : (
               <div className={styles.emptyState}>Select a skid to review its status.</div>
             )}

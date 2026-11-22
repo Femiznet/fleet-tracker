@@ -108,9 +108,32 @@ export default function DispatchInbox() {
   const [busyNotificationId, setBusyNotificationId] = useState<string | null>(null);
   const [copyingNotice, setCopyingNotice] = useState(false);
   const selectedIdRef = useRef<string | null>(null);
+  const messagesRef = useRef<DispatchMessage[]>([]);
+  const alertNotificationIdRef = useRef<string | null>(null);
   const inboxErrorRef = useRef<string | null>(null);
   const reminderErrorRef = useRef<string | null>(null);
   const showToast = useToast();
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      const messageId = params.get('messageId');
+      alertNotificationIdRef.current = params.get('notificationId');
+      if (messageId) {
+        selectedIdRef.current = messageId;
+        setSelectedId(messageId);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const notificationId = alertNotificationIdRef.current;
+    if (!notificationId || !notifications.length) return;
+    document
+      .getElementById(`dispatch-notification-${notificationId}`)
+      ?.scrollIntoView({ block: 'center' });
+  }, [notifications]);
 
   const refresh = useCallback(
     async (showLoading = false) => {
@@ -121,6 +144,7 @@ export default function DispatchInbox() {
       ]);
 
       if (inboxResult.status === 'fulfilled') {
+        messagesRef.current = inboxResult.value.messages;
         setMessages(inboxResult.value.messages);
         setPagination(inboxResult.value.pagination);
         inboxErrorRef.current = null;
@@ -188,6 +212,39 @@ export default function DispatchInbox() {
     setSelectedId(message.id);
     setDetails(message.parsedData ?? EMPTY_DETAILS);
   }
+
+  useEffect(() => {
+    function handleAlertNavigation(event: Event) {
+      const alert = (event as CustomEvent<{ id: string; href: string }>).detail;
+      if (alert?.id !== 'dispatch-review' && alert?.id !== 'dispatch-notifications') return;
+      const url = new URL(alert.href, window.location.origin);
+      if (url.pathname !== '/dispatch') return;
+
+      setFilter('pending');
+      setPage(1);
+      const messageId = url.searchParams.get('messageId');
+      const message = messagesRef.current.find((item) => item.id === messageId);
+      if (message) selectMessage(message);
+      else if (messageId) {
+        selectedIdRef.current = messageId;
+        setSelectedId(messageId);
+      }
+
+      const notificationId = url.searchParams.get('notificationId');
+      if (!notificationId) return;
+      alertNotificationIdRef.current = notificationId;
+      window.setTimeout(
+        () =>
+          document
+            .getElementById(`dispatch-notification-${notificationId}`)
+            ?.scrollIntoView({ block: 'center' }),
+        0
+      );
+    }
+
+    window.addEventListener('officer-alert-navigate', handleAlertNavigation);
+    return () => window.removeEventListener('officer-alert-navigate', handleAlertNavigation);
+  }, []);
 
   function updateField(field: keyof DispatchDetails) {
     return (event: ChangeEvent<HTMLInputElement>) => setDetailField(field, event, setDetails);
@@ -360,7 +417,11 @@ export default function DispatchInbox() {
           </div>
         </section>
 
-        <section className={styles.reminders} aria-labelledby="reminders-title">
+        <section
+          className={styles.reminders}
+          aria-labelledby="reminders-title"
+          id="dispatch-notifications"
+        >
           <div className={styles.remindersHeader}>
             <h2 className={styles.remindersHeading} id="reminders-title">
               <BellRing size={15} /> Dispatch reminders
@@ -380,6 +441,7 @@ export default function DispatchInbox() {
                 <article
                   className={`${styles.reminderCard} ${notification.overdue ? styles.reminderCardOverdue : ''}`}
                   key={notification.notificationId}
+                  id={`dispatch-notification-${notification.notificationId}`}
                 >
                   <div>
                     <p className={styles.reminderCustomer}>{notification.customerName}</p>
@@ -427,7 +489,11 @@ export default function DispatchInbox() {
           )}
         </section>
 
-        <section className={styles.workspace} aria-label="Dispatch message review">
+        <section
+          className={styles.workspace}
+          aria-label="Dispatch message review"
+          id="dispatch-review"
+        >
           <div className={styles.inbox}>
             <div className={styles.inboxToolbar}>
               <div>

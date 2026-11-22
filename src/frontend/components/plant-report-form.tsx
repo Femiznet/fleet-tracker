@@ -88,6 +88,11 @@ function countSkids(groups: { customer: string[]; gastech: string[] }) {
   return groups.customer.length + groups.gastech.length;
 }
 
+function plantDisplayNumber(slugNum: string | null, fullNumber: string, digits: number) {
+  const slugDigits = slugNum?.replace(/\D/g, '') ?? '';
+  return slugDigits ? slugDigits.slice(-digits) : fullNumber;
+}
+
 function formatReportDate(value: string) {
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: 'medium',
@@ -496,6 +501,7 @@ export default function PlantReportForm() {
   const [copied, setCopied] = useState(false);
   const [copying, setCopying] = useState(false);
   const nextRowId = useRef(0);
+  const alertAssetRef = useRef<{ kind: 'truck' | 'skid'; number: string } | null>(null);
   const showToast = useToast();
 
   const {
@@ -506,6 +512,36 @@ export default function PlantReportForm() {
     setMetrics,
     setFormattedMessage,
   } = usePlantStatusStore();
+
+  useEffect(() => {
+    function focusAsset(href: string) {
+      const url = new URL(href, window.location.origin);
+      if (url.pathname !== '/plant-report') return;
+      const section = url.searchParams.get('section');
+      if (section === 'trucks' || section === 'skids') setActiveSection(section);
+      const truck = url.searchParams.get('truck');
+      const skid = url.searchParams.get('skid');
+      if (truck) {
+        alertAssetRef.current = { kind: 'truck', number: truck };
+        setTruckSearch(truck);
+      } else if (skid) {
+        alertAssetRef.current = { kind: 'skid', number: skid };
+        setSearch(skid);
+      }
+    }
+
+    focusAsset(`${window.location.pathname}${window.location.search}`);
+
+    function handleAlertNavigation(event: Event) {
+      const alert = (event as CustomEvent<{ id: string; href: string }>).detail;
+      if (alert?.id === 'plant-truck-maintenance' || alert?.id === 'plant-skid-maintenance') {
+        focusAsset(alert.href);
+      }
+    }
+
+    window.addEventListener('officer-alert-navigate', handleAlertNavigation);
+    return () => window.removeEventListener('officer-alert-navigate', handleAlertNavigation);
+  }, []);
 
   const loadStatus = useCallback(async () => {
     setLoading(true);
@@ -541,6 +577,38 @@ export default function PlantReportForm() {
     const timer = window.setTimeout(() => void loadStatus(), 0);
     return () => window.clearTimeout(timer);
   }, [loadStatus]);
+
+  useEffect(() => {
+    const target = alertAssetRef.current;
+    if (!target) return;
+    const asset =
+      target.kind === 'truck'
+        ? dashboard?.plantTrucks.find(
+            (truck) =>
+              truck.truckNum.toLowerCase() === target.number.toLowerCase() ||
+              truck.slugNum?.toLowerCase().endsWith(target.number.toLowerCase())
+          )
+        : dashboard?.plantSkids.find(
+            (skid) =>
+              skid.skidNum.toLowerCase() === target.number.toLowerCase() ||
+              skid.slugNum?.toLowerCase().endsWith(target.number.toLowerCase())
+          );
+    const assetNumber =
+      target.kind === 'truck'
+        ? asset && 'truckNum' in asset
+          ? asset.truckNum
+          : target.number
+        : asset && 'skidNum' in asset
+          ? asset.skidNum
+          : target.number;
+    const targetId = `plant-${target.kind}-${encodeURIComponent(assetNumber)}`;
+    const sectionId =
+      target.kind === 'truck' ? 'plant-maintenance-trucks' : 'plant-maintenance-skids';
+    const element = document.getElementById(targetId) ?? document.getElementById(sectionId);
+    if (!element) return;
+    element.scrollIntoView({ block: 'center' });
+    alertAssetRef.current = null;
+  }, [activeSection, dashboard, search, truckSearch]);
 
   useEffect(() => {
     if (!dashboard) return;
@@ -588,6 +656,7 @@ export default function PlantReportForm() {
       if (
         query &&
         !skid.skidNum.toLowerCase().includes(query) &&
+        !skid.slugNum?.toLowerCase().includes(query) &&
         !skid.customerName?.toLowerCase().includes(query)
       )
         return false;
@@ -603,11 +672,15 @@ export default function PlantReportForm() {
   const filteredPlantTrucks = useMemo(() => {
     const query = truckSearch.trim().toLowerCase();
     if (!dashboard || !query) return [];
-    return dashboard.plantTrucks.filter((truck) => truck.truckNum.toLowerCase().includes(query));
+    return dashboard.plantTrucks.filter(
+      (truck) =>
+        truck.truckNum.toLowerCase().includes(query) || truck.slugNum?.toLowerCase().includes(query)
+    );
   }, [dashboard, truckSearch]);
 
   async function recordSkidStatus(skid: PlantYardSkid, status: SkidStatusDraft) {
     if (saving || loading || !hasSkidStatusChanges(skid, status)) return;
+    const displayNumber = plantDisplayNumber(skid.slugNum, skid.skidNum, 4);
     setSaving(true);
     try {
       await updateSkidStatus(skid.id, {
@@ -618,7 +691,7 @@ export default function PlantReportForm() {
         note: status.note.trim() || null,
       });
       await loadStatus();
-      showToast({ tone: 'success', title: `Skid ${skid.skidNum} status recorded` });
+      showToast({ tone: 'success', title: `Skid ${displayNumber} status recorded` });
     } catch (saveError) {
       showToast({
         tone: 'error',
@@ -948,7 +1021,7 @@ export default function PlantReportForm() {
             </section>
           </div>
         ) : activeSection === 'trucks' ? (
-          <section className={styles.truckStatus}>
+          <section className={styles.truckStatus} id="plant-maintenance-trucks">
             <header className={styles.skidListHeader}>
               <strong>Trucks at plant</strong>
               <span>{filteredPlantTrucks.length} found</span>
@@ -959,7 +1032,7 @@ export default function PlantReportForm() {
                 id="truck-search"
                 value={truckSearch}
                 onChange={(event) => setTruckSearch(event.target.value)}
-                placeholder="Search by truck number"
+                placeholder="Search by truck number or slug"
               />
             </div>
             <div className={styles.truckList}>
@@ -970,11 +1043,16 @@ export default function PlantReportForm() {
               ) : filteredPlantTrucks.length ? (
                 filteredPlantTrucks.map((truck) => {
                   const status = truckStatuses[truck.id] ?? getTruckStatusDraft(truck);
+                  const displayNumber = plantDisplayNumber(truck.slugNum, truck.truckNum, 2);
                   const hasChanges = hasTruckStatusChanges(truck, status);
                   return (
-                    <article className={styles.truckRow} key={truck.id}>
+                    <article
+                      className={styles.truckRow}
+                      key={truck.id}
+                      id={`plant-truck-${encodeURIComponent(truck.truckNum)}`}
+                    >
                       <div className={styles.truckIdentity}>
-                        <strong>{truck.truckNum}</strong>
+                        <strong>{displayNumber}</strong>
                         <span>{truck.currentLoc}</span>
                       </div>
                       <div className={styles.truckToggles}>
@@ -984,7 +1062,7 @@ export default function PlantReportForm() {
                             type="button"
                             role="switch"
                             aria-checked={status.isStandby}
-                            aria-label={`${truck.truckNum} standby`}
+                            aria-label={`${displayNumber} standby`}
                             disabled={saving || loading}
                             className={`${styles.toggle} ${status.isStandby ? styles.toggleOn : ''}`}
                             onClick={() =>
@@ -1003,7 +1081,7 @@ export default function PlantReportForm() {
                             type="button"
                             role="switch"
                             aria-checked={status.isOnMaintenance}
-                            aria-label={`${truck.truckNum} maintenance`}
+                            aria-label={`${displayNumber} maintenance`}
                             disabled={saving || loading}
                             className={`${styles.toggle} ${status.isOnMaintenance ? styles.toggleOn : ''}`}
                             onClick={() =>
@@ -1020,7 +1098,7 @@ export default function PlantReportForm() {
                       {status.isOnMaintenance ? (
                         <input
                           className={styles.truckMaintenanceNote}
-                          aria-label={`${truck.truckNum} maintenance note`}
+                          aria-label={`${displayNumber} maintenance note`}
                           value={status.maintenanceNote}
                           disabled={saving || loading}
                           onChange={(event) =>
@@ -1049,7 +1127,7 @@ export default function PlantReportForm() {
                             await loadStatus();
                             showToast({
                               tone: 'success',
-                              title: `Truck ${truck.truckNum} status recorded`,
+                              title: `Truck ${displayNumber} status recorded`,
                             });
                           } catch (saveError) {
                             showToast({
@@ -1074,7 +1152,7 @@ export default function PlantReportForm() {
             </div>
           </section>
         ) : activeSection === 'skids' ? (
-          <section className={styles.skidListPanel}>
+          <section className={styles.skidListPanel} id="plant-maintenance-skids">
             <SkidRegistrationForm onRegistered={loadStatus} />
             <div className={styles.skidListHeader}>
               <strong>Plant skids</strong>
@@ -1087,7 +1165,7 @@ export default function PlantReportForm() {
                   id="plant-skid-search"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search skid number or customer"
+                  placeholder="Search skid number, slug, or customer"
                 />
               </div>
               <button
@@ -1168,13 +1246,18 @@ export default function PlantReportForm() {
               ) : filteredSkids.length ? (
                 filteredSkids.map((skid) => {
                   const status = skidStatuses[skid.id] ?? getSkidStatusDraft(skid);
+                  const displayNumber = plantDisplayNumber(skid.slugNum, skid.skidNum, 4);
                   const hasChanges = hasSkidStatusChanges(skid, status);
 
                   return (
-                    <article className={styles.skidRow} key={skid.id}>
+                    <article
+                      className={styles.skidRow}
+                      key={skid.id}
+                      id={`plant-skid-${encodeURIComponent(skid.skidNum)}`}
+                    >
                       <div className={styles.skidRowMain}>
                         <div className={styles.skidIdentity}>
-                          <strong>{skid.skidNum}</strong>
+                          <strong>{displayNumber}</strong>
                           <span>
                             {skid.owner === 'customer' && skid.customerName
                               ? skid.customerName
@@ -1249,7 +1332,7 @@ export default function PlantReportForm() {
                               type="button"
                               role="switch"
                               aria-checked={status.isOnMaintenance}
-                              aria-label={`${skid.skidNum} maintenance`}
+                              aria-label={`${displayNumber} maintenance`}
                               disabled={saving || loading}
                               className={`${styles.toggle} ${status.isOnMaintenance ? styles.toggleOn : ''}`}
                               onClick={() =>
@@ -1278,7 +1361,7 @@ export default function PlantReportForm() {
                       {skid.owner === 'gastech' && status.isOnMaintenance ? (
                         <textarea
                           className={styles.skidMaintenanceNote}
-                          aria-label={`${skid.skidNum} maintenance note`}
+                          aria-label={`${displayNumber} maintenance note`}
                           value={status.maintenanceNote}
                           disabled={saving || loading}
                           onChange={(event) =>

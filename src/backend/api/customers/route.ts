@@ -8,7 +8,8 @@ export async function GET(request: NextRequest) {
   try {
     const pagination = getPagination(request.nextUrl.searchParams);
     const search = request.nextUrl.searchParams.get('search')?.trim() || undefined;
-    const result = await listCustomers(pagination.page, pagination.limit, search);
+    const geofenceOnly = request.nextUrl.searchParams.get('geofenceOnly') === 'true';
+    const result = await listCustomers(pagination.page, pagination.limit, search, geofenceOnly);
     return apiSuccess(result.rows, {
       pagination: getPaginationMeta(pagination.page, pagination.limit, result.total),
     });

@@ -14,6 +14,7 @@ import {
   PlantReportMetrics,
   PlantFleetSnapshot,
 } from '@/backend/db/schema/plant-report';
+import { plantDisplayNumber } from './identifiers';
 
 export interface SkidYardUpdate {
   id: string;
@@ -34,6 +35,7 @@ export async function getLivePlantFleetSnapshot(tx?: DbTransaction): Promise<Pla
       .select({
         skidId: skids.id,
         skidNum: skids.skidNum,
+        slugNum: skids.slugNum,
         status: skids.status,
         fillState: plantSkidStatuses.fillState,
         bay: plantSkidStatuses.bay,
@@ -58,6 +60,7 @@ export async function getLivePlantFleetSnapshot(tx?: DbTransaction): Promise<Pla
       .select({
         id: trucks.id,
         truckNum: trucks.truckNum,
+        slugNum: trucks.slugNum,
         status: trucks.status,
         isOnMaintenance: plantTruckStatuses.isOnMaintenance,
         isStandby: plantTruckStatuses.isStandby,
@@ -79,6 +82,7 @@ export async function getLivePlantFleetSnapshot(tx?: DbTransaction): Promise<Pla
     conn
       .select({
         truckNum: trucks.truckNum,
+        slugNum: trucks.slugNum,
         customerName: customers.name,
         outboundTripStatus: outboundTrips.status,
         inboundTripStatus: inboundTrips.status,
@@ -126,8 +130,8 @@ export async function getLivePlantFleetSnapshot(tx?: DbTransaction): Promise<Pla
     const bay = s.bay ?? 'parking_bay';
     const customerLabel =
       s.owner === 'customer'
-        ? `${s.skidNum}${s.customerName ? `(${s.customerName})` : ''}`
-        : s.skidNum;
+        ? `${plantDisplayNumber(s.slugNum, s.skidNum, 4)}${s.customerName ? `(${s.customerName})` : ''}`
+        : plantDisplayNumber(s.slugNum, s.skidNum, 4);
     const label = customerLabel;
 
     if (s.isOnMaintenance) {
@@ -146,23 +150,25 @@ export async function getLivePlantFleetSnapshot(tx?: DbTransaction): Promise<Pla
       snapshot.newLoadedSkids.push(withNote(label));
     } else if (fillState === 'loading') {
       if (s.owner === 'customer') snapshot.skidsLoading.customer.push(withNote(label));
-      else snapshot.skidsLoading.gastech.push(withNote(s.skidNum));
+      else
+        snapshot.skidsLoading.gastech.push(withNote(plantDisplayNumber(s.slugNum, s.skidNum, 4)));
     } else if (fillState === 'loaded') {
       if (s.owner === 'customer') snapshot.skidsLoaded.customer.push(withNote(label));
-      else snapshot.skidsLoaded.gastech.push(withNote(s.skidNum));
+      else snapshot.skidsLoaded.gastech.push(withNote(plantDisplayNumber(s.slugNum, s.skidNum, 4)));
     } else if (fillState === 'empty') {
       if (s.owner === 'customer') snapshot.skidsEmpty.customer.push(withNote(label));
-      else snapshot.skidsEmpty.gastech.push(withNote(s.skidNum));
+      else snapshot.skidsEmpty.gastech.push(withNote(plantDisplayNumber(s.slugNum, s.skidNum, 4)));
     }
   }
 
   // Categorize Trucks
   for (const t of allTrucks) {
+    const displayNumber = plantDisplayNumber(t.slugNum, t.truckNum, 2);
     const truckLabel = t.maintenanceNote?.trim()
-      ? `${t.truckNum}(${t.maintenanceNote.trim()})`
+      ? `${displayNumber}(${t.maintenanceNote.trim()})`
       : t.note?.trim()
-        ? `${t.truckNum}(${t.note.trim()})`
-        : t.truckNum;
+        ? `${displayNumber}(${t.note.trim()})`
+        : displayNumber;
     if (t.isOnMaintenance) {
       snapshot.maintenance.trucks.push(truckLabel);
     } else if (
@@ -178,7 +184,8 @@ export async function getLivePlantFleetSnapshot(tx?: DbTransaction): Promise<Pla
 
   // An inbound trip remains the active leg after arrival until the movement is completed.
   for (const m of activeMovements) {
-    const truckLabel = m.note?.trim() ? `${m.truckNum}(${m.note.trim()})` : m.truckNum;
+    const displayNumber = plantDisplayNumber(m.slugNum, m.truckNum, 2);
+    const truckLabel = m.note?.trim() ? `${displayNumber}(${m.note.trim()})` : displayNumber;
     if (m.inboundTripStatus !== null) {
       snapshot.returningTrucks.push(truckLabel);
     } else if (m.outboundTripStatus !== null) {

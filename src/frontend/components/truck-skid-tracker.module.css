@@ -618,6 +618,103 @@
   font-size: 11px;
 }
 
+.locationEditor {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px solid #e8eee9;
+  border-radius: 10px;
+}
+
+.locationEditor label {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.geofenceSearch {
+  position: relative;
+}
+
+.geofenceSearch input {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+}
+
+.geofenceSearch input:focus-visible {
+  outline: 2px solid #8bc6a3;
+  outline-offset: 1px;
+}
+
+.geofenceOptions {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + 4px);
+  right: 0;
+  left: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgb(23 35 30 / 12%);
+}
+
+.geofenceOptions button,
+.geofenceOptionMessage,
+.geofenceOptionError {
+  display: grid;
+  width: 100%;
+  gap: 3px;
+  padding: 9px 10px;
+  border: 0;
+  color: var(--ink);
+  background: #fff;
+  text-align: left;
+}
+
+.geofenceOptions button {
+  cursor: pointer;
+}
+
+.geofenceOptions button:hover,
+.geofenceOptions button[aria-selected='true'] {
+  background: #f0f7f2;
+}
+
+.geofenceOptions strong {
+  font-size: 12px;
+}
+
+.geofenceOptions span,
+.geofenceOptionMessage,
+.geofenceOptionError {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.geofenceOptionError {
+  color: #9e3f38;
+}
+
+.locationEditor small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.locationEditor button {
+  justify-self: start;
+}
+
 .detailMetrics {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

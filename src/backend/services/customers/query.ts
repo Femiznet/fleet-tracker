@@ -4,14 +4,21 @@ import { customers, type NewCustomer } from '@/backend/db/schema';
 
 export const getCustomers = () => db.select().from(customers).orderBy(desc(customers.createdAt));
 
-export const listCustomers = async (page: number, limit: number, search?: string) => {
+export const listCustomers = async (
+  page: number,
+  limit: number,
+  search?: string,
+  geofenceOnly = false
+) => {
   const offset = (page - 1) * limit;
   const searchFilter = search
-    ? or(
-        ilike(customers.name, `%${search}%`),
-        ilike(customers.location, `%${search}%`),
-        ilike(customers.geofenceName, `%${search}%`)
-      )
+    ? geofenceOnly
+      ? ilike(customers.geofenceName, `%${search}%`)
+      : or(
+          ilike(customers.name, `%${search}%`),
+          ilike(customers.location, `%${search}%`),
+          ilike(customers.geofenceName, `%${search}%`)
+        )
     : undefined;
 
   const [rows, totalRows] = await Promise.all([

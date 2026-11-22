@@ -5,7 +5,6 @@ import type { ReactNode } from 'react';
 import {
   AlertTriangle,
   ArrowDownRight,
-  ArrowUpRight,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -24,6 +23,7 @@ import {
   listCustomerUpdateHistory,
 } from '@/frontend/actions/customer-updates';
 import type {
+  CustomerFlowRanking,
   CustomerSummary,
   CustomerUpdateAnalytics,
   CustomerUpdateHistoryItem,
@@ -37,7 +37,14 @@ import styles from './customer-analytics.module.css';
 
 const PAGE_SIZE = 15;
 const REFRESH_INTERVAL_MS = 30_000;
+const CUSTOMER_PREVIEW_LIMIT = 5;
 type CustomerView = 'overview' | 'customer' | 'history';
+type CustomerFilter = 'all' | 'needs-review';
+
+function needsReview(customer: CustomerSummary) {
+  const latest = customer.latestUpdate;
+  return Boolean(latest && (!latest.isProcessed || latest.processingStatus !== 'ok'));
+}
 
 function formatDate(value: string | null, includeTime = false) {
   if (!value) return 'Time unavailable';
@@ -206,27 +213,54 @@ function TrendChart({
 
 function CustomerSelector({
   customers,
+  flowRanking,
   selectedCustomerId,
   search,
+  customerFilter,
   onSearch,
+  onCustomerFilterChange,
   onSelect,
 }: {
   customers: CustomerSummary[];
+  flowRanking: CustomerFlowRanking[];
   selectedCustomerId: string | null;
   search: string;
+  customerFilter: CustomerFilter;
   onSearch: (value: string) => void;
+  onCustomerFilterChange: (value: CustomerFilter) => void;
   onSelect: (id: string) => void;
 }) {
-  const filteredCustomers = customers
-    .filter((customer) =>
+  const [showAllCustomers, setShowAllCustomers] = useState(false);
+  const flowRankByCustomer = new Map(
+    flowRanking.map((customer, index) => [customer.customerId, index])
+  );
+  const orderedCustomers = [...customers].sort((a, b) => {
+    const rankA = flowRankByCustomer.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+    const rankB = flowRankByCustomer.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+    return rankA - rankB || a.name.localeCompare(b.name);
+  });
+  const filteredCustomers = orderedCustomers.filter(
+    (customer) =>
+      (customerFilter === 'all' || needsReview(customer)) &&
       `${customer.name} ${customer.location ?? ''}`
         .toLowerCase()
         .includes(search.trim().toLowerCase())
-    )
-    .sort((a, b) => Number(b.id === selectedCustomerId) - Number(a.id === selectedCustomerId));
+  );
+  const isSearching = Boolean(search.trim());
+  const previewCustomers = showAllCustomers
+    ? filteredCustomers
+    : filteredCustomers.slice(0, CUSTOMER_PREVIEW_LIMIT);
+  const selectedCustomer = filteredCustomers.find((customer) => customer.id === selectedCustomerId);
+  const visibleCustomers =
+    selectedCustomer && !previewCustomers.some((customer) => customer.id === selectedCustomer.id)
+      ? [...previewCustomers, selectedCustomer]
+      : previewCustomers;
 
   return (
-    <aside className={styles.customerSelector}>
+    <aside
+      className={styles.customerSelector}
+      id={customerFilter === 'needs-review' ? 'customer-updates-review' : undefined}
+    >
       <header className={styles.selectorHeader}>
         <div>
           <h2>Customers</h2>
@@ -234,18 +268,36 @@ function CustomerSelector({
         </div>
         <Users size={17} />
       </header>
+      <label className={styles.customerStatusFilter}>
+        <span>Show</span>
+        <select
+          value={customerFilter}
+          onChange={(event) =>
+            onCustomerFilterChange(event.target.value === 'needs-review' ? 'needs-review' : 'all')
+          }
+          aria-label="Filter customers by update status"
+        >
+          <option value="all">All customers</option>
+          <option value="needs-review">Needs review</option>
+        </select>
+      </label>
       <label className={styles.customerSearch}>
         <Search size={14} />
         <input
           value={search}
-          onChange={(event) => onSearch(event.target.value)}
+          onChange={(event) => {
+            onSearch(event.target.value);
+            setShowAllCustomers(false);
+          }}
           placeholder="Search customer name or location"
           aria-label="Search customers"
         />
       </label>
-      <div className={styles.customerList}>
+      <div
+        className={`${styles.customerList} ${showAllCustomers ? styles.customerListExpanded : ''}`}
+      >
         {filteredCustomers.length ? (
-          filteredCustomers.map((customer) => {
+          visibleCustomers.map((customer) => {
             const latest = customer.latestUpdate;
             return (
               <button
@@ -269,14 +321,6 @@ function CustomerSelector({
                 </span>
                 <span className={styles.customerButtonStats}>
                   <span>
-                    Flow{' '}
-                    <strong>
-                      {customer.latestFlowScmPerHour === null
-                        ? '—'
-                        : `${customer.latestFlowScmPerHour.toLocaleString()} scm/h`}
-                    </strong>
-                  </span>
-                  <span>
                     Runtime <strong>{formatRuntime(customer.estimatedRuntimeHours)}</strong>
                   </span>
                 </span>
@@ -285,10 +329,28 @@ function CustomerSelector({
           })
         ) : (
           <div className={styles.selectorEmpty}>
-            {search ? 'No customers match your search.' : 'No customers available.'}
+            {customerFilter === 'needs-review'
+              ? 'No customers currently need review.'
+              : search
+                ? 'No customers match your search.'
+                : 'No customers available.'}
           </div>
         )}
       </div>
+      {filteredCustomers.length > CUSTOMER_PREVIEW_LIMIT ? (
+        <button
+          type="button"
+          className={styles.viewAllCustomers}
+          aria-expanded={showAllCustomers}
+          onClick={() => setShowAllCustomers((current) => !current)}
+        >
+          {showAllCustomers
+            ? 'Show fewer customers'
+            : isSearching
+              ? `View all ${filteredCustomers.length} results`
+              : `View all ${filteredCustomers.length} customers`}
+        </button>
+      ) : null}
     </aside>
   );
 }
@@ -346,26 +408,6 @@ function OverviewPanel({
           icon={<Waves size={17} />}
         />
         <SummaryCard
-          label="Combined PRMS flow"
-          value={
-            summary.combinedFlowScmPerHour === null
-              ? '—'
-              : summary.combinedFlowScmPerHour.toLocaleString()
-          }
-          detail="Latest reported readings · scm/h"
-          icon={<Droplets size={17} />}
-        />
-        <SummaryCard
-          label="Average PRMS pressure"
-          value={
-            summary.averagePressureBar === null
-              ? '—'
-              : `${summary.averagePressureBar.toFixed(1)} bar`
-          }
-          detail="Across latest available readings"
-          icon={<Gauge size={17} />}
-        />
-        <SummaryCard
           label="Customers needing review"
           value={summary.customersNeedingReview.toLocaleString()}
           detail="Latest update flagged or failed"
@@ -374,28 +416,7 @@ function OverviewPanel({
         />
       </section>
 
-      <section className={styles.insightGrid} aria-label="Customer flow highlights">
-        <button
-          type="button"
-          className={styles.insightCard}
-          disabled={!summary.highestFlowCustomer}
-          onClick={() =>
-            summary.highestFlowCustomer && onSelectCustomer(summary.highestFlowCustomer.customerId)
-          }
-        >
-          <span className={styles.insightIcon}>
-            <ArrowUpRight size={16} />
-          </span>
-          <span>
-            <small>Highest reported flow</small>
-            <strong>{summary.highestFlowCustomer?.customerName ?? 'No flow data'}</strong>
-            <small>
-              {summary.highestFlowCustomer
-                ? `${summary.highestFlowCustomer.flowRateScmPerHour.toLocaleString()} scm/h`
-                : 'No PRMS readings'}
-            </small>
-          </span>
-        </button>
+      <section className={styles.insightGrid} aria-label="Customer runtime highlights">
         <button
           type="button"
           className={styles.insightCard}
@@ -421,34 +442,17 @@ function OverviewPanel({
       </section>
 
       <div className={styles.chartGrid}>
-        <TrendChart
-          title="Combined PRMS pressure trend"
-          description="Average pressure per customer update"
-          points={analytics.pressureTrend}
-          unit="bar"
-          color="#327f58"
-        />
-        <TrendChart
-          title="Combined PRMS flow trend"
-          description="Summed PRMS flow per customer update"
-          points={analytics.flowTrend}
-          unit="scm/h"
-          color="#3977a1"
-        />
-      </div>
-
-      <div className={styles.overviewLowerGrid}>
-        <section className={styles.panel}>
+        <section className={styles.chartCard}>
           <header className={styles.cardHeader}>
             <div>
-              <h3>Customer flow ranking</h3>
-              <p>Latest combined PRMS flow by customer</p>
+              <h3>Customer flow rates</h3>
+              <p>Latest reported flow per customer · highest to lowest</p>
             </div>
             <Droplets size={16} />
           </header>
           {analytics.flowRanking.length ? (
             <div className={styles.rankingList}>
-              {analytics.flowRanking.slice(0, 10).map((ranking, index) => (
+              {analytics.flowRanking.map((ranking, index) => (
                 <button
                   type="button"
                   className={styles.rankingRow}
@@ -473,12 +477,19 @@ function OverviewPanel({
               ))}
             </div>
           ) : (
-            <div className={styles.emptyState}>
-              No flow readings in the latest customer updates.
-            </div>
+            <div className={styles.emptyState}>No customer flow readings are available.</div>
           )}
         </section>
+        <TrendChart
+          title="Runtime trend"
+          description="Shortest estimated PRMS runtime per customer update"
+          points={analytics.runtimeTrend}
+          unit="hours"
+          color="#b37a21"
+        />
+      </div>
 
+      <div className={styles.overviewLowerGrid}>
         <section className={styles.panel}>
           <header className={styles.cardHeader}>
             <div>
@@ -713,7 +724,7 @@ function UpdateDetail({ update }: { update: CustomerUpdateHistoryItem | null }) 
         </div>
       ) : null}
 
-      <details className={styles.originalMessage} open>
+      <details className={styles.originalMessage} key={update.id}>
         <summary>Original customer message</summary>
         <pre>{update.text}</pre>
       </details>
@@ -868,6 +879,8 @@ export default function CustomerUpdatesDashboard() {
   const [customerAnalytics, setCustomerAnalytics] = useState<CustomerUpdateAnalytics | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [customerSearch, setCustomerSearch] = useState('');
+  const [customerFilter, setCustomerFilter] = useState<CustomerFilter>('all');
+  const [mobileCustomerDetailsOpen, setMobileCustomerDetailsOpen] = useState(false);
   const [history, setHistory] = useState<CustomerUpdateHistoryItem[]>([]);
   const [historyPagination, setHistoryPagination] = useState<PaginationMeta | null>(null);
   const [historyPage, setHistoryPage] = useState(1);
@@ -886,7 +899,35 @@ export default function CustomerUpdatesDashboard() {
   const overviewErrorRef = useRef<string | null>(null);
   const customerErrorRef = useRef<string | null>(null);
   const historyErrorRef = useRef<string | null>(null);
+  const focusCustomerReviewRef = useRef(false);
   const showToast = useToast();
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('view') === 'customer') setView('customer');
+      if (params.get('customerFilter') === 'needs_review') {
+        focusCustomerReviewRef.current = true;
+        setCustomerFilter('needs-review');
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    function handleAlertNavigation(event: Event) {
+      const alert = (event as CustomEvent<{ id: string }>).detail;
+      if (alert?.id !== 'customer-updates-review') return;
+      focusCustomerReviewRef.current = true;
+      setView('customer');
+      setCustomerFilter('needs-review');
+      setCustomerSearch('');
+      setMobileCustomerDetailsOpen(false);
+    }
+
+    window.addEventListener('officer-alert-navigate', handleAlertNavigation);
+    return () => window.removeEventListener('officer-alert-navigate', handleAlertNavigation);
+  }, []);
 
   const refreshOverview = useCallback(
     async (showLoading = false) => {
@@ -897,11 +938,12 @@ export default function CustomerUpdatesDashboard() {
         setError(null);
         overviewErrorRef.current = null;
         setLastUpdated(new Date());
-        setSelectedCustomerId((current) =>
-          current && result.customers.some((customer) => customer.id === current)
-            ? current
-            : ([...result.customers].sort((a, b) => latestUpdateTime(b) - latestUpdateTime(a))[0]
-                ?.id ?? null)
+        setSelectedCustomerId(
+          (current) =>
+            current ??
+            [...result.customers].sort((a, b) => latestUpdateTime(b) - latestUpdateTime(a))[0]
+              ?.id ??
+            null
         );
       } catch (loadError) {
         const message =
@@ -923,13 +965,35 @@ export default function CustomerUpdatesDashboard() {
   );
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void refreshOverview(true), 0);
+    const timer = window.setTimeout(() => void refreshOverview(view === 'overview'), 0);
     const interval = window.setInterval(() => void refreshOverview(), REFRESH_INTERVAL_MS);
     return () => {
       window.clearTimeout(timer);
       window.clearInterval(interval);
     };
-  }, [refreshOverview]);
+  }, [refreshOverview, view]);
+
+  useEffect(() => {
+    if (customerFilter !== 'needs-review' || !analytics) return;
+    const timer = window.setTimeout(() => {
+      const selected = analytics.customers.find((customer) => customer.id === selectedCustomerId);
+      if (!selected || !needsReview(selected)) {
+        setSelectedCustomerId(analytics.customers.find(needsReview)?.id ?? null);
+      }
+      setMobileCustomerDetailsOpen(false);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [analytics, customerFilter, selectedCustomerId]);
+
+  useEffect(() => {
+    if (!focusCustomerReviewRef.current || !analytics || view !== 'customer') return;
+    focusCustomerReviewRef.current = false;
+    const timer = window.setTimeout(
+      () => document.getElementById('customer-updates-review')?.scrollIntoView({ block: 'start' }),
+      0
+    );
+    return () => window.clearTimeout(timer);
+  }, [analytics, view]);
 
   useEffect(() => {
     const requestId = ++customerRequestRef.current;
@@ -1031,7 +1095,13 @@ export default function CustomerUpdatesDashboard() {
 
   const customers = analytics?.customers ?? [];
   const selectedCustomer =
-    customers.find((customer) => customer.id === selectedCustomerId) ?? customers[0] ?? null;
+    customerFilter === 'needs-review'
+      ? (customers.find(
+          (customer) => customer.id === selectedCustomerId && needsReview(customer)
+        ) ??
+        customers.find(needsReview) ??
+        null)
+      : (customers.find((customer) => customer.id === selectedCustomerId) ?? customers[0] ?? null);
   const detailedCustomer =
     customerAnalytics?.customers.find((customer) => customer.id === selectedCustomerId) ??
     selectedCustomer;
@@ -1039,7 +1109,7 @@ export default function CustomerUpdatesDashboard() {
 
   function chooseCustomer(customerId: string) {
     setSelectedCustomerId(customerId);
-    setCustomerSearch('');
+    setMobileCustomerDetailsOpen(true);
     setHistoryPage(1);
     selectedUpdateRef.current = null;
     setSelectedUpdateId(null);
@@ -1105,7 +1175,10 @@ export default function CustomerUpdatesDashboard() {
                 aria-selected={view === tab}
                 className={`${styles.viewTab} ${view === tab ? styles.viewTabActive : ''}`}
                 key={tab}
-                onClick={() => setView(tab)}
+                onClick={() => {
+                  setView(tab);
+                  setMobileCustomerDetailsOpen(false);
+                }}
               >
                 {tab === 'overview'
                   ? 'Overview'
@@ -1142,21 +1215,37 @@ export default function CustomerUpdatesDashboard() {
           <OverviewPanel
             analytics={analytics}
             onSelectCustomer={(id) => {
+              setCustomerSearch('');
               chooseCustomer(id);
               setView('customer');
             }}
             onSelectUpdate={openUpdateFromOverview}
           />
         ) : view === 'customer' ? (
-          <div className={styles.customerWorkspace}>
+          <div
+            className={`${styles.customerWorkspace} ${mobileCustomerDetailsOpen ? styles.customerWorkspaceDetailOpen : ''}`}
+          >
             <CustomerSelector
               customers={customers}
+              flowRanking={analytics.flowRanking}
               selectedCustomerId={selectedCustomer?.id ?? null}
               search={customerSearch}
+              customerFilter={customerFilter}
               onSearch={setCustomerSearch}
+              onCustomerFilterChange={(filter) => {
+                setCustomerFilter(filter);
+                setMobileCustomerDetailsOpen(false);
+              }}
               onSelect={chooseCustomer}
             />
             <section className={styles.customerContent}>
+              <button
+                type="button"
+                className={styles.mobileCustomerBack}
+                onClick={() => setMobileCustomerDetailsOpen(false)}
+              >
+                <ChevronLeft size={15} /> Back to customers
+              </button>
               {customerLoading && !customerAnalytics ? (
                 <div className={styles.loadingState}>
                   <RefreshCw size={17} className="animate-spin" /> Loading customer report…
@@ -1168,14 +1257,14 @@ export default function CustomerUpdatesDashboard() {
                     <div className={styles.chartGrid}>
                       <TrendChart
                         title="Pressure trend"
-                        description="Mean PRMS pressure per update"
+                        description="Average PRMS pressure per update"
                         points={customerAnalytics.pressureTrend}
                         unit="bar"
                         color="#327f58"
                       />
                       <TrendChart
-                        title="Flow trend"
-                        description="Combined PRMS flow per update"
+                        title="Flow rate trend"
+                        description="PRMS flow rate per update"
                         points={customerAnalytics.flowTrend}
                         unit="scm/h"
                         color="#3977a1"
@@ -1210,9 +1299,12 @@ export default function CustomerUpdatesDashboard() {
           <div className={styles.historyWorkspace}>
             <CustomerSelector
               customers={customers}
+              flowRanking={analytics.flowRanking}
               selectedCustomerId={selectedCustomer?.id ?? null}
               search={customerSearch}
+              customerFilter={customerFilter}
               onSearch={setCustomerSearch}
+              onCustomerFilterChange={setCustomerFilter}
               onSelect={chooseCustomer}
             />
             <section className={styles.historyContent}>

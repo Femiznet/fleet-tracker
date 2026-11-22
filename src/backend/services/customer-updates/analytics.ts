@@ -271,8 +271,6 @@ export function buildCustomerUpdateAnalytics(
     return {
       ...customer,
       latestUpdate,
-      latestFlowScmPerHour: flowTotal(latestUpdate?.parsedData ?? null),
-      averagePressureBar: averagePressure(latestUpdate?.parsedData ?? null),
       estimatedRuntimeHours: minimumRuntime(
         latestUpdate?.parsedData ?? null,
         latestUpdate?.forecast ?? null
@@ -285,32 +283,26 @@ export function buildCustomerUpdateAnalytics(
       customer.latestUpdate?.processingStatus === 'needs_review' ||
       customer.latestUpdate?.processingStatus === 'failed'
   ).length;
-  const flowRanking = customerSummaries
-    .filter(
-      (customer): customer is typeof customer & { latestFlowScmPerHour: number } =>
-        customer.latestFlowScmPerHour !== null
-    )
-    .sort((a, b) => b.latestFlowScmPerHour - a.latestFlowScmPerHour)
-    .map((customer) => ({
-      customerId: customer.id,
-      customerName: customer.name,
-      flowRateScmPerHour: customer.latestFlowScmPerHour,
-      estimatedRuntimeHours: customer.estimatedRuntimeHours,
-    }));
-
-  const pressureValues = customerSummaries
-    .map((customer) => customer.averagePressureBar)
-    .filter((value): value is number => value !== null);
-  const combinedFlow = flowRanking.reduce(
-    (total, customer) => total + customer.flowRateScmPerHour,
-    0
-  );
   const sortedRuntimes = customerSummaries
     .filter(
       (customer): customer is typeof customer & { estimatedRuntimeHours: number } =>
         customer.estimatedRuntimeHours !== null
     )
     .sort((a, b) => a.estimatedRuntimeHours - b.estimatedRuntimeHours);
+  const flowRanking = customerSummaries
+    .flatMap((customer) => {
+      const flowRateScmPerHour = flowTotal(customer.latestUpdate?.parsedData ?? null);
+      return flowRateScmPerHour === null
+        ? []
+        : [
+            {
+              customerId: customer.id,
+              customerName: customer.name,
+              flowRateScmPerHour,
+            },
+          ];
+    })
+    .sort((a, b) => b.flowRateScmPerHour - a.flowRateScmPerHour);
 
   const recentRows = [...periodRows].sort(
     (a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0)
@@ -321,12 +313,7 @@ export function buildCustomerUpdateAnalytics(
     summary: {
       activeCustomerCount: customerRows.filter((customer) => customer.isActive).length,
       totalUpdates: periodRows.length,
-      combinedFlowScmPerHour: combinedFlow,
-      averagePressureBar: pressureValues.length
-        ? pressureValues.reduce((total, value) => total + value, 0) / pressureValues.length
-        : null,
       customersNeedingReview: latestReportsNeedingReview,
-      highestFlowCustomer: flowRanking[0] ?? null,
       shortestRuntimeCustomer: sortedRuntimes[0]
         ? {
             customerId: sortedRuntimes[0].id,

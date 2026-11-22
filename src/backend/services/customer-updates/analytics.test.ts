@@ -44,15 +44,11 @@ test('returns stable zero analytics for customers with no update history', () =>
   assert.deepEqual(result.summary, {
     activeCustomerCount: 1,
     totalUpdates: 0,
-    combinedFlowScmPerHour: 0,
-    averagePressureBar: null,
     customersNeedingReview: 0,
-    highestFlowCustomer: null,
     shortestRuntimeCustomer: null,
   });
-  assert.deepEqual(result.pressureTrend, []);
-  assert.deepEqual(result.flowTrend, []);
   assert.deepEqual(result.runtimeTrend, []);
+  assert.deepEqual(result.flowRanking, []);
   assert.deepEqual(result.recentUpdates, []);
 });
 
@@ -60,17 +56,16 @@ test('omits unavailable metrics when processed reports have no PRMS readings', (
   const latest = update('empty-report', 'a', 'ok', noReadings);
   const result = buildCustomerUpdateAnalytics('24h', [customer('a')], [latest], [latest]);
 
-  assert.equal(result.customers[0].latestFlowScmPerHour, null);
-  assert.equal(result.customers[0].averagePressureBar, null);
   assert.equal(result.customers[0].estimatedRuntimeHours, null);
-  assert.equal(result.summary.combinedFlowScmPerHour, 0);
-  assert.equal(result.summary.averagePressureBar, null);
-  assert.deepEqual(result.flowRanking, []);
+  assert.equal('latestFlowScmPerHour' in result.customers[0], false);
+  assert.equal('averagePressureBar' in result.customers[0], false);
+  assert.equal('combinedFlowScmPerHour' in result.summary, false);
   assert.deepEqual(result.pressureTrend, []);
+  assert.deepEqual(result.flowTrend, []);
   assert.equal(result.recentUpdates[0].forecast?.prmsForecasts.length, 0);
 });
 
-test('counts review and failed latest reports while retaining their trend status', () => {
+test('keeps pressure, flow, and runtime trends for reviewed and failed reports', () => {
   const pressureFlowData = {
     ...noReadings,
     PRMS: [
@@ -81,14 +76,40 @@ test('counts review and failed latest reports while retaining their trend status
         totalflow: null,
         skidinuse: 'SKID123',
       },
+      {
+        id: 2,
+        pressure: 40,
+        flowrate: 1000,
+        totalflow: null,
+        skidinuse: 'SKID456',
+      },
     ],
   };
   const reviewed = update('reviewed', 'a', 'needs_review', pressureFlowData);
+  const highFlowData = {
+    ...noReadings,
+    PRMS: [
+      {
+        id: 1,
+        pressure: 60,
+        flowrate: 1500,
+        totalflow: null,
+        skidinuse: 'SKID789',
+      },
+      {
+        id: 2,
+        pressure: 40,
+        flowrate: 1000,
+        totalflow: null,
+        skidinuse: 'SKID012',
+      },
+    ],
+  };
   const failed = update(
     'failed',
     'b',
     'failed',
-    pressureFlowData,
+    highFlowData,
     new Date('2025-03-01T11:00:00.000Z')
   );
   const result = buildCustomerUpdateAnalytics(
@@ -99,12 +120,34 @@ test('counts review and failed latest reports while retaining their trend status
   );
 
   assert.equal(result.summary.customersNeedingReview, 2);
-  assert.equal(result.summary.combinedFlowScmPerHour, 1000);
+  assert.deepEqual(
+    result.pressureTrend.map((point) => point.value),
+    [30, 50]
+  );
+  assert.deepEqual(
+    result.flowTrend.map((point) => point.value),
+    [1500, 2500]
+  );
+  assert.deepEqual(
+    result.pressureTrend.map((point) => point.status),
+    ['needs_review', 'failed']
+  );
   assert.deepEqual(
     result.flowTrend.map((point) => point.status),
     ['needs_review', 'failed']
   );
-  assert.equal(result.summary.highestFlowCustomer?.customerId, 'a');
+  assert.deepEqual(
+    result.runtimeTrend.map((point) => point.status),
+    ['needs_review', 'failed']
+  );
+  assert.deepEqual(
+    result.flowRanking.map((customer) => customer.customerId),
+    ['b', 'a']
+  );
+  assert.deepEqual(
+    result.flowRanking.map((customer) => customer.flowRateScmPerHour),
+    [2500, 1500]
+  );
   assert.equal(result.summary.shortestRuntimeCustomer?.customerId, 'a');
   assert.equal(result.recentUpdates.length, 2);
   assert.equal(result.recentUpdates[0].id, 'failed');

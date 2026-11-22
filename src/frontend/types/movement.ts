@@ -5,6 +5,7 @@ export const MovementOptionsSchema = z.object({
     z.object({
       id: z.string(),
       truckNum: z.string(),
+      slugNum: z.string().nullable(),
       currentLoc: z.string(),
       status: z.literal('available'),
       driverName: z.string().nullable(),
@@ -15,6 +16,7 @@ export const MovementOptionsSchema = z.object({
     z.object({
       id: z.string(),
       skidNum: z.string(),
+      slugNum: z.string().nullable(),
       customerId: z.string().nullable(),
       currentLoc: z.string(),
       status: z.enum(['available', 'at_customer', 'in_transit']),

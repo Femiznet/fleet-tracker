@@ -107,8 +107,6 @@ export const CustomerSummarySchema = z.object({
       forecast: CustomerForecastSchema.nullable(),
     })
     .nullable(),
-  latestFlowScmPerHour: z.number().nullable(),
-  averagePressureBar: z.number().nullable(),
   estimatedRuntimeHours: z.number().nullable(),
 });
 
@@ -120,11 +118,10 @@ export const CustomerUpdateTrendPointSchema = z.object({
   status: z.enum(['ok', 'needs_review', 'failed']).nullable(),
 });
 
-export const CustomerUpdateRankingSchema = z.object({
+export const CustomerFlowRankingSchema = z.object({
   customerId: z.string(),
   customerName: z.string(),
   flowRateScmPerHour: z.number(),
-  estimatedRuntimeHours: z.number().nullable(),
 });
 
 export const CustomerUpdateAnalyticsSchema = z.object({
@@ -132,10 +129,7 @@ export const CustomerUpdateAnalyticsSchema = z.object({
   summary: z.object({
     activeCustomerCount: z.number(),
     totalUpdates: z.number(),
-    combinedFlowScmPerHour: z.number(),
-    averagePressureBar: z.number().nullable(),
     customersNeedingReview: z.number(),
-    highestFlowCustomer: CustomerUpdateRankingSchema.nullable(),
     shortestRuntimeCustomer: z
       .object({
         customerId: z.string(),
@@ -148,7 +142,7 @@ export const CustomerUpdateAnalyticsSchema = z.object({
   pressureTrend: z.array(CustomerUpdateTrendPointSchema),
   flowTrend: z.array(CustomerUpdateTrendPointSchema),
   runtimeTrend: z.array(CustomerUpdateTrendPointSchema),
-  flowRanking: z.array(CustomerUpdateRankingSchema),
+  flowRanking: z.array(CustomerFlowRankingSchema),
   recentUpdates: z.array(CustomerUpdateHistoryItemSchema),
 });
 
@@ -169,5 +163,5 @@ export type CustomerUpdateStatusFilter = z.infer<typeof CustomerUpdateStatusFilt
 export type CustomerUpdateHistoryItem = z.infer<typeof CustomerUpdateHistoryItemSchema>;
 export type CustomerSummary = z.infer<typeof CustomerSummarySchema>;
 export type CustomerUpdateTrendPoint = z.infer<typeof CustomerUpdateTrendPointSchema>;
-export type CustomerUpdateRanking = z.infer<typeof CustomerUpdateRankingSchema>;
+export type CustomerFlowRanking = z.infer<typeof CustomerFlowRankingSchema>;
 export type CustomerUpdateAnalytics = z.infer<typeof CustomerUpdateAnalyticsSchema>;

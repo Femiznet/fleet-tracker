@@ -84,6 +84,7 @@ export async function getMovementOptions() {
       .select({
         id: trucks.id,
         truckNum: trucks.truckNum,
+        slugNum: trucks.slugNum,
         currentLoc: trucks.currentLoc,
         status: trucks.status,
         driverName: drivers.name,
@@ -99,6 +100,7 @@ export async function getMovementOptions() {
       .select({
         id: skids.id,
         skidNum: skids.skidNum,
+        slugNum: skids.slugNum,
         customerId: skids.customerId,
         currentLoc: skids.currentLoc,
         status: skids.status,

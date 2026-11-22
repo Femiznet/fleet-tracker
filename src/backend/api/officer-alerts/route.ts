@@ -57,7 +57,7 @@ export async function GET() {
           )
         ),
       db
-        .select({ lat: trucks.lat, lon: trucks.lon })
+        .select({ id: trucks.id, truckNum: trucks.truckNum, lat: trucks.lat, lon: trucks.lon })
         .from(trucks)
         .where(sql`UPPER(TRIM(${trucks.group})) = 'GASTECH VEHICLES'`),
       db.select().from(geofenceZones),
@@ -101,7 +101,9 @@ export async function GET() {
       'Check incoming dispatch details before they change fleet movements.',
       pendingDispatches.total,
       'warning',
-      '/dispatch'
+      pendingDispatches.rows[0]
+        ? `/dispatch?messageId=${encodeURIComponent(pendingDispatches.rows[0].id)}#dispatch-review`
+        : '/dispatch#dispatch-review'
     );
     addAlert(
       'dispatch-notifications',
@@ -110,20 +112,24 @@ export async function GET() {
       'Confirm the customer notice was sent or review the copy-ready message.',
       overdueNotifications.length,
       'critical',
-      '/dispatch'
+      overdueNotifications[0]
+        ? `/dispatch?notificationId=${encodeURIComponent(overdueNotifications[0].notificationId)}#dispatch-notifications`
+        : '/dispatch#dispatch-notifications'
     );
 
     const movementsReadyToComplete = activeMovements.filter(
       (movement) => movement.currentDirection === 'inbound' && movement.truckAtPlant
-    ).length;
+    );
     addAlert(
       'movement-completion',
       'movements',
       'Movements are ready to complete',
       'Confirm returned trucks and close their active movements.',
-      movementsReadyToComplete,
+      movementsReadyToComplete.length,
       'warning',
-      '/movements'
+      movementsReadyToComplete[0]
+        ? `/movements?view=active&movementId=${encodeURIComponent(movementsReadyToComplete[0].id)}#movement-completion`
+        : '/movements?view=active#movement-completion'
     );
 
     addAlert(
@@ -133,19 +139,30 @@ export async function GET() {
       'Some incoming updates are unprocessed or need attention.',
       Number(customerUpdateAlerts[0]?.value ?? 0),
       'warning',
-      '/updates'
+      '/updates?view=customer&customerFilter=needs_review#customer-updates-review'
     );
 
-    const maintenanceCount =
-      plantSnapshot.maintenance.trucks.length + plantSnapshot.maintenance.skids.length;
     addAlert(
-      'plant-maintenance',
+      'plant-truck-maintenance',
       'plant-report',
-      'Assets are on maintenance',
-      'Review maintenance status and notes in the plant report.',
-      maintenanceCount,
+      'Trucks are on maintenance',
+      'Review maintenance status and notes for trucks in the plant report.',
+      plantSnapshot.maintenance.trucks.length,
       'warning',
-      '/plant-report'
+      plantSnapshot.maintenance.trucks[0]
+        ? `/plant-report?section=trucks&truck=${encodeURIComponent(plantSnapshot.maintenance.trucks[0].split('(')[0])}#plant-maintenance-trucks`
+        : '/plant-report?section=trucks#plant-maintenance-trucks'
+    );
+    addAlert(
+      'plant-skid-maintenance',
+      'plant-report',
+      'Skids are on maintenance',
+      'Review maintenance status and notes for skids in the plant report.',
+      plantSnapshot.maintenance.skids.length,
+      'warning',
+      plantSnapshot.maintenance.skids[0]
+        ? `/plant-report?section=skids&skid=${encodeURIComponent(plantSnapshot.maintenance.skids[0].split('(')[0])}#plant-maintenance-skids`
+        : '/plant-report?section=skids#plant-maintenance-skids'
     );
 
     const namedZones = zones.filter(
@@ -153,11 +170,14 @@ export async function GET() {
     );
     let trucksOutsideGeofences = 0;
     let trucksWithoutGps = 0;
+    let firstTruckNeedingAttention: (typeof trackedTrucks)[number] | null = null;
     for (const truck of trackedTrucks) {
       if (!hasValidCoordinates(truck.lat, truck.lon)) {
         trucksWithoutGps += 1;
+        firstTruckNeedingAttention ??= truck;
       } else if (namedZones.length && !findMatchingGeofence(namedZones, truck.lat, truck.lon)) {
         trucksOutsideGeofences += 1;
+        firstTruckNeedingAttention ??= truck;
       }
     }
     addAlert(
@@ -167,7 +187,9 @@ export async function GET() {
       `${trucksOutsideGeofences} outside known geofences · ${trucksWithoutGps} without usable GPS.`,
       trucksOutsideGeofences + trucksWithoutGps,
       'critical',
-      '/tracker'
+      firstTruckNeedingAttention
+        ? `/tracker?view=trucks&truckId=${encodeURIComponent(firstTruckNeedingAttention.id)}#tracker-location`
+        : '/tracker?view=trucks#tracker-location'
     );
 
     return apiSuccess({

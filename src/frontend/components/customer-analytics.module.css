@@ -206,7 +206,7 @@
 
 .summaryGrid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 11px;
   margin-bottom: 12px;
 }
@@ -275,7 +275,7 @@
 
 .insightGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 11px;
   margin-bottom: 12px;
 }
@@ -427,7 +427,7 @@
 
 .overviewLowerGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
 
@@ -579,6 +579,10 @@
   top: 12px;
 }
 
+.mobileCustomerBack {
+  display: none;
+}
+
 .selectorHeader {
   display: flex;
   align-items: center;
@@ -597,6 +601,29 @@
   margin: 3px 0 0;
   color: #94a097;
   font-size: 11px;
+}
+
+.customerStatusFilter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 10px 8px;
+  border: 1px solid #e7ece8;
+  border-radius: 5px;
+  padding: 6px 8px;
+  color: #77877c;
+  font-size: 11px;
+}
+
+.customerStatusFilter select {
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #35463c;
+  font: inherit;
+  font-weight: 600;
 }
 
 .customerSearch {
@@ -625,6 +652,28 @@
   max-height: min(64vh, 590px);
   overflow-y: auto;
   border-top: 1px solid #f0f3f1;
+}
+
+.customerListExpanded {
+  max-height: none;
+  overflow: visible;
+}
+
+.viewAllCustomers {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid #f0f3f1;
+  background: #fff;
+  padding: 10px 12px;
+  color: #397c53;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.viewAllCustomers:hover {
+  background: #f8fbf8;
 }
 
 .customerButton {
@@ -1135,21 +1184,56 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .customerWorkspaceDetailOpen .customerSelector {
+    display: none;
+  }
+
+  .customerWorkspace:not(.customerWorkspaceDetailOpen) .customerContent {
+    display: none;
+  }
+
+  .mobileCustomerBack {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 12px;
+    border: 1px solid #e0e7e2;
+    border-radius: 6px;
+    background: #fff;
+    padding: 8px 10px;
+    color: #397c53;
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 650;
+  }
+
   .customerSelector,
   .historyListPanel {
     position: static;
   }
 
   .customerList {
-    display: flex;
-    max-height: 190px;
-    overflow-x: auto;
-    overflow-y: hidden;
+    display: grid;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .customerListExpanded {
+    display: grid;
+    max-height: min(45vh, 360px);
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   .customerButton {
-    min-width: 205px;
-    border-right: 1px solid #f0f3f1;
+    min-width: 0;
+    border-right: 0;
+  }
+
+  .customerListExpanded .customerButton {
+    min-width: 0;
+    border-right: 0;
   }
 
   .historyLayout {

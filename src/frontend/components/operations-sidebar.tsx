@@ -90,7 +90,10 @@ function AlertRow({ alert, onNavigate }: { alert: OfficerAlert; onNavigate: () =
     <Link
       className={`${styles.alertRow} ${styles[`alert_${alert.severity}`]}`}
       href={alert.href}
-      onClick={onNavigate}
+      onClick={() => {
+        onNavigate();
+        window.dispatchEvent(new CustomEvent('officer-alert-navigate', { detail: alert }));
+      }}
     >
       <span className={styles.alertIcon} aria-hidden="true" />
       <span className={styles.alertCopy}>
