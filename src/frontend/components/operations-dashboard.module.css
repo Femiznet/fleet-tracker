@@ -1,0 +1,467 @@
+.shell {
+  --ink: #17231e;
+  --muted: #738078;
+  --line: #e5ebe6;
+  --surface: #ffffff;
+  --canvas: #f5f8f5;
+  --green: #176b4a;
+  --green-soft: #e8f4ed;
+  --amber: #9a5a08;
+  --amber-soft: #fff3dc;
+  --red: #a53d36;
+  --red-soft: #fff0ee;
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  min-height: 100vh;
+  color: var(--ink);
+  background: var(--canvas);
+}
+
+.main {
+  min-width: 0;
+  padding: 27px clamp(20px, 3vw, 46px) 42px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 27px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.breadcrumb strong {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.refreshInfo {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  text-align: right;
+}
+
+.liveDot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #39a56e;
+  box-shadow: 0 0 0 3px #e3f2e9;
+}
+
+.liveDotError {
+  background: #c45047;
+  box-shadow: 0 0 0 3px #fdebe8;
+}
+
+.pageHeading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.eyebrow {
+  margin: 0 0 7px;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(24px, 3vw, 31px);
+  font-weight: 720;
+  letter-spacing: -0.035em;
+}
+
+.subtitle {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.refreshButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: #46534b;
+  background: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.refreshButton:hover:not(:disabled) {
+  border-color: #c9d6cd;
+  background: #f8faf8;
+}
+
+.refreshButton:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.summaryPanel,
+.geofencePanel,
+.quickActions {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.summaryPanel {
+  padding: 16px;
+}
+
+.summaryHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+}
+
+.summaryIcon,
+.actionIcon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 11px;
+  color: var(--green);
+  background: var(--green-soft);
+}
+
+.summaryTotal {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin: 18px 0 14px;
+}
+
+.summaryTotal strong {
+  font-size: 32px;
+  font-weight: 750;
+  letter-spacing: -0.04em;
+}
+
+.summaryTotal span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.summaryMetrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.summaryMetric {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  padding: 9px;
+  border: 1px solid #e8eee9;
+  border-radius: 9px;
+  background: #fbfcfb;
+}
+
+.summaryMetric span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summaryMetric strong {
+  font-size: 16px;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px 17px 13px;
+  border-bottom: 1px solid var(--line);
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.panelSubtitle {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.geofencePanel {
+  margin-bottom: 15px;
+}
+
+.geofenceGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  padding: 14px;
+}
+
+.geofenceCard {
+  display: grid;
+  min-width: 0;
+  min-height: 112px;
+  align-content: start;
+  gap: 5px;
+  padding: 11px;
+  border: 1px solid #e8eee9;
+  border-radius: 10px;
+  background: #fbfcfb;
+}
+
+.geofenceName {
+  overflow: hidden;
+  color: #536159;
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.geofenceCount {
+  margin-top: 5px;
+  font-size: 23px;
+  letter-spacing: -0.03em;
+}
+
+.geofenceCaption {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.geofenceUnconfigured {
+  width: fit-content;
+  margin-top: 3px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  color: #895408;
+  background: #fff0cf;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.geofenceFooter {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 15px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.quickActions {
+  margin-bottom: 15px;
+}
+
+.quickActionsHeader {
+  padding: 15px 17px 0;
+}
+
+.actionGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  padding: 13px;
+}
+
+.actionCard {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  text-decoration: none;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.actionCard:hover {
+  border-color: #c9d6cd;
+  background: #fbfdfb;
+}
+
+.actionCard > svg {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.actionIcon {
+  width: 34px;
+  height: 34px;
+}
+
+.actionCopy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.actionCopy strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actionCopy small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.dashboardFooter {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 7px 14px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.errorBanner {
+  margin-bottom: 14px;
+  padding: 11px 13px;
+  border: 1px solid #f1ceca;
+  border-radius: 9px;
+  color: #9e3f38;
+  background: #fff8f7;
+  font-size: 13px;
+}
+
+.empty {
+  display: grid;
+  min-height: 150px;
+  padding: 22px;
+  place-content: center;
+  justify-items: center;
+  gap: 7px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 13px;
+}
+
+.empty strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.freshnessNote {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 0;
+  padding: 10px 13px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  background: #fbfcfb;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.freshnessNote svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+@media (max-width: 1120px) {
+  .shell {
+    grid-template-columns: 190px minmax(0, 1fr);
+  }
+
+  .geofenceGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .actionGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 780px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .main {
+    padding: 20px 16px 104px;
+  }
+
+  .topbar {
+    margin-bottom: 20px;
+  }
+
+  .summaryGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .actionGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .pageHeading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .refreshButton {
+    min-height: 34px;
+  }
+
+  .summaryMetrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .geofenceGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

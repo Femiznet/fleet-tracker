@@ -32,14 +32,24 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
 
-# typescript
+# drizzle (migrations + internal meta tracking)
+drizzle/meta/*
 *.tsbuildinfo
 next-env.d.ts
 
-tmp/
+**/test/
+test.sh
+src/backend/db-functions/test/
+!scripts/
+scripts/*
+!scripts/append-db-sql.ts
 
-0010000_untracked.sql
+# Local implementation checklist
+todo.md
+customer-ui-todo.md
+notes.md

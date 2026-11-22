@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import OperationsDashboard from '@/frontend/components/operations-dashboard';
 
 export default function HomePage() {
-  redirect("/auth/login");
+  return <OperationsDashboard />;
 }
