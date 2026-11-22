@@ -1,9 +1,18 @@
 import Link from 'next/link';
-import { ClipboardList, Gauge, Inbox, MapPinned, ShieldCheck, Truck, Waves } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  ClipboardList,
+  Gauge,
+  Inbox,
+  MapPinned,
+  ShieldCheck,
+  Truck,
+  Waves,
+} from 'lucide-react';
 import styles from './operations-sidebar.module.css';
 
 type OperationsSidebarProps = {
-  active: 'overview' | 'tracker' | 'dispatch' | 'updates' | 'plant-report';
+  active: 'overview' | 'tracker' | 'movements' | 'dispatch' | 'updates' | 'plant-report';
   pendingDispatchCount?: number;
 };
 
@@ -40,6 +49,14 @@ export default function OperationsSidebar({
           >
             <MapPinned size={16} />
             <span>Truck & skid tracker</span>
+          </Link>
+          <Link
+            className={`${styles.navItem} ${active === 'movements' ? styles.navItemActive : ''}`}
+            href="/movements"
+            aria-current={active === 'movements' ? 'page' : undefined}
+          >
+            <ArrowLeftRight size={16} />
+            <span>Dispatch & movements</span>
           </Link>
           <Link
             className={`${styles.navItem} ${active === 'updates' ? styles.navItemActive : ''}`}

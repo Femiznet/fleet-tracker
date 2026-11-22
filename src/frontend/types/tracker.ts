@@ -9,6 +9,18 @@ export const TruckTrackerItemSchema = z.object({
   currentLoc: z.string(),
   speed: z.number(),
   status: z.enum(['available', 'in_transit', 'standby', 'at_customer', 'maintenance']),
+  activeMovement: z
+    .object({
+      id: z.string(),
+      type: z.enum(['dispatch', 'pickup']),
+      direction: z.enum(['outbound', 'inbound']),
+      tripStatus: z.enum(['in_transit', 'arrived', 'cancelled']).nullable(),
+      customerName: z.string().nullable(),
+      startedAt: z.string().datetime(),
+      skidNumOut: z.string().nullable(),
+      skidNumIn: z.string().nullable(),
+    })
+    .nullable(),
   isStandby: z.boolean(),
   isOnMaintenance: z.boolean(),
   maintenanceNote: z.string().nullable(),

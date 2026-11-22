@@ -1,4 +1,5 @@
 import { eq, and, or, inArray, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { db, dbtx, DbTransaction } from '@/backend/db';
 import { trucks } from '@/backend/db/schema/trucks';
 import { skids } from '@/backend/db/schema/skids';
@@ -25,6 +26,8 @@ export interface SkidYardUpdate {
 
 export async function getLivePlantFleetSnapshot(tx?: DbTransaction): Promise<PlantFleetSnapshot> {
   const conn = dbtx(tx);
+  const outboundTrips = alias(trips, 'plant_outbound_trips');
+  const inboundTrips = alias(trips, 'plant_inbound_trips');
 
   const [allSkids, allTrucks, activeMovements] = await Promise.all([
     conn
@@ -77,14 +80,21 @@ export async function getLivePlantFleetSnapshot(tx?: DbTransaction): Promise<Pla
       .select({
         truckNum: trucks.truckNum,
         customerName: customers.name,
-        tripDirection: trips.direction,
-        tripStatus: trips.status,
+        outboundTripStatus: outboundTrips.status,
+        inboundTripStatus: inboundTrips.status,
         note: trucks.note,
       })
       .from(movements)
       .innerJoin(trucks, eq(movements.truckId, trucks.id))
       .leftJoin(customers, eq(movements.customerId, customers.id))
-      .leftJoin(trips, and(eq(trips.movementId, movements.id), eq(trips.status, 'in_transit')))
+      .leftJoin(
+        outboundTrips,
+        and(eq(outboundTrips.movementId, movements.id), eq(outboundTrips.direction, 'outbound'))
+      )
+      .leftJoin(
+        inboundTrips,
+        and(eq(inboundTrips.movementId, movements.id), eq(inboundTrips.direction, 'inbound'))
+      )
       .where(
         and(
           eq(movements.status, 'in_progress'),
@@ -166,12 +176,12 @@ export async function getLivePlantFleetSnapshot(tx?: DbTransaction): Promise<Pla
     }
   }
 
-  // Categorize Active Trips (Outbound = Trucks in Transit, Inbound = Returning Trucks)
+  // An inbound trip remains the active leg after arrival until the movement is completed.
   for (const m of activeMovements) {
     const truckLabel = m.note?.trim() ? `${m.truckNum}(${m.note.trim()})` : m.truckNum;
-    if (m.tripDirection === 'inbound') {
+    if (m.inboundTripStatus !== null) {
       snapshot.returningTrucks.push(truckLabel);
-    } else {
+    } else if (m.outboundTripStatus !== null) {
       snapshot.trucksInTransit.push({
         truckNum: truckLabel,
         customer: m.customerName ?? 'Unknown',

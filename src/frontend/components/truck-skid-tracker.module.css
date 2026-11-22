@@ -643,6 +643,23 @@
   overflow-wrap: anywhere;
 }
 
+.movementDetails {
+  display: grid;
+  gap: 5px;
+  margin-top: 12px;
+  padding: 11px;
+  border: 1px solid #dce8f1;
+  border-radius: 9px;
+  background: #f5f9fc;
+  font-size: 10px;
+}
+
+.movementDetails span,
+.movementDetails small {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
 .detailNote {
   display: grid;
   gap: 7px;

@@ -264,8 +264,8 @@
 
 .reminderCard {
   display: flex;
-  min-width: 230px;
-  flex: 1 1 230px;
+  min-width: 290px;
+  flex: 1 1 290px;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -273,6 +273,14 @@
   border: 1px solid #f0e2c7;
   border-radius: 9px;
   background: #fffaf0;
+}
+
+.reminderActions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
 }
 
 .reminderCardOverdue {

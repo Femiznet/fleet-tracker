@@ -40,12 +40,27 @@ test('generates the approved copy-ready dispatch notice', () => {
       '*Truck/Skid Dispatch Details*',
       '*Truck Number*: TRUCK-12',
       '*Skid Number*: SKID123',
+      '*Customer*: Customer',
       '*Driver Name:* Ada Driver',
       '*Driver Contact*: +2348012345678',
       '*Date Out*: 2026-11-21',
       '*Time Out*: 14:30',
     ].join('\n')
   );
+});
+
+test('omits unavailable optional driver details from the notice', () => {
+  const notice = formatDispatchNotification({
+    ...details,
+    customerName: null,
+    driverName: null,
+    driverContact: null,
+  });
+
+  assert.equal(notice.includes('*Customer*:'), false);
+  assert.equal(notice.includes('*Driver Name:*'), false);
+  assert.equal(notice.includes('*Driver Contact*:'), false);
+  assert.match(notice, /\*Date Out\*: 2026-11-21/);
 });
 
 test('matches incoming or outgoing notice text by truck and skid', () => {

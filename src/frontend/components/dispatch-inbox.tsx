@@ -31,6 +31,7 @@ import {
   listDispatchNotifications,
   rejectDispatchMessage,
 } from '@/frontend/actions/dispatch-review';
+import { markMovementNotified } from '@/frontend/actions/movements';
 import type {
   DispatchDetails,
   DispatchMessage,
@@ -108,6 +109,7 @@ export default function DispatchInbox() {
   const [reminderError, setReminderError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [busyAction, setBusyAction] = useState<'approve' | 'reject' | null>(null);
+  const [busyNotificationId, setBusyNotificationId] = useState<string | null>(null);
   const selectedIdRef = useRef<string | null>(null);
 
   const refresh = useCallback(
@@ -238,6 +240,23 @@ export default function DispatchInbox() {
         tone: 'error',
         text: error instanceof Error ? error.message : 'Unable to copy the dispatch notice.',
       });
+    }
+  }
+
+  async function confirmMovementNotification(movementId: string) {
+    setBusyNotificationId(movementId);
+    setFeedback(null);
+    try {
+      await markMovementNotified(movementId);
+      setFeedback({ tone: 'success', text: 'Dispatch notification marked as sent.' });
+      await refresh();
+    } catch (error) {
+      setFeedback({
+        tone: 'error',
+        text: error instanceof Error ? error.message : 'Unable to confirm dispatch notification.',
+      });
+    } finally {
+      setBusyNotificationId(null);
     }
   }
 
@@ -375,7 +394,7 @@ export default function DispatchInbox() {
               {notifications.map((notification) => (
                 <article
                   className={`${styles.reminderCard} ${notification.overdue ? styles.reminderCardOverdue : ''}`}
-                  key={notification.messageId}
+                  key={notification.notificationId}
                 >
                   <div>
                     <p className={styles.reminderCustomer}>{notification.customerName}</p>
@@ -388,14 +407,33 @@ export default function DispatchInbox() {
                     </p>
                   </div>
                   {notification.notificationText ? (
-                    <button
-                      className={styles.copyButton}
-                      type="button"
-                      onClick={() => void copyNotice(notification.notificationText ?? '')}
-                      aria-label={`Copy dispatch notice for ${notification.customerName}`}
-                    >
-                      <Copy size={12} /> Copy notice
-                    </button>
+                    <div className={styles.reminderActions}>
+                      <button
+                        className={styles.copyButton}
+                        type="button"
+                        onClick={() => void copyNotice(notification.notificationText ?? '')}
+                        aria-label={`Copy dispatch notice for ${notification.customerName}`}
+                      >
+                        <Copy size={12} /> Copy notice
+                      </button>
+                      {notification.source === 'movement' && notification.movementId ? (
+                        <button
+                          className={styles.copyButton}
+                          type="button"
+                          onClick={() => {
+                            if (notification.movementId) {
+                              void confirmMovementNotification(notification.movementId);
+                            }
+                          }}
+                          disabled={busyNotificationId === notification.movementId}
+                        >
+                          <Check size={12} />
+                          {busyNotificationId === notification.movementId
+                            ? 'Saving…'
+                            : 'Mark as sent'}
+                        </button>
+                      ) : null}
+                    </div>
                   ) : null}
                 </article>
               ))}

@@ -1,6 +1,13 @@
 import { and, desc, eq, ilike, ne, sql } from 'drizzle-orm';
 import { db } from '@/backend/db';
-import { customers, messages, processedMessages, skids, trucks } from '@/backend/db/schema';
+import {
+  customers,
+  messages,
+  movements,
+  processedMessages,
+  skids,
+  trucks,
+} from '@/backend/db/schema';
 import { createDispatch } from '@/backend/services/dispatch';
 import {
   DispatchDetailsSchema,
@@ -291,27 +298,61 @@ export async function listDispatchNotifications(overdueOnly = false) {
     overdueOnly ? sql`${processedMessages.notificationDueAt} <= ${now}` : undefined,
   ].filter((filter): filter is NonNullable<typeof filter> => filter !== undefined);
 
-  return db
-    .select({
-      messageId: processedMessages.messageId,
-      movementId: processedMessages.movementId,
-      customerId: messages.customerId,
-      customerName: customers.name,
-      notificationText: processedMessages.notificationText,
-      approvedAt: processedMessages.approvedAt,
-      dueAt: processedMessages.notificationDueAt,
-    })
-    .from(processedMessages)
-    .innerJoin(messages, eq(messages.id, processedMessages.messageId))
-    .innerJoin(customers, eq(customers.id, messages.customerId))
-    .where(and(...filters))
-    .orderBy(processedMessages.notificationDueAt)
-    .then((rows) =>
-      rows.map((row) => ({
+  const [messageRows, movementRows] = await Promise.all([
+    db
+      .select({
+        messageId: processedMessages.messageId,
+        movementId: processedMessages.movementId,
+        customerId: messages.customerId,
+        customerName: customers.name,
+        notificationText: processedMessages.notificationText,
+        approvedAt: processedMessages.approvedAt,
+        dueAt: processedMessages.notificationDueAt,
+      })
+      .from(processedMessages)
+      .innerJoin(messages, eq(messages.id, processedMessages.messageId))
+      .innerJoin(customers, eq(customers.id, messages.customerId))
+      .where(and(...filters))
+      .orderBy(processedMessages.notificationDueAt),
+    db
+      .select({
+        movementId: movements.id,
+        customerId: movements.customerId,
+        customerName: customers.name,
+        notificationText: movements.notificationText,
+        approvedAt: movements.createdAt,
+        dueAt: movements.notificationDueAt,
+      })
+      .from(movements)
+      .innerJoin(customers, eq(customers.id, movements.customerId))
+      .where(
+        and(
+          eq(movements.type, 'dispatch'),
+          ne(movements.status, 'cancelled'),
+          sql`${movements.notifiedAt} IS NULL`,
+          sql`${movements.notificationDueAt} IS NOT NULL`,
+          sql`${movements.notificationText} IS NOT NULL`,
+          overdueOnly ? sql`${movements.notificationDueAt} <= ${now}` : undefined
+        )
+      )
+      .orderBy(movements.notificationDueAt),
+  ]);
+
+  return [
+    ...messageRows.map((row) => ({
         ...row,
+        source: 'message' as const,
+        notificationId: `message:${row.messageId}`,
         overdue: row.dueAt !== null && row.dueAt <= now,
-      }))
-    );
+      })),
+    ...movementRows.map((row) => ({
+      ...row,
+      messageId: null,
+      source: 'movement' as const,
+      notificationId: `movement:${row.movementId}`,
+      overdue: row.dueAt !== null && row.dueAt <= now,
+    })),
+  ].sort((a, b) => (a.dueAt?.getTime() ?? 0) - (b.dueAt?.getTime() ?? 0));
 }
 
 export async function recordDispatchNotification(input: {
@@ -366,6 +407,51 @@ export async function recordDispatchNotification(input: {
         )
       )
       .returning({ messageId: processedMessages.messageId });
+
+    if (updated) return true;
+  }
+
+  const directMovements = await db
+    .select({
+      movementId: movements.id,
+      truckNumber: trucks.truckNum,
+      skidNumber: skids.skidNum,
+    })
+    .from(movements)
+    .innerJoin(trucks, eq(trucks.id, movements.truckId))
+    .innerJoin(skids, eq(skids.id, movements.skidIdOut))
+    .where(
+      and(
+        eq(movements.customerId, customer.id),
+        eq(movements.type, 'dispatch'),
+        ne(movements.status, 'cancelled'),
+        sql`${movements.createdAt} <= ${input.sentAt}`,
+        sql`${movements.notifiedAt} IS NULL`,
+        sql`${movements.notificationDueAt} IS NOT NULL`
+      )
+    )
+    .orderBy(movements.createdAt);
+
+  for (const movement of directMovements) {
+    if (
+      !matchesDispatchNotification(input.text, {
+        truckNumber: movement.truckNumber,
+        skidNumber: movement.skidNumber,
+        customerName: null,
+        driverName: null,
+        dateOut: null,
+        timeOut: null,
+        driverContact: null,
+      })
+    ) {
+      continue;
+    }
+
+    const [updated] = await db
+      .update(movements)
+      .set({ notifiedAt: input.sentAt })
+      .where(and(eq(movements.id, movement.movementId), sql`${movements.notifiedAt} IS NULL`))
+      .returning({ id: movements.id });
 
     if (updated) return true;
   }

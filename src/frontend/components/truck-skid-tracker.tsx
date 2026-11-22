@@ -38,6 +38,8 @@ function normalizeLocation(location: string) {
 function truckAvailability(truck: TruckTrackerItem) {
   if (truck.isOnMaintenance || truck.status === 'maintenance') return 'maintenance';
   if (truck.isStandby || truck.status === 'standby') return 'standby';
+  if (truck.activeMovement?.direction === 'inbound') return 'returning';
+  if (truck.activeMovement) return 'in_transit';
   return truck.status;
 }
 
@@ -54,7 +56,7 @@ function statusClass(status: string) {
   if (status === 'available' || status === 'loaded' || status === 'idle') {
     return styles.statusGreen;
   }
-  if (status === 'in_transit' || status === 'loading' || status === 'at_customer') {
+  if (status === 'in_transit' || status === 'returning' || status === 'loading' || status === 'at_customer') {
     return styles.statusBlue;
   }
   if (status === 'standby' || status === 'maintenance' || status === 'on_hold') {
@@ -136,9 +138,7 @@ function Overview({
   const plantSkidCount = data.skids.filter(
     (skid) => normalizeLocation(skid.currentLoc) === 'gastech plant'
   ).length;
-  const movingTruckCount = data.trucks.filter(
-    (truck) => truck.status === 'in_transit'
-  ).length;
+  const movingTruckCount = data.trucks.filter((truck) => truck.activeMovement !== null).length;
   const maintenanceCount =
     data.trucks.filter((truck) => truckAvailability(truck) === 'maintenance').length +
     data.skids.filter((skid) => skidAvailability(skid) === 'maintenance').length;
@@ -255,6 +255,23 @@ function TruckDetails({ truck }: { truck: TruckTrackerItem }) {
           <strong>{truck.isStandby || truck.status === 'standby' ? 'Yes' : 'No'}</strong>
         </div>
       </div>
+      {truck.activeMovement ? (
+        <div className={styles.movementDetails}>
+          <strong>
+            {truck.activeMovement.type === 'pickup' ? 'Pickup' : 'Dispatch'}{' '}
+            {truck.activeMovement.direction === 'inbound' ? '· Returning' : '· Outbound'}
+          </strong>
+          <span>
+            {truck.activeMovement.customerName ?? 'Customer unavailable'} · Trip{' '}
+            {truck.activeMovement.tripStatus?.replaceAll('_', ' ') ?? 'not detected'}
+          </span>
+          <span>
+            Outgoing skid: {truck.activeMovement.skidNumOut ?? 'None'} · Returned skid:{' '}
+            {truck.activeMovement.skidNumIn ?? 'Not recorded'}
+          </span>
+          <small>Started {formatTime(new Date(truck.activeMovement.startedAt))}</small>
+        </div>
+      ) : null}
       {truck.maintenanceNote || truck.note ? (
         <div className={styles.detailNote}>
           {truck.maintenanceNote ? (
@@ -386,6 +403,9 @@ export default function TruckSkidTracker() {
         truck.currentLoc,
         truck.geofence ?? '',
         truckAvailability(truck),
+        truck.activeMovement?.direction ?? '',
+        truck.activeMovement?.customerName ?? '',
+        truck.activeMovement?.skidNumOut ?? '',
         truck.maintenanceNote ?? '',
         truck.note ?? '',
       ]
@@ -524,7 +544,7 @@ export default function TruckSkidTracker() {
               >
                 <option value="all">All statuses</option>
                 {(view === 'trucks'
-                  ? ['available', 'in_transit', 'standby', 'at_customer', 'maintenance']
+                  ? ['available', 'in_transit', 'returning', 'standby', 'at_customer', 'maintenance']
                   : ['available', 'in_transit', 'at_customer', 'maintenance']
                 ).map((status) => (
                   <option value={status} key={status}>

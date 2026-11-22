@@ -1,27 +1,35 @@
-import { createDispatch } from '@/backend/services/dispatch';
+import { z } from 'zod';
 import { NextRequest } from 'next/server';
 import { apiError, apiSuccess } from '@/backend/lib/api-response';
+import { createDirectDispatch } from '@/backend/services/dispatch';
+
+const requestSchema = z.object({
+  truckId: z.string().uuid(),
+  customerId: z.string().uuid(),
+  skidIdOut: z.string().uuid(),
+  note: z.string().trim().max(2000).nullable().optional(),
+  forceOverride: z.boolean().default(false),
+});
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-
-    if (!body.truckId || !body.customerId || !body.skidIdOut) {
+    const parsed = requestSchema.safeParse(await req.json());
+    if (!parsed.success) {
       return apiError(
-        { code: 'VALIDATION_ERROR', message: 'truckId, customerId, and skidIdOut are required' },
+        {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid dispatch details',
+          details: parsed.error.flatten(),
+        },
         400
       );
     }
 
-    const movementId = await createDispatch({
-      truckId: body.truckId,
-      customerId: body.customerId,
-      skidIdOut: body.skidIdOut,
-      note: body.note ?? null,
-      forceOverride: Boolean(body.forceOverride),
+    const result = await createDirectDispatch({
+      ...parsed.data,
+      note: parsed.data.note ?? null,
     });
-
-    return apiSuccess({ movementId }, { status: 201 });
+    return apiSuccess(result, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to create dispatch';
     const requiresOverride = message.includes('Use manual override');

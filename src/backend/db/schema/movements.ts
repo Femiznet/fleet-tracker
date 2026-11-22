@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, check, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, check, uniqueIndex, timestamp } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { movementTypeEnum, movementStatusEnum } from './enums';
 import { trucks } from './trucks';
@@ -18,6 +18,10 @@ export const movements = pgTable(
     skidIdOut: uuid('skid_id_out').references(() => skids.id),
     skidIdIn: uuid('skid_id_in').references(() => skids.id),
     note: text('note'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    notificationDueAt: timestamp('notification_due_at', { withTimezone: true }),
+    notifiedAt: timestamp('notified_at', { withTimezone: true }),
+    notificationText: text('notification_text'),
   },
   (table) => [
     // Partial Unique Index: A truck can only have ONE 'in_progress' movement at a time

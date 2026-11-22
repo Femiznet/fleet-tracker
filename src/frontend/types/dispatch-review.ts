@@ -34,7 +34,9 @@ export const DispatchMessageSchema = z.object({
 export type DispatchMessage = z.infer<typeof DispatchMessageSchema>;
 
 export const DispatchNotificationSchema = z.object({
-  messageId: z.string(),
+  notificationId: z.string(),
+  source: z.enum(['message', 'movement']),
+  messageId: z.string().nullable(),
   movementId: z.string().nullable(),
   customerId: z.string(),
   customerName: z.string(),

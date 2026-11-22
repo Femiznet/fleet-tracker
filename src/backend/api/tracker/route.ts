@@ -8,6 +8,7 @@ import { skids } from '@/backend/db/schema/skids';
 import { trucks } from '@/backend/db/schema/trucks';
 import { apiDbError, apiSuccess } from '@/backend/lib/api-response';
 import { findMatchingGeofence } from '@/backend/lib/geofence';
+import { listActiveMovements } from '@/backend/services/movements/repository';
 
 function hasValidCoordinates(lat: number, lon: number) {
   return (
@@ -23,7 +24,7 @@ function hasValidCoordinates(lat: number, lon: number) {
 
 export async function GET() {
   try {
-    const [truckRows, skidRows, zones] = await Promise.all([
+    const [truckRows, skidRows, zones, activeMovements] = await Promise.all([
       db
         .select({
           id: trucks.id,
@@ -64,25 +65,44 @@ export async function GET() {
         .leftJoin(plantSkidStatuses, eq(plantSkidStatuses.skidId, skids.id))
         .orderBy(asc(skids.skidNum)),
       db.select().from(geofenceZones),
+      listActiveMovements(),
     ]);
+    const activeMovementByTruck = new Map(
+      activeMovements.map((movement) => [movement.truckId, movement])
+    );
 
     const namedZones = zones.filter(
       (zone): zone is typeof zone & { geofenceName: string } => zone.geofenceName !== null
     );
 
     return apiSuccess({
-      trucks: truckRows.map(({ group, ...truck }) => ({
-        ...truck,
-        isStandby: truck.isStandby ?? false,
-        isOnMaintenance: truck.isOnMaintenance ?? false,
-        maintenanceNote: truck.maintenanceNote ?? null,
-        note: truck.note ?? null,
-        geofence:
-          group?.trim().toUpperCase() === 'GASTECH VEHICLES' &&
-          hasValidCoordinates(truck.lat, truck.lon)
-            ? findMatchingGeofence(namedZones, truck.lat, truck.lon)
+      trucks: truckRows.map(({ group, ...truck }) => {
+        const movement = activeMovementByTruck.get(truck.id);
+        return {
+          ...truck,
+          isStandby: truck.isStandby ?? false,
+          isOnMaintenance: truck.isOnMaintenance ?? false,
+          maintenanceNote: truck.maintenanceNote ?? null,
+          note: truck.note ?? null,
+          activeMovement: movement
+            ? {
+                id: movement.id,
+                type: movement.type,
+                direction: movement.currentDirection,
+                tripStatus: movement.currentTripStatus,
+                customerName: movement.customerName,
+                startedAt: movement.startedAt,
+                skidNumOut: movement.skidNumOut,
+                skidNumIn: movement.skidNumIn,
+              }
             : null,
-      })),
+          geofence:
+            group?.trim().toUpperCase() === 'GASTECH VEHICLES' &&
+            hasValidCoordinates(truck.lat, truck.lon)
+              ? findMatchingGeofence(namedZones, truck.lat, truck.lon)
+              : null,
+        };
+      }),
       skids: skidRows.map((skid) => ({
         ...skid,
         fillState: skid.fillState ?? null,
