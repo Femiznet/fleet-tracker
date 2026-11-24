@@ -1,9 +1,12 @@
+DROP FUNCTION IF EXISTS create_dispatch(UUID, UUID, UUID, TEXT, BOOLEAN);
+DROP FUNCTION IF EXISTS create_dispatch(UUID, UUID, UUID, TEXT);
+
 CREATE OR REPLACE FUNCTION create_dispatch(
   p_truck_id UUID,
   p_customer_id UUID,
   p_skid_id_out UUID,
   p_note TEXT DEFAULT NULL,
-  p_force_override BOOLEAN DEFAULT FALSE
+  p_tracking_mode tracking_mode DEFAULT 'live'
 )
 RETURNS UUID
 LANGUAGE plpgsql
@@ -12,9 +15,9 @@ DECLARE
   v_truck_status truck_status;
   v_truck_loc VARCHAR;
   v_skid_status skid_status;
+  v_skid_fill_state skid_fill_state;
   v_skid_loc VARCHAR;
   v_customer_geofence VARCHAR;
-  v_final_note TEXT;
   v_movement_id UUID;
 BEGIN
   -- 1. Lock and validate the truck
@@ -28,17 +31,9 @@ BEGIN
     RAISE EXCEPTION 'Truck not found';
   END IF;
 
-  IF v_truck_status != 'available' THEN
-    RAISE EXCEPTION 'Truck is not available for dispatch (Current status: %)', v_truck_status;
-  END IF;
-
-  IF NOT p_force_override AND v_truck_loc != 'GASTECH PLANT' THEN
-    RAISE EXCEPTION 'Truck sensor location must be GASTECH PLANT to dispatch (Current location: %). Use manual override if sensor is inaccurate.', v_truck_loc;
-  END IF;
-
   -- 2. Lock and validate the outgoing skid
-  SELECT status, current_loc
-  INTO v_skid_status, v_skid_loc
+  SELECT status, fill_state, current_loc
+  INTO v_skid_status, v_skid_fill_state, v_skid_loc
   FROM skids
   WHERE id = p_skid_id_out
   FOR UPDATE;
@@ -47,15 +42,52 @@ BEGIN
     RAISE EXCEPTION 'Outgoing skid not found';
   END IF;
 
-  IF v_skid_status != 'available' THEN
-    RAISE EXCEPTION 'Skid is not available for dispatch (Current status: %)', v_skid_status;
+  -- 3. Prevent reuse of a truck or skid in another active dispatch
+  IF EXISTS (
+    SELECT 1
+    FROM movements
+    WHERE status = 'in_progress'
+      AND type = 'dispatch'
+      AND (
+        truck_id = p_truck_id
+        OR skid_id_out = p_skid_id_out
+        OR skid_id_in = p_skid_id_out
+      )
+  ) THEN
+    RAISE EXCEPTION 'Truck or skid is already assigned to an active dispatch';
   END IF;
 
-  IF NOT p_force_override AND v_skid_loc != 'GASTECH PLANT' THEN
-    RAISE EXCEPTION 'Skid location must be GASTECH PLANT to dispatch (Current location: %)', v_skid_loc;
+  IF v_truck_status = 'maintenance' THEN
+    RAISE EXCEPTION 'Truck is in maintenance';
   END IF;
 
-  -- 3. Fetch customer geofence for the outbound trip destination
+  IF p_tracking_mode = 'live' AND NOT EXISTS (
+    SELECT 1
+    FROM geofence_zones
+    WHERE type = 'plant'
+      AND UPPER(TRIM(geofence_name)) = UPPER(TRIM(v_truck_loc))
+  ) THEN
+    RAISE EXCEPTION 'Truck must be at a geofence classified as a plant for live tracking (Current location: %)', v_truck_loc;
+  END IF;
+
+  IF v_skid_status = 'maintenance' THEN
+    RAISE EXCEPTION 'Skid is in maintenance';
+  END IF;
+
+  IF v_skid_fill_state != 'loaded' THEN
+    RAISE EXCEPTION 'Skid must be loaded before dispatch (Current fill state: %)', v_skid_fill_state;
+  END IF;
+
+  IF p_tracking_mode = 'live' AND NOT EXISTS (
+    SELECT 1
+    FROM geofence_zones
+    WHERE type = 'plant'
+      AND UPPER(TRIM(geofence_name)) = UPPER(TRIM(v_skid_loc))
+  ) THEN
+    RAISE EXCEPTION 'Skid must be at a geofence classified as a plant for live tracking (Current location: %)', v_skid_loc;
+  END IF;
+
+  -- 4. Fetch and validate the customer geofence for the outbound destination
   SELECT geofence_name INTO v_customer_geofence
   FROM customers
   WHERE id = p_customer_id;
@@ -64,16 +96,20 @@ BEGIN
     RAISE EXCEPTION 'Customer not found';
   END IF;
 
-  -- 4. Tag the note if a sensor override was used
-  v_final_note := p_note;
-  IF p_force_override AND (v_truck_loc != 'GASTECH PLANT' OR v_skid_loc != 'GASTECH PLANT') THEN
-    v_final_note := TRIM(COALESCE(p_note, '') || ' [Manual Sensor Override]');
+  IF v_customer_geofence IS NULL OR NOT EXISTS (
+    SELECT 1
+    FROM geofence_zones
+    WHERE type = 'customer'
+      AND UPPER(TRIM(geofence_name)) = UPPER(TRIM(v_customer_geofence))
+  ) THEN
+    RAISE EXCEPTION 'Customer geofence must be classified as a customer geofence';
   END IF;
 
   -- 5. Create the parent movement record
   INSERT INTO movements (
     type,
     status,
+    tracking_mode,
     truck_id,
     customer_id,
     skid_id_out,
@@ -81,10 +117,11 @@ BEGIN
   ) VALUES (
     'dispatch',
     'in_progress',
+    p_tracking_mode,
     p_truck_id,
     p_customer_id,
     p_skid_id_out,
-    NULLIF(v_final_note, '')
+    NULLIF(p_note, '')
   )
   RETURNING id INTO v_movement_id;
 
@@ -110,10 +147,16 @@ BEGIN
   SET status = 'in_transit'
   WHERE id = p_truck_id;
 
-  UPDATE skids
-  SET status = 'in_transit',
-      current_loc = v_truck_loc
-  WHERE id = p_skid_id_out;
+  IF p_tracking_mode = 'live' THEN
+    UPDATE skids
+    SET status = 'in_transit',
+        current_loc = v_truck_loc
+    WHERE id = p_skid_id_out;
+  ELSE
+    UPDATE skids
+    SET status = 'in_transit'
+    WHERE id = p_skid_id_out;
+  END IF;
 
   RETURN v_movement_id;
 END;

@@ -7,8 +7,10 @@ export interface CreateDispatchInput {
   customerId: string;
   skidIdOut: string;
   note?: string | null;
-  forceOverride?: boolean;
+  trackingMode?: 'live' | 'manual';
 }
+
+export type ManualDispatchAction = 'arrived_customer' | 'returning' | 'arrived_plant';
 
 export interface CreatePickupInput {
   truckId: string;
@@ -22,7 +24,6 @@ export interface CompleteMovementInput {
   movementId: string;
   skidIdIn?: string | null;
   note?: string | null;
-  forceOverride?: boolean;
 }
 
 export interface CancelMovementInput {
@@ -43,7 +44,7 @@ export async function createDispatch(input: CreateDispatchInput): Promise<string
         ${input.customerId}::uuid,
         ${input.skidIdOut}::uuid,
         ${input.note ?? null}::text,
-        ${input.forceOverride ?? false}::boolean
+        ${input.trackingMode ?? 'live'}::tracking_mode
       ) AS movement_id
     `);
 
@@ -56,6 +57,26 @@ export async function createDispatch(input: CreateDispatchInput): Promise<string
 
     return movementId;
 
+  } catch (error) {
+    throw formatDbError(error);
+  }
+}
+
+export async function manualDispatchAction(input: {
+  movementId: string;
+  action: ManualDispatchAction;
+  skidIdIn?: string | null;
+  note?: string | null;
+}): Promise<void> {
+  try {
+    await db.execute(sql`
+      SELECT manual_dispatch_action(
+        ${input.movementId}::uuid,
+        ${input.action}::text,
+        ${input.skidIdIn ?? null}::uuid,
+        ${input.note ?? null}::text
+      )
+    `);
   } catch (error) {
     throw formatDbError(error);
   }
@@ -99,8 +120,7 @@ export async function completeMovement(input: CompleteMovementInput): Promise<vo
       SELECT complete_dispatch(
         ${input.movementId}::uuid,
         ${input.skidIdIn ?? null}::uuid,
-        ${input.note ?? null}::text,
-        ${input.forceOverride ?? false}::boolean
+        ${input.note ?? null}::text
       )
     `);
   } catch (error) {

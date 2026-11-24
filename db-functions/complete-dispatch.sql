@@ -1,8 +1,9 @@
+DROP FUNCTION IF EXISTS complete_dispatch(UUID, UUID, TEXT, BOOLEAN);
+
 CREATE OR REPLACE FUNCTION complete_dispatch(
   p_movement_id UUID,
   p_skid_id_in UUID DEFAULT NULL,
-  p_note TEXT DEFAULT NULL,
-  p_force_override BOOLEAN DEFAULT FALSE
+  p_note TEXT DEFAULT NULL
 )
 RETURNS VOID
 LANGUAGE plpgsql
@@ -43,28 +44,25 @@ BEGIN
     RAISE EXCEPTION 'A returned skid (skid_id_in) or a completion note is required';
   END IF;
 
-  -- 3. Check if truck is physically back at GASTECH PLANT (unless overridden)
+  -- 3. Check if truck is physically back at GASTECH PLANT
   SELECT current_loc INTO v_truck_loc
   FROM trucks
   WHERE id = v_movement.truck_id
   FOR UPDATE;
 
-  IF NOT p_force_override AND TRIM(v_truck_loc) != 'GASTECH PLANT' THEN
-    RAISE EXCEPTION 'Truck sensor location is currently %. Confirm truck is at GASTECH PLANT or use manual override.', v_truck_loc;
+  IF TRIM(v_truck_loc) != 'GASTECH PLANT' THEN
+    RAISE EXCEPTION 'Truck must be at GASTECH PLANT to complete this movement (Current location: %)', v_truck_loc;
   END IF;
 
-  IF p_force_override AND TRIM(v_truck_loc) != 'GASTECH PLANT' THEN
-    v_final_note := TRIM(COALESCE(v_final_note, '') || ' [Manual Completion Override]');
-  END IF;
-
-  -- 3B. For full roundtrip dispatches, ensure the truck actually went out & started returning (unless overridden)
-  IF v_movement.type = 'dispatch' AND NOT p_force_override THEN
+  -- 3B. For full roundtrip dispatches, require an inbound trip that has arrived
+  IF v_movement.type = 'dispatch' THEN
     IF NOT EXISTS (
       SELECT 1 FROM trips
       WHERE movement_id = p_movement_id
         AND direction = 'inbound'
+        AND status = 'arrived'
     ) THEN
-      RAISE EXCEPTION 'Truck has not completed its outbound visit to the customer yet. Cancel the dispatch or use manual override.';
+      RAISE EXCEPTION 'Return trip has not arrived at GASTECH PLANT';
     END IF;
   END IF;
 
@@ -101,8 +99,8 @@ BEGIN
       END IF;
     END IF;
 
-    IF NOT p_force_override AND v_skid_in_status = 'at_customer' AND TRIM(v_skid_in_loc) != TRIM(v_customer_geofence) THEN
-      RAISE EXCEPTION 'Returned skid is recorded at %, not at this customer (%). Use manual override if transferred.', v_skid_in_loc, v_customer_geofence;
+    IF v_skid_in_status = 'at_customer' AND TRIM(v_skid_in_loc) != TRIM(v_customer_geofence) THEN
+      RAISE EXCEPTION 'Returned skid is recorded at %, not at this customer (%)', v_skid_in_loc, v_customer_geofence;
     END IF;
   END IF;
 

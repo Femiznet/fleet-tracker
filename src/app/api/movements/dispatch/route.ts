@@ -12,23 +12,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const trackingMode = body.trackingMode ?? 'live';
+    if (trackingMode !== 'live' && trackingMode !== 'manual') {
+      return NextResponse.json(
+        { error: 'trackingMode must be "live" or "manual"' },
+        { status: 400 }
+      );
+    }
+
     const movementId = await createDispatch({
       truckId: body.truckId,
       customerId: body.customerId,
       skidIdOut: body.skidIdOut,
       note: body.note ?? null,
-      forceOverride: Boolean(body.forceOverride),
+      trackingMode,
     });
 
     return NextResponse.json({ movementId }, { status: 201 });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Failed to create dispatch';
-    const requiresOverride = message.includes('Use manual override');
-
     return NextResponse.json(
-      { error: message, requiresOverride },
-      { status: requiresOverride ? 409 : 400 }
+      { error: message },
+      { status: 400 }
     );
   }
 }

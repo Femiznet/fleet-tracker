@@ -5,15 +5,15 @@ AS $$
 DECLARE
   v_movement_id UUID;
   v_movement_type movement_type;
+  v_tracking_mode tracking_mode;
   v_active_skid_id UUID;
   v_customer_geofence VARCHAR;
 BEGIN
-  IF TRIM(NEW.current_loc) IS DISTINCT FROM TRIM(OLD.current_loc)
-     AND NEW.status IN ('in_transit', 'at_customer') THEN
+  IF TRIM(NEW.current_loc) IS DISTINCT FROM TRIM(OLD.current_loc) THEN
 
     -- Find the active dispatch or pickup movement
-    SELECT m.id, m.type, COALESCE(m.skid_id_out, m.skid_id_in), c.geofence_name
-    INTO v_movement_id, v_movement_type, v_active_skid_id, v_customer_geofence
+    SELECT m.id, m.type, m.tracking_mode, COALESCE(m.skid_id_out, m.skid_id_in), c.geofence_name
+    INTO v_movement_id, v_movement_type, v_tracking_mode, v_active_skid_id, v_customer_geofence
     FROM movements m
     JOIN customers c ON c.id = m.customer_id
     WHERE m.truck_id = NEW.id
@@ -21,7 +21,14 @@ BEGIN
       AND m.status = 'in_progress'
     LIMIT 1;
 
-    IF FOUND THEN
+    IF FOUND AND v_tracking_mode = 'manual' THEN
+      IF current_setting('app.manual_dispatch_location_update', TRUE) IS DISTINCT FROM 'true' THEN
+        NEW.current_loc := OLD.current_loc;
+      END IF;
+      RETURN NEW;
+    END IF;
+
+    IF FOUND AND NEW.status IN ('in_transit', 'at_customer') THEN
       -- Outbound arrival & inbound creation only apply to full roundtrip dispatches
       IF v_movement_type = 'dispatch' THEN
         IF TRIM(NEW.current_loc) = TRIM(v_customer_geofence) THEN

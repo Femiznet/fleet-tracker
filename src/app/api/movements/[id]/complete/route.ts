@@ -14,18 +14,15 @@ export async function POST(req: NextRequest, context: RouteContext) {
       movementId: id,
       skidIdIn: body.skidIdIn ?? null,
       note: body.note ?? null,
-      forceOverride: Boolean(body.forceOverride),
     });
 
     return NextResponse.json({ movementId: id, status: 'completed' });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Failed to complete movement';
-    const requiresOverride = message.includes('manual override');
-
     return NextResponse.json(
-      { error: message, requiresOverride },
-      { status: requiresOverride ? 409 : 400 }
+      { error: message },
+      { status: 400 }
     );
   }
 }

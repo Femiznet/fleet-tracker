@@ -1,6 +1,6 @@
 import { pgTable, uuid, text, check, uniqueIndex } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { movementTypeEnum, movementStatusEnum } from './enums';
+import { movementTypeEnum, movementStatusEnum, trackingModeEnum } from './enums';
 import { trucks } from './trucks';
 import { customers } from './customers';
 import { skids } from './skids';
@@ -9,6 +9,7 @@ export const movements = pgTable('movements',{
   id: uuid('id').primaryKey().defaultRandom(),
   type: movementTypeEnum('type').notNull(),
   status: movementStatusEnum('status').notNull().default('in_progress'),
+  trackingMode: trackingModeEnum('tracking_mode').notNull().default('live'),
   truckId: uuid('truck_id').references(() => trucks.id).notNull(),
   customerId: uuid('customer_id').references(() => customers.id),
   skidIdOut: uuid('skid_id_out').references(() => skids.id),

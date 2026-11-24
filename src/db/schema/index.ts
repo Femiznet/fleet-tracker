@@ -7,6 +7,7 @@ export {
     processingStatus,
     tripDirectionEnum,
     movementTypeEnum,
+    trackingModeEnum,
     movementStatusEnum,
     tripStatusEnum,
     truckStatusEnum,

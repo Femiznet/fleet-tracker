@@ -7,6 +7,7 @@ CREATE TYPE "public"."processing_status" AS ENUM('needs review', 'pending', 'fai
 CREATE TYPE "public"."skid_bay_state" AS ENUM('idle', 'on_hold', 'washing');--> statement-breakpoint
 CREATE TYPE "public"."skid_fill_state" AS ENUM('empty', 'loading', 'loaded');--> statement-breakpoint
 CREATE TYPE "public"."skid_status" AS ENUM('available', 'in_transit', 'at_customer', 'maintenance');--> statement-breakpoint
+CREATE TYPE "public"."tracking_mode" AS ENUM('live', 'manual');--> statement-breakpoint
 CREATE TYPE "public"."direction" AS ENUM('outbound', 'inbound');--> statement-breakpoint
 CREATE TYPE "public"."trip_status" AS ENUM('in_transit', 'arrived', 'cancelled');--> statement-breakpoint
 CREATE TYPE "public"."truck_status" AS ENUM('available', 'in_transit', 'standby', 'at_customer', 'maintenance');--> statement-breakpoint
@@ -81,6 +82,7 @@ CREATE TABLE "movements" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"type" "movement_type" NOT NULL,
 	"status" "movement_status" DEFAULT 'in_progress' NOT NULL,
+	"tracking_mode" "tracking_mode" DEFAULT 'live' NOT NULL,
 	"truck_id" uuid NOT NULL,
 	"customer_id" uuid,
 	"skid_id_out" uuid,
@@ -225,11 +227,12 @@ BEGIN
 END;
 $$;
 --> statement-breakpoint
+DROP FUNCTION IF EXISTS complete_dispatch(UUID, UUID, TEXT, BOOLEAN);
+
 CREATE OR REPLACE FUNCTION complete_dispatch(
   p_movement_id UUID,
   p_skid_id_in UUID DEFAULT NULL,
-  p_note TEXT DEFAULT NULL,
-  p_force_override BOOLEAN DEFAULT FALSE
+  p_note TEXT DEFAULT NULL
 )
 RETURNS VOID
 LANGUAGE plpgsql
@@ -270,28 +273,25 @@ BEGIN
     RAISE EXCEPTION 'A returned skid (skid_id_in) or a completion note is required';
   END IF;
 
-  -- 3. Check if truck is physically back at GASTECH PLANT (unless overridden)
+  -- 3. Check if truck is physically back at GASTECH PLANT
   SELECT current_loc INTO v_truck_loc
   FROM trucks
   WHERE id = v_movement.truck_id
   FOR UPDATE;
 
-  IF NOT p_force_override AND TRIM(v_truck_loc) != 'GASTECH PLANT' THEN
-    RAISE EXCEPTION 'Truck sensor location is currently %. Confirm truck is at GASTECH PLANT or use manual override.', v_truck_loc;
+  IF TRIM(v_truck_loc) != 'GASTECH PLANT' THEN
+    RAISE EXCEPTION 'Truck must be at GASTECH PLANT to complete this movement (Current location: %)', v_truck_loc;
   END IF;
 
-  IF p_force_override AND TRIM(v_truck_loc) != 'GASTECH PLANT' THEN
-    v_final_note := TRIM(COALESCE(v_final_note, '') || ' [Manual Completion Override]');
-  END IF;
-
-  -- 3B. For full roundtrip dispatches, ensure the truck actually went out & started returning (unless overridden)
-  IF v_movement.type = 'dispatch' AND NOT p_force_override THEN
+  -- 3B. For full roundtrip dispatches, require an inbound trip that has arrived
+  IF v_movement.type = 'dispatch' THEN
     IF NOT EXISTS (
       SELECT 1 FROM trips
       WHERE movement_id = p_movement_id
         AND direction = 'inbound'
+        AND status = 'arrived'
     ) THEN
-      RAISE EXCEPTION 'Truck has not completed its outbound visit to the customer yet. Cancel the dispatch or use manual override.';
+      RAISE EXCEPTION 'Return trip has not arrived at GASTECH PLANT';
     END IF;
   END IF;
 
@@ -328,8 +328,8 @@ BEGIN
       END IF;
     END IF;
 
-    IF NOT p_force_override AND v_skid_in_status = 'at_customer' AND TRIM(v_skid_in_loc) != TRIM(v_customer_geofence) THEN
-      RAISE EXCEPTION 'Returned skid is recorded at %, not at this customer (%). Use manual override if transferred.', v_skid_in_loc, v_customer_geofence;
+    IF v_skid_in_status = 'at_customer' AND TRIM(v_skid_in_loc) != TRIM(v_customer_geofence) THEN
+      RAISE EXCEPTION 'Returned skid is recorded at %, not at this customer (%)', v_skid_in_loc, v_customer_geofence;
     END IF;
   END IF;
 
@@ -384,12 +384,15 @@ BEGIN
 END;
 $$;
 --> statement-breakpoint
+DROP FUNCTION IF EXISTS create_dispatch(UUID, UUID, UUID, TEXT, BOOLEAN);
+DROP FUNCTION IF EXISTS create_dispatch(UUID, UUID, UUID, TEXT);
+
 CREATE OR REPLACE FUNCTION create_dispatch(
   p_truck_id UUID,
   p_customer_id UUID,
   p_skid_id_out UUID,
   p_note TEXT DEFAULT NULL,
-  p_force_override BOOLEAN DEFAULT FALSE
+  p_tracking_mode tracking_mode DEFAULT 'live'
 )
 RETURNS UUID
 LANGUAGE plpgsql
@@ -398,9 +401,9 @@ DECLARE
   v_truck_status truck_status;
   v_truck_loc VARCHAR;
   v_skid_status skid_status;
+  v_skid_fill_state skid_fill_state;
   v_skid_loc VARCHAR;
   v_customer_geofence VARCHAR;
-  v_final_note TEXT;
   v_movement_id UUID;
 BEGIN
   -- 1. Lock and validate the truck
@@ -414,17 +417,9 @@ BEGIN
     RAISE EXCEPTION 'Truck not found';
   END IF;
 
-  IF v_truck_status != 'available' THEN
-    RAISE EXCEPTION 'Truck is not available for dispatch (Current status: %)', v_truck_status;
-  END IF;
-
-  IF NOT p_force_override AND v_truck_loc != 'GASTECH PLANT' THEN
-    RAISE EXCEPTION 'Truck sensor location must be GASTECH PLANT to dispatch (Current location: %). Use manual override if sensor is inaccurate.', v_truck_loc;
-  END IF;
-
   -- 2. Lock and validate the outgoing skid
-  SELECT status, current_loc
-  INTO v_skid_status, v_skid_loc
+  SELECT status, fill_state, current_loc
+  INTO v_skid_status, v_skid_fill_state, v_skid_loc
   FROM skids
   WHERE id = p_skid_id_out
   FOR UPDATE;
@@ -433,15 +428,52 @@ BEGIN
     RAISE EXCEPTION 'Outgoing skid not found';
   END IF;
 
-  IF v_skid_status != 'available' THEN
-    RAISE EXCEPTION 'Skid is not available for dispatch (Current status: %)', v_skid_status;
+  -- 3. Prevent reuse of a truck or skid in another active dispatch
+  IF EXISTS (
+    SELECT 1
+    FROM movements
+    WHERE status = 'in_progress'
+      AND type = 'dispatch'
+      AND (
+        truck_id = p_truck_id
+        OR skid_id_out = p_skid_id_out
+        OR skid_id_in = p_skid_id_out
+      )
+  ) THEN
+    RAISE EXCEPTION 'Truck or skid is already assigned to an active dispatch';
   END IF;
 
-  IF NOT p_force_override AND v_skid_loc != 'GASTECH PLANT' THEN
-    RAISE EXCEPTION 'Skid location must be GASTECH PLANT to dispatch (Current location: %)', v_skid_loc;
+  IF v_truck_status = 'maintenance' THEN
+    RAISE EXCEPTION 'Truck is in maintenance';
   END IF;
 
-  -- 3. Fetch customer geofence for the outbound trip destination
+  IF p_tracking_mode = 'live' AND NOT EXISTS (
+    SELECT 1
+    FROM geofence_zones
+    WHERE type = 'plant'
+      AND UPPER(TRIM(geofence_name)) = UPPER(TRIM(v_truck_loc))
+  ) THEN
+    RAISE EXCEPTION 'Truck must be at a geofence classified as a plant for live tracking (Current location: %)', v_truck_loc;
+  END IF;
+
+  IF v_skid_status = 'maintenance' THEN
+    RAISE EXCEPTION 'Skid is in maintenance';
+  END IF;
+
+  IF v_skid_fill_state != 'loaded' THEN
+    RAISE EXCEPTION 'Skid must be loaded before dispatch (Current fill state: %)', v_skid_fill_state;
+  END IF;
+
+  IF p_tracking_mode = 'live' AND NOT EXISTS (
+    SELECT 1
+    FROM geofence_zones
+    WHERE type = 'plant'
+      AND UPPER(TRIM(geofence_name)) = UPPER(TRIM(v_skid_loc))
+  ) THEN
+    RAISE EXCEPTION 'Skid must be at a geofence classified as a plant for live tracking (Current location: %)', v_skid_loc;
+  END IF;
+
+  -- 4. Fetch and validate the customer geofence for the outbound destination
   SELECT geofence_name INTO v_customer_geofence
   FROM customers
   WHERE id = p_customer_id;
@@ -450,16 +482,20 @@ BEGIN
     RAISE EXCEPTION 'Customer not found';
   END IF;
 
-  -- 4. Tag the note if a sensor override was used
-  v_final_note := p_note;
-  IF p_force_override AND (v_truck_loc != 'GASTECH PLANT' OR v_skid_loc != 'GASTECH PLANT') THEN
-    v_final_note := TRIM(COALESCE(p_note, '') || ' [Manual Sensor Override]');
+  IF v_customer_geofence IS NULL OR NOT EXISTS (
+    SELECT 1
+    FROM geofence_zones
+    WHERE type = 'customer'
+      AND UPPER(TRIM(geofence_name)) = UPPER(TRIM(v_customer_geofence))
+  ) THEN
+    RAISE EXCEPTION 'Customer geofence must be classified as a customer geofence';
   END IF;
 
   -- 5. Create the parent movement record
   INSERT INTO movements (
     type,
     status,
+    tracking_mode,
     truck_id,
     customer_id,
     skid_id_out,
@@ -467,10 +503,11 @@ BEGIN
   ) VALUES (
     'dispatch',
     'in_progress',
+    p_tracking_mode,
     p_truck_id,
     p_customer_id,
     p_skid_id_out,
-    NULLIF(v_final_note, '')
+    NULLIF(p_note, '')
   )
   RETURNING id INTO v_movement_id;
 
@@ -496,10 +533,16 @@ BEGIN
   SET status = 'in_transit'
   WHERE id = p_truck_id;
 
-  UPDATE skids
-  SET status = 'in_transit',
-      current_loc = v_truck_loc
-  WHERE id = p_skid_id_out;
+  IF p_tracking_mode = 'live' THEN
+    UPDATE skids
+    SET status = 'in_transit',
+        current_loc = v_truck_loc
+    WHERE id = p_skid_id_out;
+  ELSE
+    UPDATE skids
+    SET status = 'in_transit'
+    WHERE id = p_skid_id_out;
+  END IF;
 
   RETURN v_movement_id;
 END;
@@ -630,6 +673,164 @@ BEGIN
 END;
 $$;
 --> statement-breakpoint
+DROP FUNCTION IF EXISTS manual_dispatch_action(UUID, TEXT, UUID, TEXT);
+
+CREATE OR REPLACE FUNCTION manual_dispatch_action(
+  p_movement_id UUID,
+  p_action TEXT,
+  p_skid_id_in UUID DEFAULT NULL,
+  p_note TEXT DEFAULT NULL
+)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_movement movements%ROWTYPE;
+  v_customer_geofence VARCHAR;
+  v_trip_status trip_status;
+BEGIN
+  SELECT * INTO v_movement
+  FROM movements
+  WHERE id = p_movement_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Movement not found';
+  END IF;
+
+  IF v_movement.type != 'dispatch' OR v_movement.status != 'in_progress' THEN
+    RAISE EXCEPTION 'Manual actions require an in-progress dispatch';
+  END IF;
+
+  IF v_movement.tracking_mode != 'manual' THEN
+    RAISE EXCEPTION 'Manual actions are only available for manual dispatches';
+  END IF;
+
+  SELECT geofence_name INTO v_customer_geofence
+  FROM customers
+  WHERE id = v_movement.customer_id;
+
+  IF NOT FOUND OR v_customer_geofence IS NULL OR NOT EXISTS (
+    SELECT 1
+    FROM geofence_zones
+    WHERE type = 'customer'
+      AND UPPER(TRIM(geofence_name)) = UPPER(TRIM(v_customer_geofence))
+  ) THEN
+    RAISE EXCEPTION 'Dispatch customer must have a geofence classified as a customer';
+  END IF;
+
+  IF p_action = 'arrived_customer' THEN
+    SELECT status INTO v_trip_status
+    FROM trips
+    WHERE movement_id = p_movement_id
+      AND direction = 'outbound'
+    FOR UPDATE;
+
+    IF NOT FOUND OR v_trip_status != 'in_transit' THEN
+      RAISE EXCEPTION 'Outbound trip is not in transit';
+    END IF;
+
+    UPDATE trips
+    SET status = 'arrived',
+        arrived = TRUE
+    WHERE movement_id = p_movement_id
+      AND direction = 'outbound';
+
+    PERFORM set_config('app.manual_dispatch_location_update', 'true', TRUE);
+
+    UPDATE trucks
+    SET current_loc = v_customer_geofence,
+        status = 'at_customer'
+    WHERE id = v_movement.truck_id;
+
+    PERFORM set_config('app.manual_dispatch_location_update', 'false', TRUE);
+
+    UPDATE skids
+    SET current_loc = v_customer_geofence,
+        status = 'at_customer'
+    WHERE id = v_movement.skid_id_out;
+
+  ELSIF p_action = 'returning' THEN
+    SELECT status INTO v_trip_status
+    FROM trips
+    WHERE movement_id = p_movement_id
+      AND direction = 'outbound'
+    FOR UPDATE;
+
+    IF NOT FOUND OR v_trip_status != 'arrived' THEN
+      RAISE EXCEPTION 'Truck must arrive at the customer before starting the return trip';
+    END IF;
+
+    IF EXISTS (
+      SELECT 1 FROM trips
+      WHERE movement_id = p_movement_id
+        AND direction = 'inbound'
+    ) THEN
+      RAISE EXCEPTION 'Return trip has already been started';
+    END IF;
+
+    INSERT INTO trips (
+      movement_id,
+      status,
+      direction,
+      origin,
+      destination,
+      arrived
+    ) VALUES (
+      p_movement_id,
+      'in_transit',
+      'inbound',
+      v_customer_geofence,
+      'GASTECH PLANT',
+      FALSE
+    );
+
+    UPDATE trucks
+    SET status = 'in_transit'
+    WHERE id = v_movement.truck_id;
+
+  ELSIF p_action = 'arrived_plant' THEN
+    SELECT status INTO v_trip_status
+    FROM trips
+    WHERE movement_id = p_movement_id
+      AND direction = 'inbound'
+    FOR UPDATE;
+
+    IF NOT FOUND OR v_trip_status != 'in_transit' THEN
+      RAISE EXCEPTION 'Return trip is not in transit';
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1
+      FROM geofence_zones
+      WHERE type = 'plant'
+        AND UPPER(TRIM(geofence_name)) = 'GASTECH PLANT'
+    ) THEN
+      RAISE EXCEPTION 'GASTECH PLANT must be classified as a plant geofence';
+    END IF;
+
+    PERFORM set_config('app.manual_dispatch_location_update', 'true', TRUE);
+
+    UPDATE trucks
+    SET current_loc = 'GASTECH PLANT'
+    WHERE id = v_movement.truck_id;
+
+    PERFORM set_config('app.manual_dispatch_location_update', 'false', TRUE);
+
+    UPDATE trips
+    SET status = 'arrived',
+        arrived = TRUE
+    WHERE movement_id = p_movement_id
+      AND direction = 'inbound';
+
+    PERFORM complete_dispatch(p_movement_id, p_skid_id_in, p_note);
+
+  ELSE
+    RAISE EXCEPTION 'Unsupported manual dispatch action: %', p_action;
+  END IF;
+END;
+$$;
+--> statement-breakpoint
 CREATE OR REPLACE FUNCTION handle_truck_location_update()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -637,15 +838,15 @@ AS $$
 DECLARE
   v_movement_id UUID;
   v_movement_type movement_type;
+  v_tracking_mode tracking_mode;
   v_active_skid_id UUID;
   v_customer_geofence VARCHAR;
 BEGIN
-  IF TRIM(NEW.current_loc) IS DISTINCT FROM TRIM(OLD.current_loc)
-     AND NEW.status IN ('in_transit', 'at_customer') THEN
+  IF TRIM(NEW.current_loc) IS DISTINCT FROM TRIM(OLD.current_loc) THEN
 
     -- Find the active dispatch or pickup movement
-    SELECT m.id, m.type, COALESCE(m.skid_id_out, m.skid_id_in), c.geofence_name
-    INTO v_movement_id, v_movement_type, v_active_skid_id, v_customer_geofence
+    SELECT m.id, m.type, m.tracking_mode, COALESCE(m.skid_id_out, m.skid_id_in), c.geofence_name
+    INTO v_movement_id, v_movement_type, v_tracking_mode, v_active_skid_id, v_customer_geofence
     FROM movements m
     JOIN customers c ON c.id = m.customer_id
     WHERE m.truck_id = NEW.id
@@ -653,7 +854,14 @@ BEGIN
       AND m.status = 'in_progress'
     LIMIT 1;
 
-    IF FOUND THEN
+    IF FOUND AND v_tracking_mode = 'manual' THEN
+      IF current_setting('app.manual_dispatch_location_update', TRUE) IS DISTINCT FROM 'true' THEN
+        NEW.current_loc := OLD.current_loc;
+      END IF;
+      RETURN NEW;
+    END IF;
+
+    IF FOUND AND NEW.status IN ('in_transit', 'at_customer') THEN
       -- Outbound arrival & inbound creation only apply to full roundtrip dispatches
       IF v_movement_type = 'dispatch' THEN
         IF TRIM(NEW.current_loc) = TRIM(v_customer_geofence) THEN

@@ -10,6 +10,7 @@ export const geofenceZoneType = pgEnum('geofence_zone_type', [
 export const processingStatus = pgEnum('processing_status', ['needs review', 'pending', 'failed', 'processed']);
 export const tripDirectionEnum = pgEnum('direction', ['outbound', 'inbound']);
 export const movementTypeEnum = pgEnum('movement_type', ['dispatch', 'service', 'others', 'pickup']);
+export const trackingModeEnum = pgEnum('tracking_mode', ['live', 'manual']);
 export const movementStatusEnum = pgEnum('movement_status', [
     'in_progress',
     'completed',
