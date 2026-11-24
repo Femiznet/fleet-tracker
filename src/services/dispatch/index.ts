@@ -2,12 +2,14 @@ import { db } from '@/db';
 import { formatDbError } from '@/lib/errors';
 import { sql } from 'drizzle-orm';
 
+export type DispatchTrackingMode = 'live' | 'manual';
+
 export interface CreateDispatchInput {
   truckId: string;
   customerId: string;
   skidIdOut: string;
   note?: string | null;
-  trackingMode?: 'live' | 'manual';
+  trackingMode?: DispatchTrackingMode;
 }
 
 export type ManualDispatchAction = 'arrived_customer' | 'returning' | 'arrived_plant';
@@ -75,6 +77,22 @@ export async function manualDispatchAction(input: {
         ${input.action}::text,
         ${input.skidIdIn ?? null}::uuid,
         ${input.note ?? null}::text
+      )
+    `);
+  } catch (error) {
+    throw formatDbError(error);
+  }
+}
+
+export async function switchDispatchTrackingMode(input: {
+  movementId: string;
+  trackingMode: DispatchTrackingMode;
+}): Promise<void> {
+  try {
+    await db.execute(sql`
+      SELECT switch_dispatch_tracking_mode(
+        ${input.movementId}::uuid,
+        ${input.trackingMode}::tracking_mode
       )
     `);
   } catch (error) {

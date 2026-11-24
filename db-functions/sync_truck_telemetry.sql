@@ -73,12 +73,22 @@ BEGIN
           AND status = 'in_transit';
       END IF;
 
-      -- Sync active skid location while in transit
+      -- Record an outbound dispatch arrival on both the truck and its skid.
       IF v_active_skid_id IS NOT NULL THEN
-        UPDATE skids
-        SET current_loc = NEW.current_loc
-        WHERE id = v_active_skid_id
-          AND status = 'in_transit';
+        IF v_movement_type = 'dispatch'
+          AND TRIM(NEW.current_loc) = TRIM(v_customer_geofence)
+        THEN
+          UPDATE skids
+          SET current_loc = NEW.current_loc,
+              status = 'at_customer'
+          WHERE id = v_active_skid_id
+            AND status = 'in_transit';
+        ELSE
+          UPDATE skids
+          SET current_loc = NEW.current_loc
+          WHERE id = v_active_skid_id
+            AND status = 'in_transit';
+        END IF;
       END IF;
     END IF;
 

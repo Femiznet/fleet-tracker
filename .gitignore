@@ -43,6 +43,11 @@ drizzle/meta/*
 next-env.d.ts
 
 **/test/
+!/test/
+/test/*
+!/test/run-seeds.sh
+!/test/seed-customers.sql
+!/test/seed-skids.sql
 test.sh
 db-functions/test/
 scripts/*

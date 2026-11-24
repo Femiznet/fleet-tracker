@@ -135,6 +135,12 @@ BEGIN
     END IF;
   END IF;
 
+  IF v_skid_in_id IS NOT NULL THEN
+    UPDATE skids
+    SET fill_state = 'empty'
+    WHERE id = v_skid_in_id;
+  END IF;
+
   -- 7. Close out any remaining in_transit trip legs
   UPDATE trips
   SET status = 'arrived',
