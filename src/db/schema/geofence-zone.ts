@@ -1,10 +1,12 @@
 // db/schema.ts
 import { pgTable, text, doublePrecision, jsonb, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { geofenceZoneType } from './enums';
 
 export const geofenceZones = pgTable('geofence_zones', {
   id: uuid('id').primaryKey().defaultRandom(),
   // Exact name returned by your API (e.g., "GASTECH PLANT")
   geofenceName: text('geofence_name').unique(),
+  type: geofenceZoneType('type').notNull().default('other'),
   // Null until the first truck visits and teaches the system the coordinates
   centerLat: doublePrecision('center_lat'),
   centerLon: doublePrecision('center_lon'),

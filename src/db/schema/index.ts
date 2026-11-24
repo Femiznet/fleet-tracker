@@ -3,6 +3,7 @@ export { messages, processedMessages } from "./messages";
 export { aiConfigurations } from './ai-configuration';
 export {
     customerType,
+    geofenceZoneType,
     processingStatus,
     tripDirectionEnum,
     movementTypeEnum,

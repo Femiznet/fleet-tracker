@@ -45,4 +45,5 @@ next-env.d.ts
 **/test/
 test.sh
 db-functions/test/
-scripts/
+scripts/*
+!scripts/append-functions.ts

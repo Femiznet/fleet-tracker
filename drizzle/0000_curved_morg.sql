@@ -1,4 +1,5 @@
 CREATE TYPE "public"."customer_type" AS ENUM('waybill', 'meter', 'self-pick');--> statement-breakpoint
+CREATE TYPE "public"."geofence_zone_type" AS ENUM('plant', 'customer', 'service', 'other');--> statement-breakpoint
 CREATE TYPE "public"."message_type" AS ENUM('update', 'dispatch');--> statement-breakpoint
 CREATE TYPE "public"."movement_status" AS ENUM('in_progress', 'completed', 'cancelled');--> statement-breakpoint
 CREATE TYPE "public"."movement_type" AS ENUM('dispatch', 'service', 'others', 'pickup');--> statement-breakpoint
@@ -24,10 +25,10 @@ CREATE TABLE "customers" (
 	"name" varchar(255) NOT NULL,
 	"geofence_name" varchar(100),
 	"location" varchar(255),
-	"customer_type" "customer_type",
-	"is_active" boolean DEFAULT true,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now(),
+	"customer_type" "customer_type" NOT NULL,
+	"is_active" boolean DEFAULT true NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "customers_name_unique" UNIQUE("name"),
 	CONSTRAINT "customers_geofence_name_unique" UNIQUE("geofence_name")
 );
@@ -45,6 +46,7 @@ CREATE TABLE "drivers" (
 CREATE TABLE "geofence_zones" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"geofence_name" text,
+	"type" "geofence_zone_type" DEFAULT 'other' NOT NULL,
 	"center_lat" double precision,
 	"center_lon" double precision,
 	"radius_meters" double precision,
@@ -162,7 +164,6 @@ ALTER TABLE "skids" ADD CONSTRAINT "skids_customer_id_customers_id_fk" FOREIGN K
 ALTER TABLE "trips" ADD CONSTRAINT "trips_movement_id_movements_id_fk" FOREIGN KEY ("movement_id") REFERENCES "public"."movements"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "unq_active_movement_per_truck" ON "movements" USING btree ("truck_id") WHERE "movements"."status" = 'in_progress';
 --> statement-breakpoint
--- Function: cancel-dispatch.sql
 CREATE OR REPLACE FUNCTION cancel_dispatch(
   p_movement_id UUID,
   p_note TEXT DEFAULT NULL
@@ -224,7 +225,6 @@ BEGIN
 END;
 $$;
 --> statement-breakpoint
--- Function: complete-dispatch.sql
 CREATE OR REPLACE FUNCTION complete_dispatch(
   p_movement_id UUID,
   p_skid_id_in UUID DEFAULT NULL,
@@ -384,7 +384,6 @@ BEGIN
 END;
 $$;
 --> statement-breakpoint
--- Function: create-dispatch.sql
 CREATE OR REPLACE FUNCTION create_dispatch(
   p_truck_id UUID,
   p_customer_id UUID,
@@ -506,7 +505,6 @@ BEGIN
 END;
 $$;
 --> statement-breakpoint
--- Function: create-pickup.sql
 CREATE OR REPLACE FUNCTION create_pickup(
   p_truck_id UUID,
   p_customer_id UUID,
@@ -632,7 +630,6 @@ BEGIN
 END;
 $$;
 --> statement-breakpoint
--- Function: sync_truck_telemetry.sql
 CREATE OR REPLACE FUNCTION handle_truck_location_update()
 RETURNS TRIGGER
 LANGUAGE plpgsql
