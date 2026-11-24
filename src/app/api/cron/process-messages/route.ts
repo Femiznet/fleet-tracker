@@ -1,6 +1,7 @@
 // app/api/cron/process-messages/route.ts
 
 import { processPendingMessages } from "@/actions/messages/process";
+import { apiErrorResponse } from '@/lib/api-errors';
 
 // export const dynamic = 'force-dynamic'; // never cache this route
 // export const maxDuration = 60;          // seconds; raise if your backlog can be large
@@ -18,7 +19,8 @@ export async function GET(request: Request) {
     const summary = await processPendingMessages();
     return Response.json({ ok: true, summary });
   } catch (err) {
-    console.error('process-messages cron failed', err);
-    return Response.json({ ok: false, error: 'processing failed' }, { status: 500 });
+    return apiErrorResponse(err, 'Failed to process pending messages', 500, {
+      ok: false,
+    });
   }
 }

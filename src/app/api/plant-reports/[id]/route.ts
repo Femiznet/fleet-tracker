@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { apiErrorResponse } from '@/lib/api-errors';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { plantReports, PlantReportMetrics } from '@/db/schema/plant-report';
@@ -36,9 +37,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ report, formattedMessage });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Failed to fetch plant report';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiErrorResponse(error, 'Failed to fetch plant report');
   }
 }
 
@@ -105,9 +104,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       formattedMessage,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Failed to update plant report';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiErrorResponse(error, 'Failed to update plant report');
   }
 }
 
@@ -130,8 +127,6 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ deletedId: deleted.id, success: true });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Failed to delete plant report';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiErrorResponse(error, 'Failed to delete plant report');
   }
 }

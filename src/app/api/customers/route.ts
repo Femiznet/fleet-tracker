@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { apiErrorResponse } from '@/lib/api-errors';
 import { getCustomers } from '@/services/customers/query';
 import { createCustomerAction } from '@/actions/customers';
 
@@ -7,8 +8,7 @@ export async function GET() {
     const data = await getCustomers();
     return NextResponse.json({ data });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to fetch customers' }, { status: 500 });
+    return apiErrorResponse(error, 'Failed to fetch customers');
   }
 }
 
@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     const result = await createCustomerAction(body);
 
     if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: 400 });
+      return apiErrorResponse(result.error, 'Invalid customer data', 400);
     }
 
     if (!result.data) {
@@ -27,7 +27,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ data: result.data }, { status: 201 });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to create customer' }, { status: 500 });
+    return apiErrorResponse(error, 'Failed to create customer');
   }
 }

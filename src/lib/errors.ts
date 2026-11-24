@@ -80,7 +80,10 @@ export function formatDbError(error: unknown): DbErrorInfo {
     return { message: message || 'Database constraint violation', code };
   }
 
-  return { message: message || 'An unexpected database error occurred' };
+  return {
+    message: message || 'An unexpected database error occurred',
+    ...(code ? { code } : {}),
+  };
 }
 
 /**

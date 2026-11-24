@@ -1,5 +1,6 @@
 // app/api/hcltracker/vehicles/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { apiErrorResponse } from '@/lib/api-errors';
 import { getCleanVehicles } from '@/lib/hcltracker/vehicles';
 
 export async function GET(request: NextRequest) {
@@ -18,7 +19,6 @@ export async function GET(request: NextRequest) {
     const vehicles = await getCleanVehicles(page, limit);
     return NextResponse.json({ data: vehicles });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiErrorResponse(error, 'Failed to fetch vehicles');
   }
 }

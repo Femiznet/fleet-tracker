@@ -130,8 +130,11 @@ export async function getLivePlantFleetSnapshot(
   // Categorize Active Trips (Outbound = Trucks in Transit, Inbound = Returning Trucks)
   for (const m of activeMovements) {
     if (m.tripDirection === 'inbound') {
-      snapshot.returningTrucks.push(m.truckNum);
-    } else {
+      snapshot.returningTrucks.push({
+        truckNum: m.truckNum,
+        customer: m.customerName ?? 'Unknown',
+      })
+    } else if (m.tripDirection === 'outbound'){
       snapshot.trucksInTransit.push({
         truckNum: m.truckNum,
         customer: m.customerName ?? 'Unknown',
@@ -237,7 +240,7 @@ export function formatPlantReportMessage(
     snapshot.trucksInTransit.map((t) => `${t.truckNum}(${t.customer})`).join('\n'),
     '',
     '`RETURNING TRUCKS`',
-    snapshot.returningTrucks.join(', '),
+    snapshot.returningTrucks.map((t) => `${t.truckNum}(${t.customer})`).join('\n'),
     '',
     '`MAINTENANCE`',
     '',

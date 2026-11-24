@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { apiErrorResponse } from '@/lib/api-errors';
 import { HCL_URL, queryHclTracker } from '@/lib/hcltracker/utils';
 
 async function fetchAddress({lat, lon, cookies}:{lat: string, lon: string, cookies: string}) {
@@ -40,8 +41,7 @@ export async function GET(request: NextRequest) {
       }),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiErrorResponse(error, 'Failed to fetch address');
   }
 }
 

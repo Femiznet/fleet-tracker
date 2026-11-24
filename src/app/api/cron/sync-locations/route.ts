@@ -1,5 +1,6 @@
 // app/api/cron/sync-locations/route.ts
 import { NextResponse } from 'next/server';
+import { apiErrorResponse } from '@/lib/api-errors';
 import { processBatchTruckLocations } from '@/lib/updateTruckGps';
 import { getCleanVehicles } from '@/lib/hcltracker/vehicles';
 
@@ -29,7 +30,6 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ processed: data.length });
   } catch (error) {
-    console.error('Sync locations cron error:', error);
-    return NextResponse.json({ error: 'Sync failed' }, { status: 500 });
+    return apiErrorResponse(error, 'Sync locations cron failed');
   }
 }

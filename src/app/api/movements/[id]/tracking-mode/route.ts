@@ -1,4 +1,5 @@
 import { switchDispatchTrackingMode } from '@/services/dispatch';
+import { apiErrorResponse } from '@/lib/api-errors';
 import { NextRequest, NextResponse } from 'next/server';
 
 type RouteContext = {
@@ -34,8 +35,10 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ movementId: id, trackingMode });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Failed to switch dispatch tracking mode';
-    return NextResponse.json({ error: message }, { status: 400 });
+    return apiErrorResponse(
+      error,
+      'Failed to switch dispatch tracking mode',
+      400
+    );
   }
 }

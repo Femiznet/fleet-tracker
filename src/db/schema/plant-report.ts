@@ -32,7 +32,7 @@ import {
     trucksOnGround: string[];
     standbyTrucks: string[];
     trucksInTransit: { truckNum: string; customer: string }[];
-    returningTrucks: string[];
+    returningTrucks: { truckNum: string; customer: string }[];
     maintenance: { skids: string[]; trucks: string[] };
   }
   

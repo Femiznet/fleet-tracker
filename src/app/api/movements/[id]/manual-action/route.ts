@@ -1,4 +1,5 @@
 import { manualDispatchAction } from '@/services/dispatch';
+import { apiErrorResponse } from '@/lib/api-errors';
 import { NextRequest, NextResponse } from 'next/server';
 
 type RouteContext = {
@@ -35,8 +36,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ movementId: id, action });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Failed to update manual dispatch';
-    return NextResponse.json({ error: message }, { status: 400 });
+    return apiErrorResponse(error, 'Failed to update manual dispatch', 400);
   }
 }

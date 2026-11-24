@@ -1,21 +1,32 @@
-import { processGreenApiMessage } from "@/actions/messages";
-import { returnValueDebugger } from "@/lib/errors";
-import { parseGreenApiMessage, type BaseWebhook } from "@/services/messages/validator";
-import { NextRequest, NextResponse } from "next/server";
+import { processGreenApiMessage } from '@/actions/messages';
+import { getApiErrorInfo } from '@/lib/api-errors';
+import { parseGreenApiMessage } from '@/services/messages/validator';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
-    const body = (await request.json()) as BaseWebhook;
+  try {
+    const body: unknown = await request.json();
     const messageResult = parseGreenApiMessage(body);
- 
-    if (messageResult.error) {
-        returnValueDebugger(messageResult);
-        return NextResponse.json({ ok: true });
+
+    if (messageResult.status === 'invalid') {
+      return NextResponse.json({
+        ok: false,
+        error: messageResult.reason,
+        ...(messageResult.error ? { details: messageResult.error } : {}),
+      });
     }
-    
-    if (messageResult.data) {
-        const result = await processGreenApiMessage(messageResult.data);
-        if (!result.success) returnValueDebugger(result);
+
+    const result = await processGreenApiMessage(messageResult.data);
+    if (!result.success) {
+      return NextResponse.json({ ok: false, error: result.message });
     }
 
     return NextResponse.json({ ok: true });
+  } catch (error) {
+    // Keep the webhook acknowledged with HTTP 200 to avoid automatic provider retries.
+    return NextResponse.json({
+      ok: false,
+      ...getApiErrorInfo(error, 'Failed to process webhook message'),
+    });
+  }
 }

@@ -1,4 +1,5 @@
 import { createPickup } from '@/services/dispatch';
+import { getApiErrorInfo } from '@/lib/api-errors';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
@@ -22,12 +23,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ movementId }, { status: 201 });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Failed to create pickup';
-    const requiresOverride = message.includes('Use manual override');
+    const errorInfo = getApiErrorInfo(error, 'Failed to create pickup');
+    const requiresOverride = errorInfo.error.includes('Use manual override');
 
     return NextResponse.json(
-      { error: message, requiresOverride },
+      { ...errorInfo, requiresOverride },
       { status: requiresOverride ? 409 : 400 }
     );
   }

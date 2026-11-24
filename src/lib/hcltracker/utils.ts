@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { apiErrorResponse } from '@/lib/api-errors';
 
 export const HCL_URL = process.env.HCL_BASE_URL!;
 
@@ -121,7 +122,6 @@ export async function queryHclTracker<T = unknown>({
   
       return NextResponse.json({ data });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Internal server error';
-      return NextResponse.json({ error: message }, { status: 500 });
+      return apiErrorResponse(error, 'Failed to query HCL tracker');
     }
 }

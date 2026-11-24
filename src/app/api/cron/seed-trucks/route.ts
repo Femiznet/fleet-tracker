@@ -1,5 +1,6 @@
 // app/api/cron/seed-trucks/route.ts
 import { NextResponse } from 'next/server';
+import { apiErrorResponse } from '@/lib/api-errors';
 import { HclTruckData, insertTrucks } from '@/services/trucks/queries';
 
 export async function GET(request: Request) {
@@ -24,7 +25,6 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ seededCount: newTrucks.length });
   } catch (error) {
-    console.error('Seed trucks cron error:', error);
-    return NextResponse.json({ error: 'Failed to seed trucks' }, { status: 500 });
+    return apiErrorResponse(error, 'Failed to seed trucks');
   }
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { apiErrorResponse } from '@/lib/api-errors';
 import { desc, eq, and, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { skids } from '@/db/schema/skids';
@@ -56,9 +57,7 @@ export async function GET() {
       previousOfficers: latestReport?.officersOnDuty ?? '',
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Failed to load plant status data';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiErrorResponse(error, 'Failed to load plant status data');
   }
 }
 
@@ -99,8 +98,6 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Failed to submit plant report';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiErrorResponse(error, 'Failed to submit plant report');
   }
 }

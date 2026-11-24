@@ -1,4 +1,5 @@
 import { createDispatch } from '@/services/dispatch';
+import { apiErrorResponse } from '@/lib/api-errors';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
@@ -30,11 +31,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ movementId }, { status: 201 });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Failed to create dispatch';
-    return NextResponse.json(
-      { error: message },
-      { status: 400 }
-    );
+    return apiErrorResponse(error, 'Failed to create dispatch', 400);
   }
 }
