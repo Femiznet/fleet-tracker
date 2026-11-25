@@ -1,29 +1,189 @@
+CREATE TYPE "public"."customer_skid_visit_state" AS ENUM('empty', 'loading', 'loaded', 'on_hold');--> statement-breakpoint
+CREATE TYPE "public"."customer_type" AS ENUM('waybill', 'meter', 'self-pick');--> statement-breakpoint
+CREATE TYPE "public"."geofence_zone_type" AS ENUM('plant', 'customer', 'service', 'other');--> statement-breakpoint
+CREATE TYPE "public"."message_type" AS ENUM('update', 'dispatch');--> statement-breakpoint
+CREATE TYPE "public"."movement_status" AS ENUM('in_progress', 'completed', 'cancelled');--> statement-breakpoint
+CREATE TYPE "public"."movement_type" AS ENUM('dispatch', 'service', 'others', 'pickup');--> statement-breakpoint
+CREATE TYPE "public"."processing_status" AS ENUM('needs review', 'pending', 'failed', 'processed');--> statement-breakpoint
 CREATE TYPE "public"."skid_state" AS ENUM('empty', 'loading', 'loaded', 'on_hold');--> statement-breakpoint
-DROP FUNCTION IF EXISTS create_dispatch(UUID, UUID, UUID, TEXT, BOOLEAN);--> statement-breakpoint
-DROP FUNCTION IF EXISTS create_dispatch(UUID, UUID, UUID, TEXT);--> statement-breakpoint
-DROP FUNCTION IF EXISTS create_dispatch(UUID, UUID, UUID, TEXT, tracking_mode);--> statement-breakpoint
-DROP FUNCTION IF EXISTS complete_dispatch(UUID, UUID, TEXT, BOOLEAN);--> statement-breakpoint
-DROP FUNCTION IF EXISTS complete_dispatch(UUID, UUID, TEXT);--> statement-breakpoint
-ALTER TABLE "public"."skids" ADD COLUMN "state" "public"."skid_state" DEFAULT 'empty' NOT NULL;--> statement-breakpoint
-ALTER TABLE "public"."skids" ADD COLUMN "is_for_washing" boolean DEFAULT false NOT NULL;--> statement-breakpoint
-UPDATE "public"."skids"
-SET
-  "state" = CASE
-    WHEN "bay_state" = 'on_hold' THEN 'on_hold'::"public"."skid_state"
-    ELSE "fill_state"::text::"public"."skid_state"
-  END,
-  "is_for_washing" = (
-    "bay_state" = 'washing'
-    AND "fill_state" IN ('empty', 'loaded')
-  );--> statement-breakpoint
-ALTER TABLE "public"."skids" DROP COLUMN "fill_state";--> statement-breakpoint
-ALTER TABLE "public"."skids" DROP COLUMN "bay_state";--> statement-breakpoint
-DROP TYPE "public"."skid_fill_state";--> statement-breakpoint
-DROP TYPE "public"."skid_bay_state";--> statement-breakpoint
-ALTER TABLE "public"."skids"
-  ADD CONSTRAINT "skids_is_for_washing_state_check"
-  CHECK (NOT "is_for_washing" OR "state" IN ('empty', 'loaded'));
-
+CREATE TYPE "public"."skid_status" AS ENUM('available', 'in_transit', 'at_customer', 'maintenance');--> statement-breakpoint
+CREATE TYPE "public"."tracking_mode" AS ENUM('live', 'manual');--> statement-breakpoint
+CREATE TYPE "public"."direction" AS ENUM('outbound', 'inbound');--> statement-breakpoint
+CREATE TYPE "public"."trip_status" AS ENUM('in_transit', 'arrived', 'cancelled');--> statement-breakpoint
+CREATE TYPE "public"."truck_status" AS ENUM('available', 'in_transit', 'standby', 'at_customer', 'maintenance');--> statement-breakpoint
+CREATE TABLE "ai_configurations" (
+	"endpoint_url" varchar(500) NOT NULL,
+	"provider" varchar(100) NOT NULL,
+	"model" varchar(200) NOT NULL,
+	"encrypted_api_key" text NOT NULL,
+	"active" boolean DEFAULT true,
+	"created_at" timestamp DEFAULT now(),
+	"updated_at" timestamp DEFAULT now()
+);
+--> statement-breakpoint
+CREATE TABLE "customer_skid_visits" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"customer_id" uuid NOT NULL,
+	"skid_num" varchar(100) NOT NULL,
+	"state" "customer_skid_visit_state" DEFAULT 'empty' NOT NULL,
+	"is_for_washing" boolean DEFAULT false NOT NULL,
+	"arrived_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"loaded_at" timestamp with time zone,
+	"dispatched_at" timestamp with time zone,
+	CONSTRAINT "customer_skid_visit_number_not_empty" CHECK (btrim("customer_skid_visits"."skid_num") <> ''),
+	CONSTRAINT "customer_skid_visit_dispatch_requires_loaded" CHECK ("customer_skid_visits"."dispatched_at" IS NULL OR "customer_skid_visits"."state" = 'loaded'),
+	CONSTRAINT "customer_skid_visit_washing_requires_empty_or_loaded" CHECK (NOT "customer_skid_visits"."is_for_washing" OR "customer_skid_visits"."state" IN ('empty', 'loaded'))
+);
+--> statement-breakpoint
+CREATE TABLE "customers" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"name" varchar(255) NOT NULL,
+	"geofence_name" varchar(100),
+	"location" varchar(255),
+	"customer_type" "customer_type" NOT NULL,
+	"is_active" boolean DEFAULT true NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "customers_name_unique" UNIQUE("name"),
+	CONSTRAINT "customers_geofence_name_unique" UNIQUE("geofence_name")
+);
+--> statement-breakpoint
+CREATE TABLE "drivers" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"name" varchar(255) NOT NULL,
+	"phone" varchar(255),
+	"current_truck" varchar(20),
+	CONSTRAINT "drivers_name_unique" UNIQUE("name"),
+	CONSTRAINT "drivers_phone_unique" UNIQUE("phone"),
+	CONSTRAINT "drivers_current_truck_unique" UNIQUE("current_truck")
+);
+--> statement-breakpoint
+CREATE TABLE "geofence_zones" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"geofence_name" text,
+	"type" "geofence_zone_type" DEFAULT 'other' NOT NULL,
+	"center_lat" double precision,
+	"center_lon" double precision,
+	"radius_meters" double precision,
+	"sample_points" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"updated_at" timestamp DEFAULT now(),
+	CONSTRAINT "geofence_zones_geofence_name_unique" UNIQUE("geofence_name")
+);
+--> statement-breakpoint
+CREATE TABLE "messages" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"external_id" text NOT NULL,
+	"customer_id" uuid NOT NULL,
+	"text" text NOT NULL,
+	"metadata" jsonb NOT NULL,
+	"type" "message_type" NOT NULL,
+	"is_processed" boolean DEFAULT false NOT NULL,
+	"created_at" timestamp DEFAULT now(),
+	CONSTRAINT "messages_external_id_unique" UNIQUE("external_id")
+);
+--> statement-breakpoint
+CREATE TABLE "motormates" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"name" varchar(255) NOT NULL,
+	"phone" varchar(255),
+	"current_driver" varchar(255),
+	CONSTRAINT "motormates_name_unique" UNIQUE("name"),
+	CONSTRAINT "motormates_phone_unique" UNIQUE("phone"),
+	CONSTRAINT "motormates_current_driver_unique" UNIQUE("current_driver")
+);
+--> statement-breakpoint
+CREATE TABLE "movements" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"type" "movement_type" NOT NULL,
+	"status" "movement_status" DEFAULT 'in_progress' NOT NULL,
+	"tracking_mode" "tracking_mode" DEFAULT 'live' NOT NULL,
+	"truck_id" uuid NOT NULL,
+	"customer_id" uuid,
+	"skid_id_out" uuid,
+	"skid_id_in" uuid,
+	"note" text,
+	CONSTRAINT "chk_dispatch_requires_skid_out" CHECK ("movements"."type" != 'dispatch' OR "movements"."skid_id_out" IS NOT NULL),
+	CONSTRAINT "chk_dispatch_requires_customer" CHECK ("movements"."type" != 'dispatch' OR "movements"."customer_id" IS NOT NULL),
+	CONSTRAINT "chk_completed_dispatch_requires_skid_in_or_note" CHECK ("movements"."type" != 'dispatch' OR "movements"."status" != 'completed' OR "movements"."skid_id_in" IS NOT NULL OR ("movements"."note" IS NOT NULL AND TRIM("movements"."note") != '')),
+	CONSTRAINT "chk_others_or_service_requires_note" CHECK ("movements"."type" NOT IN ('others', 'service') OR ("movements"."note" IS NOT NULL AND TRIM("movements"."note") != ''))
+);
+--> statement-breakpoint
+CREATE TABLE "plant_status" (
+	"id" integer PRIMARY KEY DEFAULT 1 NOT NULL,
+	"officers_on_duty" varchar(255) DEFAULT '' NOT NULL,
+	"metrics" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"notes" text,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "plant_status_singleton_id_check" CHECK ("plant_status"."id" = 1)
+);
+--> statement-breakpoint
+CREATE TABLE "processed_messages" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"message_id" uuid NOT NULL,
+	"customer_id" uuid NOT NULL,
+	"status" text NOT NULL,
+	"warnings" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"data" jsonb,
+	"processed_at" timestamp DEFAULT now(),
+	CONSTRAINT "processed_messages_message_id_unique" UNIQUE("message_id")
+);
+--> statement-breakpoint
+CREATE TABLE "skids" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"skid_num" varchar(100) NOT NULL,
+	"slug_num" varchar(100),
+	"customer_id" uuid,
+	"current_loc" varchar(255) DEFAULT 'pending' NOT NULL,
+	"status" "skid_status" DEFAULT 'available' NOT NULL,
+	"state" "skid_state" DEFAULT 'empty' NOT NULL,
+	"is_for_washing" boolean DEFAULT false NOT NULL,
+	"is_new" boolean DEFAULT false NOT NULL,
+	CONSTRAINT "skids_skid_num_unique" UNIQUE("skid_num"),
+	CONSTRAINT "skids_slug_num_unique" UNIQUE("slug_num"),
+	CONSTRAINT "skids_is_for_washing_state_check" CHECK (NOT "skids"."is_for_washing" OR "skids"."state" IN ('empty', 'loaded'))
+);
+--> statement-breakpoint
+CREATE TABLE "trips" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"movement_id" uuid NOT NULL,
+	"status" "trip_status" DEFAULT 'in_transit' NOT NULL,
+	"direction" "direction" NOT NULL,
+	"origin" varchar(255) NOT NULL,
+	"destination" varchar(255) NOT NULL,
+	"arrived" boolean DEFAULT false NOT NULL,
+	"arrived_at" timestamp with time zone,
+	CONSTRAINT "unq_movement_direction" UNIQUE("movement_id","direction")
+);
+--> statement-breakpoint
+CREATE TABLE "trucks" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"truck_num" varchar(100) NOT NULL,
+	"slug_num" varchar(100),
+	"lat" double precision NOT NULL,
+	"lon" double precision NOT NULL,
+	"current_loc" varchar(255) DEFAULT 'pending' NOT NULL,
+	"speed" integer NOT NULL,
+	"status" "truck_status" DEFAULT 'available' NOT NULL,
+	CONSTRAINT "trucks_truck_num_unique" UNIQUE("truck_num"),
+	CONSTRAINT "trucks_slug_num_unique" UNIQUE("slug_num")
+);
+--> statement-breakpoint
+ALTER TABLE "customer_skid_visits" ADD CONSTRAINT "customer_skid_visits_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "drivers" ADD CONSTRAINT "drivers_current_truck_trucks_truck_num_fk" FOREIGN KEY ("current_truck") REFERENCES "public"."trucks"("truck_num") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "messages" ADD CONSTRAINT "messages_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "motormates" ADD CONSTRAINT "motormates_current_driver_drivers_name_fk" FOREIGN KEY ("current_driver") REFERENCES "public"."drivers"("name") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "movements" ADD CONSTRAINT "movements_truck_id_trucks_id_fk" FOREIGN KEY ("truck_id") REFERENCES "public"."trucks"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "movements" ADD CONSTRAINT "movements_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "movements" ADD CONSTRAINT "movements_skid_id_out_skids_id_fk" FOREIGN KEY ("skid_id_out") REFERENCES "public"."skids"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "movements" ADD CONSTRAINT "movements_skid_id_in_skids_id_fk" FOREIGN KEY ("skid_id_in") REFERENCES "public"."skids"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "processed_messages" ADD CONSTRAINT "processed_messages_message_id_messages_id_fk" FOREIGN KEY ("message_id") REFERENCES "public"."messages"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "processed_messages" ADD CONSTRAINT "processed_messages_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "skids" ADD CONSTRAINT "skids_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "trips" ADD CONSTRAINT "trips_movement_id_movements_id_fk" FOREIGN KEY ("movement_id") REFERENCES "public"."movements"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "unq_active_customer_skid_visit" ON "customer_skid_visits" USING btree (lower(btrim("skid_num"))) WHERE "customer_skid_visits"."dispatched_at" IS NULL;--> statement-breakpoint
+CREATE INDEX "customer_skid_visits_dispatched_at_idx" ON "customer_skid_visits" USING btree ("dispatched_at");--> statement-breakpoint
+CREATE INDEX "customer_skid_visits_customer_id_idx" ON "customer_skid_visits" USING btree ("customer_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "unq_active_movement_per_truck" ON "movements" USING btree ("truck_id") WHERE "movements"."status" = 'in_progress';
 --> statement-breakpoint
 CREATE OR REPLACE FUNCTION cancel_dispatch(
   p_movement_id UUID,
@@ -232,7 +392,8 @@ BEGIN
   -- 7. Close out any remaining in_transit trip legs
   UPDATE trips
   SET status = 'arrived',
-      arrived = TRUE
+      arrived = TRUE,
+      arrived_at = COALESCE(arrived_at, NOW())
   WHERE movement_id = p_movement_id
     AND status = 'in_transit';
 
@@ -268,6 +429,7 @@ DECLARE
   v_skid_status skid_status;
   v_skid_state skid_state;
   v_skid_loc VARCHAR;
+  v_skid_customer_id UUID;
   v_customer_geofence VARCHAR;
   v_movement_id UUID;
 BEGIN
@@ -283,14 +445,18 @@ BEGIN
   END IF;
 
   -- 2. Lock and validate the outgoing skid
-  SELECT status, state, current_loc
-  INTO v_skid_status, v_skid_state, v_skid_loc
+  SELECT status, state, current_loc, customer_id
+  INTO v_skid_status, v_skid_state, v_skid_loc, v_skid_customer_id
   FROM skids
   WHERE id = p_skid_id_out
   FOR UPDATE;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Outgoing skid not found';
+  END IF;
+
+  IF v_skid_customer_id IS NOT NULL THEN
+    RAISE EXCEPTION 'Customer-owned skids are not eligible for company dispatch';
   END IF;
 
   -- 3. Prevent reuse of a truck or skid in another active dispatch
@@ -538,6 +704,39 @@ BEGIN
 END;
 $$;
 --> statement-breakpoint
+CREATE OR REPLACE FUNCTION dispatch_customer_skid_visit(p_visit_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_visit customer_skid_visits%ROWTYPE;
+BEGIN
+  SELECT * INTO v_visit
+  FROM customer_skid_visits
+  WHERE id = p_visit_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Customer skid visit not found'
+      USING ERRCODE = 'P1001';
+  END IF;
+
+  IF v_visit.dispatched_at IS NOT NULL THEN
+    RAISE EXCEPTION 'Customer skid visit has already been dispatched'
+      USING ERRCODE = 'P1002';
+  END IF;
+
+  IF v_visit.state <> 'loaded' THEN
+    RAISE EXCEPTION 'Customer skid must be loaded before it can be dispatched'
+      USING ERRCODE = 'P1003';
+  END IF;
+
+  UPDATE customer_skid_visits
+  SET dispatched_at = NOW()
+  WHERE id = p_visit_id;
+END;
+$$;
+--> statement-breakpoint
 DROP FUNCTION IF EXISTS manual_dispatch_action(UUID, TEXT, UUID, TEXT);
 
 CREATE OR REPLACE FUNCTION manual_dispatch_action(
@@ -597,7 +796,8 @@ BEGIN
 
     UPDATE trips
     SET status = 'arrived',
-        arrived = TRUE
+        arrived = TRUE,
+        arrived_at = COALESCE(arrived_at, NOW())
     WHERE movement_id = p_movement_id
       AND direction = 'outbound';
 
@@ -684,7 +884,8 @@ BEGIN
 
     UPDATE trips
     SET status = 'arrived',
-        arrived = TRUE
+        arrived = TRUE,
+        arrived_at = COALESCE(arrived_at, NOW())
     WHERE movement_id = p_movement_id
       AND direction = 'inbound';
 
@@ -802,7 +1003,8 @@ BEGIN
 
           UPDATE trips
           SET status = 'arrived',
-              arrived = TRUE
+              arrived = TRUE,
+              arrived_at = COALESCE(arrived_at, NOW())
           WHERE movement_id = v_movement_id
             AND direction = 'outbound'
             AND status = 'in_transit';
@@ -833,7 +1035,8 @@ BEGIN
       IF TRIM(NEW.current_loc) = 'GASTECH PLANT' THEN
         UPDATE trips
         SET status = 'arrived',
-            arrived = TRUE
+            arrived = TRUE,
+            arrived_at = COALESCE(arrived_at, NOW())
         WHERE movement_id = v_movement_id
           AND direction = 'inbound'
           AND status = 'in_transit';

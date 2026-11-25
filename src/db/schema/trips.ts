@@ -1,4 +1,11 @@
-import { pgTable, uuid, varchar, boolean, unique } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  uuid,
+  varchar,
+  boolean,
+  unique,
+  timestamp,
+} from 'drizzle-orm/pg-core';
 import { movements } from './movements';
 import { tripDirectionEnum, tripStatusEnum } from './enums';
 
@@ -12,6 +19,7 @@ export const trips = pgTable('trips', {
   origin: varchar('origin', { length: 255 }).notNull(),
   destination: varchar('destination', { length: 255 }).notNull(),
   arrived: boolean('arrived').notNull().default(false),
+  arrivedAt: timestamp('arrived_at', { withTimezone: true }),
 }, (table) => [
   // Prevents duplicate outbound or return trips for the same movement
   unique('unq_movement_direction').on(table.movementId, table.direction),

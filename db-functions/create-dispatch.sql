@@ -17,6 +17,7 @@ DECLARE
   v_skid_status skid_status;
   v_skid_state skid_state;
   v_skid_loc VARCHAR;
+  v_skid_customer_id UUID;
   v_customer_geofence VARCHAR;
   v_movement_id UUID;
 BEGIN
@@ -32,14 +33,18 @@ BEGIN
   END IF;
 
   -- 2. Lock and validate the outgoing skid
-  SELECT status, state, current_loc
-  INTO v_skid_status, v_skid_state, v_skid_loc
+  SELECT status, state, current_loc, customer_id
+  INTO v_skid_status, v_skid_state, v_skid_loc, v_skid_customer_id
   FROM skids
   WHERE id = p_skid_id_out
   FOR UPDATE;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Outgoing skid not found';
+  END IF;
+
+  IF v_skid_customer_id IS NOT NULL THEN
+    RAISE EXCEPTION 'Customer-owned skids are not eligible for company dispatch';
   END IF;
 
   -- 3. Prevent reuse of a truck or skid in another active dispatch

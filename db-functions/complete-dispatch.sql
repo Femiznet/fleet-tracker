@@ -144,7 +144,8 @@ BEGIN
   -- 7. Close out any remaining in_transit trip legs
   UPDATE trips
   SET status = 'arrived',
-      arrived = TRUE
+      arrived = TRUE,
+      arrived_at = COALESCE(arrived_at, NOW())
   WHERE movement_id = p_movement_id
     AND status = 'in_transit';
 

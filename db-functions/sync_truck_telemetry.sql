@@ -36,7 +36,8 @@ BEGIN
 
           UPDATE trips
           SET status = 'arrived',
-              arrived = TRUE
+              arrived = TRUE,
+              arrived_at = COALESCE(arrived_at, NOW())
           WHERE movement_id = v_movement_id
             AND direction = 'outbound'
             AND status = 'in_transit';
@@ -67,7 +68,8 @@ BEGIN
       IF TRIM(NEW.current_loc) = 'GASTECH PLANT' THEN
         UPDATE trips
         SET status = 'arrived',
-            arrived = TRUE
+            arrived = TRUE,
+            arrived_at = COALESCE(arrived_at, NOW())
         WHERE movement_id = v_movement_id
           AND direction = 'inbound'
           AND status = 'in_transit';

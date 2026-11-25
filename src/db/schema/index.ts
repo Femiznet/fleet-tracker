@@ -13,6 +13,7 @@ export {
     truckStatusEnum,
     skidStatusEnum,
     skidStateEnum,
+    customerSkidVisitStateEnum,
     messageTypeEnum,
 } from './enums';
 export { drivers } from './drivers';
@@ -22,7 +23,13 @@ export { skids } from './skids';
 export { movements } from './movements';
 export { trips } from './trips';
 export { geofenceZones } from './geofence-zone';
-export { plantReports } from './plant-report';
+export { plantStatus } from './plant-status';
+export type {
+  PlantFleetSnapshot,
+  PlantStatus,
+  PlantStatusMetrics,
+} from './plant-status';
+export { customerSkidVisits } from './customer-skid-visit';
 
 
 

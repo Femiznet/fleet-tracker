@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { treeifyZodError } from './errors';
+import type { ZodError } from 'zod';
 
 export interface ApiErrorInfo {
   error: string;
@@ -44,5 +46,12 @@ export function apiErrorResponse(
   return NextResponse.json(
     { ...getApiErrorInfo(error, fallback), ...extra },
     { status }
+  );
+}
+
+export function apiValidationErrorResponse(error: ZodError, fallback: string) {
+  return NextResponse.json(
+    { error: fallback, details: treeifyZodError(error) },
+    { status: 400 }
   );
 }

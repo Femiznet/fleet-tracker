@@ -57,7 +57,8 @@ BEGIN
 
     UPDATE trips
     SET status = 'arrived',
-        arrived = TRUE
+        arrived = TRUE,
+        arrived_at = COALESCE(arrived_at, NOW())
     WHERE movement_id = p_movement_id
       AND direction = 'outbound';
 
@@ -144,7 +145,8 @@ BEGIN
 
     UPDATE trips
     SET status = 'arrived',
-        arrived = TRUE
+        arrived = TRUE,
+        arrived_at = COALESCE(arrived_at, NOW())
     WHERE movement_id = p_movement_id
       AND direction = 'inbound';
 
