@@ -37,16 +37,11 @@ export const skidStatusEnum = pgEnum('skid_status', [
   'maintenance',
 ]);
 
-export const skidFillStateEnum = pgEnum('skid_fill_state', [
+export const skidStateEnum = pgEnum('skid_state', [
   'empty',
   'loading',
   'loaded',
-]);
-
-export const skidBayStateEnum = pgEnum('skid_bay_state', [
-  'idle',
   'on_hold',
-  'washing',
 ]);
 
 export const messageTypeEnum = pgEnum('message_type', [

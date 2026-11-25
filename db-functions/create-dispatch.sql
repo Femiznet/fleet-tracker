@@ -15,7 +15,7 @@ DECLARE
   v_truck_status truck_status;
   v_truck_loc VARCHAR;
   v_skid_status skid_status;
-  v_skid_fill_state skid_fill_state;
+  v_skid_state skid_state;
   v_skid_loc VARCHAR;
   v_customer_geofence VARCHAR;
   v_movement_id UUID;
@@ -32,8 +32,8 @@ BEGIN
   END IF;
 
   -- 2. Lock and validate the outgoing skid
-  SELECT status, fill_state, current_loc
-  INTO v_skid_status, v_skid_fill_state, v_skid_loc
+  SELECT status, state, current_loc
+  INTO v_skid_status, v_skid_state, v_skid_loc
   FROM skids
   WHERE id = p_skid_id_out
   FOR UPDATE;
@@ -74,8 +74,8 @@ BEGIN
     RAISE EXCEPTION 'Skid is in maintenance';
   END IF;
 
-  IF v_skid_fill_state != 'loaded' THEN
-    RAISE EXCEPTION 'Skid must be loaded before dispatch (Current fill state: %)', v_skid_fill_state;
+  IF v_skid_state != 'loaded' THEN
+    RAISE EXCEPTION 'Skid must be loaded before dispatch (Current state: %)', v_skid_state;
   END IF;
 
   IF p_tracking_mode = 'live' AND NOT EXISTS (

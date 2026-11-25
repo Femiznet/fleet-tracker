@@ -1,5 +1,6 @@
-import { boolean, pgTable, uuid, varchar } from 'drizzle-orm/pg-core';
-import { skidStatusEnum, skidFillStateEnum, skidBayStateEnum } from './enums';
+import { sql } from 'drizzle-orm';
+import { boolean, check, pgTable, uuid, varchar } from 'drizzle-orm/pg-core';
+import { skidStatusEnum, skidStateEnum } from './enums';
 import { customers } from './customers';
 
 export const skids = pgTable('skids', {
@@ -9,10 +10,15 @@ export const skids = pgTable('skids', {
   customerId: uuid('customer_id').references(() => customers.id), // NULL = Gastech skid
   currentLoc: varchar('current_loc', { length: 255 }).notNull().default('pending'),
   status: skidStatusEnum('status').notNull().default('available'),
-  fillState: skidFillStateEnum('fill_state').notNull().default('empty'),
-  bayState: skidBayStateEnum('bay_state').notNull().default('idle'),
+  state: skidStateEnum('state').notNull().default('empty'),
+  isForWashing: boolean('is_for_washing').notNull().default(false),
   isNew: boolean('is_new').default(false).notNull(), // Tagged on registration for newly acquired skids
-});
+}, (table) => [
+  check(
+    'skids_is_for_washing_state_check',
+    sql`NOT ${table.isForWashing} OR ${table.state} IN ('empty', 'loaded')`
+  ),
+]);
 
 
 export type Skid = typeof skids.$inferSelect;

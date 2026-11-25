@@ -15,7 +15,7 @@ import {
  * GET /api/plant-reports
  * Loads everything the officer needs to render the hourly Plant Status form:
  * 1. Live fleet snapshot (trucks on ground, in transit, returning, etc.)
- * 2. Editable skids currently at GASTECH PLANT (for toggling fillState / bayState)
+ * 2. Editable skids currently at GASTECH PLANT
  * 3. Latest saved report's metrics (to pre-fill compressors, gearbox counts, officers, etc.)
  */
 export async function GET() {
@@ -23,13 +23,13 @@ export async function GET() {
     const [fleetSnapshot, plantSkids, [latestReport]] = await Promise.all([
       getLivePlantFleetSnapshot(),
 
-      // Fetch editable skids at GASTECH PLANT so the officer can toggle fillState / bayState
+      // Fetch editable skids at GASTECH PLANT
       db
         .select({
           id: skids.id,
           skidNum: skids.skidNum,
-          fillState: skids.fillState,
-          bayState: skids.bayState,
+          state: skids.state,
+          isForWashing: skids.isForWashing,
           isNew: skids.isNew,
           customerName: customers.name,
         })

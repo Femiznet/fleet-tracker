@@ -137,7 +137,7 @@ BEGIN
 
   IF v_skid_in_id IS NOT NULL THEN
     UPDATE skids
-    SET fill_state = 'empty'
+    SET state = 'empty'
     WHERE id = v_skid_in_id;
   END IF;
 

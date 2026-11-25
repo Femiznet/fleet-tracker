@@ -6,6 +6,7 @@ import {
     jsonb,
     text,
   } from 'drizzle-orm/pg-core';
+import { skidStateEnum } from './enums';
   
   // Flexible metrics entered by the officer on duty (can evolve anytime without DB migrations)
   export interface PlantReportMetrics {
@@ -21,14 +22,16 @@ import {
     extraFields?: Record<string, string | number>; // Any brand-new ad-hoc field!
   }
   
-  // Auto-captured snapshot of live fleet & skid states at the time the report is submitted
+// Auto-captured snapshot of live fleet & skid states at the time the report is submitted
+export type SkidState = (typeof skidStateEnum.enumValues)[number];
+
   export interface PlantFleetSnapshot {
     skidsLoading: { customer: string[]; gastech: string[] };
     skidsOnHold: string[];
     skidsLoaded: { customer: string[]; gastech: string[] };
     skidsEmpty: { customer: string[]; gastech: string[] };
     newLoadedSkids: string[];
-    skidsForWashing: { skidNum: string; fillState: string }[];
+    skidsForWashing: { skidNum: string; state: SkidState;}[];
     trucksOnGround: string[];
     standbyTrucks: string[];
     trucksInTransit: { truckNum: string; customer: string }[];

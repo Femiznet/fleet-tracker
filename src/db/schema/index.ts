@@ -12,8 +12,7 @@ export {
     tripStatusEnum,
     truckStatusEnum,
     skidStatusEnum,
-    skidBayStateEnum,
-    skidFillStateEnum,
+    skidStateEnum,
     messageTypeEnum,
 } from './enums';
 export { drivers } from './drivers';

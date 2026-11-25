@@ -6,12 +6,12 @@ import { eq } from "drizzle-orm";
 
 export interface SkidYardUpdate {
     id: string;
-    fillState?: 'empty' | 'loading' | 'loaded';
-    bayState?: 'idle' | 'on_hold' | 'washing';
+    state?: 'empty' | 'loading' | 'loaded' | 'on_hold';
+    isForWashing?: boolean;
 };
   
   /**
-   * Helper: Batch-update fillState / bayState for multiple skids at once
+   * Helper: Batch-update the state of multiple skids at once
    */
   export async function batchUpdateSkidYardStates(
     updates: SkidYardUpdate[],
@@ -24,8 +24,10 @@ export interface SkidYardUpdate {
         tx
           .update(skids)
           .set({
-            ...(u.fillState !== undefined && { fillState: u.fillState }),
-            ...(u.bayState !== undefined && { bayState: u.bayState }),
+            ...(u.state !== undefined && { state: u.state }),
+            ...(u.isForWashing !== undefined && {
+              isForWashing: u.isForWashing,
+            }),
           })
           .where(eq(skids.id, u.id))
       )

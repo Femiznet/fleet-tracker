@@ -13,8 +13,8 @@ import {
 
 export interface SkidYardUpdate {
     id: string;
-    fillState?: 'empty' | 'loading' | 'loaded';
-    bayState?: 'idle' | 'on_hold' | 'washing';
+    state?: 'empty' | 'loading' | 'loaded' | 'on_hold';
+    isForWashing?: boolean;
 }
   
 
@@ -28,8 +28,8 @@ export async function getLivePlantFleetSnapshot(
       .select({
         skidNum: skids.skidNum,
         status: skids.status,
-        fillState: skids.fillState,
-        bayState: skids.bayState,
+        state: skids.state,
+        isForWashing: skids.isForWashing,
         isNew: skids.isNew,
         customerName: customers.name,
       })
@@ -95,22 +95,22 @@ export async function getLivePlantFleetSnapshot(
       continue;
     }
 
-    if (s.bayState === 'on_hold') {
+    if (s.state === 'on_hold') {
       snapshot.skidsOnHold.push(label);
-    } else if (s.bayState === 'washing') {
+    } else if (s.isForWashing) {
       snapshot.skidsForWashing.push({
         skidNum: label,
-        fillState: s.fillState,
+        state: s.state,
       });
-    } else if (s.isNew && s.fillState === 'loaded') {
+    } else if (s.isNew && s.state === 'loaded') {
       snapshot.newLoadedSkids.push(label);
-    } else if (s.fillState === 'loading') {
+    } else if (s.state === 'loading') {
       if (s.customerName) snapshot.skidsLoading.customer.push(label);
       else snapshot.skidsLoading.gastech.push(s.skidNum);
-    } else if (s.fillState === 'loaded') {
+    } else if (s.state === 'loaded') {
       if (s.customerName) snapshot.skidsLoaded.customer.push(label);
       else snapshot.skidsLoaded.gastech.push(s.skidNum);
-    } else if (s.fillState === 'empty') {
+    } else if (s.state === 'empty') {
       if (s.customerName) snapshot.skidsEmpty.customer.push(label);
       else snapshot.skidsEmpty.gastech.push(s.skidNum);
     }
@@ -252,7 +252,10 @@ export function formatPlantReportMessage(
     '',
     '`SKIDS FOR WASHING`',
     snapshot.skidsForWashing
-      .map((s, idx) => `${idx + 1}. ${s.skidNum} (${s.fillState})`)
+      .map((s, idx) => {
+        const state = s.state;
+        return `${idx + 1}. ${s.skidNum}(${state})`;
+      })
       .join('\n'),
     '',
     '`LANDING GEAR BOX`',
@@ -290,8 +293,10 @@ export async function batchUpdateSkidYardStates(
         conn
           .update(skids)
           .set({
-            ...(u.fillState !== undefined && { fillState: u.fillState }),
-            ...(u.bayState !== undefined && { bayState: u.bayState }),
+              ...(u.state !== undefined && { state: u.state }),
+              ...(u.isForWashing !== undefined && {
+                isForWashing: u.isForWashing,
+              }),
           })
           .where(eq(skids.id, u.id))
       )
