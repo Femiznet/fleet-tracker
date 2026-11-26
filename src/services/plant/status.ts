@@ -17,7 +17,7 @@ import { skids } from '@/db/schema/skids';
 import { movements } from '@/db/schema/movements';
 import { trips } from '@/db/schema/trips';
 import { customers } from '@/db/schema/customers';
-import { customerSkidVisits } from '@/db/schema/customer-skid-visit';
+import { customerSkidLoadings } from '@/db/schema/customer-skid-loading';
 import { plantStatus } from '@/db/schema/plant-status';
 import type {
   PlantFleetSnapshot,
@@ -33,7 +33,7 @@ export async function getLivePlantFleetSnapshot(
 ): Promise<PlantFleetSnapshot> {
   const conn = dbtx(tx);
 
-  const [allSkids, customerVisits, allTrucks, activeMovements] = await Promise.all([
+  const [allSkids, customerLoadings, allTrucks, activeMovements] = await Promise.all([
     conn
       .select({
         skidNum: skids.skidNum,
@@ -58,14 +58,14 @@ export async function getLivePlantFleetSnapshot(
 
     conn
       .select({
-        skidNum: customerSkidVisits.skidNum,
-        state: customerSkidVisits.state,
-        isForWashing: customerSkidVisits.isForWashing,
+        skidNum: customerSkidLoadings.skidNum,
+        state: customerSkidLoadings.state,
+        isForWashing: customerSkidLoadings.isForWashing,
         customerName: customers.name,
       })
-      .from(customerSkidVisits)
-      .innerJoin(customers, eq(customerSkidVisits.customerId, customers.id))
-      .where(isNull(customerSkidVisits.dispatchedAt)),
+      .from(customerSkidLoadings)
+      .innerJoin(customers, eq(customerSkidLoadings.customerId, customers.id))
+      .where(isNull(customerSkidLoadings.dispatchedAt)),
 
     conn
       .select({
@@ -108,18 +108,18 @@ export async function getLivePlantFleetSnapshot(
     maintenance: { skids: [], trucks: [] },
     };
     
-    for (const visit of customerVisits) {
-      const label = `${visit.skidNum}(${visit.customerName})`;
-      if (visit.state === 'on_hold') {
+    for (const loading of customerLoadings) {
+      const label = `${loading.skidNum}(${loading.customerName})`;
+      if (loading.state === 'on_hold') {
         snapshot.skidsOnHold.push(label);
-      } else if (visit.isForWashing) {
+      } else if (loading.isForWashing) {
         snapshot.skidsForWashing.push({
           skidNum: label,
-          state: visit.state,
+          state: loading.state,
         });
-      } else if (visit.state === 'loading') {
+      } else if (loading.state === 'loading') {
         snapshot.skidsLoading.customer.push(label);
-      } else if (visit.state === 'loaded') {
+      } else if (loading.state === 'loaded') {
         snapshot.skidsLoaded.customer.push(label);
       } else {
         snapshot.skidsEmpty.customer.push(label);
@@ -202,13 +202,13 @@ export async function getDailyDispatchSummary(date?: string) {
     db
       .select({
         skidsDispatched: count(),
-        customersServed: countDistinct(customerSkidVisits.customerId),
+        customersServed: countDistinct(customerSkidLoadings.customerId),
       })
-      .from(customerSkidVisits)
+      .from(customerSkidLoadings)
       .where(
         and(
-          gte(customerSkidVisits.dispatchedAt, dayStart),
-          lt(customerSkidVisits.dispatchedAt, dayEnd)
+          gte(customerSkidLoadings.dispatchedAt, dayStart),
+          lt(customerSkidLoadings.dispatchedAt, dayEnd)
         )
       ),
     db

@@ -1,4 +1,4 @@
-CREATE TYPE "public"."customer_skid_visit_state" AS ENUM('empty', 'loading', 'loaded', 'on_hold');--> statement-breakpoint
+CREATE TYPE "public"."customer_skid_loading_state" AS ENUM('empty', 'loading', 'loaded', 'on_hold');--> statement-breakpoint
 CREATE TYPE "public"."customer_type" AS ENUM('waybill', 'meter', 'self-pick');--> statement-breakpoint
 CREATE TYPE "public"."geofence_zone_type" AS ENUM('plant', 'customer', 'service', 'other');--> statement-breakpoint
 CREATE TYPE "public"."message_type" AS ENUM('update', 'dispatch');--> statement-breakpoint
@@ -21,18 +21,18 @@ CREATE TABLE "ai_configurations" (
 	"updated_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "customer_skid_visits" (
+CREATE TABLE "customer_skid_loadings" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"customer_id" uuid NOT NULL,
 	"skid_num" varchar(100) NOT NULL,
-	"state" "customer_skid_visit_state" DEFAULT 'empty' NOT NULL,
+	"state" "customer_skid_loading_state" DEFAULT 'empty' NOT NULL,
 	"is_for_washing" boolean DEFAULT false NOT NULL,
 	"arrived_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"loaded_at" timestamp with time zone,
 	"dispatched_at" timestamp with time zone,
-	CONSTRAINT "customer_skid_visit_number_not_empty" CHECK (btrim("customer_skid_visits"."skid_num") <> ''),
-	CONSTRAINT "customer_skid_visit_dispatch_requires_loaded" CHECK ("customer_skid_visits"."dispatched_at" IS NULL OR "customer_skid_visits"."state" = 'loaded'),
-	CONSTRAINT "customer_skid_visit_washing_requires_empty_or_loaded" CHECK (NOT "customer_skid_visits"."is_for_washing" OR "customer_skid_visits"."state" IN ('empty', 'loaded'))
+	CONSTRAINT "customer_skid_loading_number_not_empty" CHECK (btrim("customer_skid_loadings"."skid_num") <> ''),
+	CONSTRAINT "customer_skid_loading_dispatch_requires_loaded" CHECK ("customer_skid_loadings"."dispatched_at" IS NULL OR "customer_skid_loadings"."state" = 'loaded'),
+	CONSTRAINT "customer_skid_loading_washing_requires_empty_or_loaded" CHECK (NOT "customer_skid_loadings"."is_for_washing" OR "customer_skid_loadings"."state" IN ('empty', 'loaded'))
 );
 --> statement-breakpoint
 CREATE TABLE "customers" (
@@ -168,7 +168,7 @@ CREATE TABLE "trucks" (
 	CONSTRAINT "trucks_slug_num_unique" UNIQUE("slug_num")
 );
 --> statement-breakpoint
-ALTER TABLE "customer_skid_visits" ADD CONSTRAINT "customer_skid_visits_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "customer_skid_loadings" ADD CONSTRAINT "customer_skid_loadings_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "drivers" ADD CONSTRAINT "drivers_current_truck_trucks_truck_num_fk" FOREIGN KEY ("current_truck") REFERENCES "public"."trucks"("truck_num") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "messages" ADD CONSTRAINT "messages_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "motormates" ADD CONSTRAINT "motormates_current_driver_drivers_name_fk" FOREIGN KEY ("current_driver") REFERENCES "public"."drivers"("name") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -180,9 +180,9 @@ ALTER TABLE "processed_messages" ADD CONSTRAINT "processed_messages_message_id_m
 ALTER TABLE "processed_messages" ADD CONSTRAINT "processed_messages_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "skids" ADD CONSTRAINT "skids_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "trips" ADD CONSTRAINT "trips_movement_id_movements_id_fk" FOREIGN KEY ("movement_id") REFERENCES "public"."movements"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-CREATE UNIQUE INDEX "unq_active_customer_skid_visit" ON "customer_skid_visits" USING btree (lower(btrim("skid_num"))) WHERE "customer_skid_visits"."dispatched_at" IS NULL;--> statement-breakpoint
-CREATE INDEX "customer_skid_visits_dispatched_at_idx" ON "customer_skid_visits" USING btree ("dispatched_at");--> statement-breakpoint
-CREATE INDEX "customer_skid_visits_customer_id_idx" ON "customer_skid_visits" USING btree ("customer_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "unq_active_customer_skid_loading" ON "customer_skid_loadings" USING btree (lower(btrim("skid_num"))) WHERE "customer_skid_loadings"."dispatched_at" IS NULL;--> statement-breakpoint
+CREATE INDEX "customer_skid_loadings_dispatched_at_idx" ON "customer_skid_loadings" USING btree ("dispatched_at");--> statement-breakpoint
+CREATE INDEX "customer_skid_loadings_customer_id_idx" ON "customer_skid_loadings" USING btree ("customer_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "unq_active_movement_per_truck" ON "movements" USING btree ("truck_id") WHERE "movements"."status" = 'in_progress';
 --> statement-breakpoint
 CREATE OR REPLACE FUNCTION cancel_dispatch(
@@ -704,36 +704,36 @@ BEGIN
 END;
 $$;
 --> statement-breakpoint
-CREATE OR REPLACE FUNCTION dispatch_customer_skid_visit(p_visit_id UUID)
+CREATE OR REPLACE FUNCTION dispatch_customer_skid_loading(p_loading_id UUID)
 RETURNS VOID
 LANGUAGE plpgsql
 AS $$
 DECLARE
-  v_visit customer_skid_visits%ROWTYPE;
+  v_loading customer_skid_loadings%ROWTYPE;
 BEGIN
-  SELECT * INTO v_visit
-  FROM customer_skid_visits
-  WHERE id = p_visit_id
+  SELECT * INTO v_loading
+  FROM customer_skid_loadings
+  WHERE id = p_loading_id
   FOR UPDATE;
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'Customer skid visit not found'
+    RAISE EXCEPTION 'Customer skid loading not found'
       USING ERRCODE = 'P1001';
   END IF;
 
-  IF v_visit.dispatched_at IS NOT NULL THEN
-    RAISE EXCEPTION 'Customer skid visit has already been dispatched'
+  IF v_loading.dispatched_at IS NOT NULL THEN
+    RAISE EXCEPTION 'Customer skid loading has already been dispatched'
       USING ERRCODE = 'P1002';
   END IF;
 
-  IF v_visit.state <> 'loaded' THEN
+  IF v_loading.state <> 'loaded' THEN
     RAISE EXCEPTION 'Customer skid must be loaded before it can be dispatched'
       USING ERRCODE = 'P1003';
   END IF;
 
-  UPDATE customer_skid_visits
+  UPDATE customer_skid_loadings
   SET dispatched_at = NOW()
-  WHERE id = p_visit_id;
+  WHERE id = p_loading_id;
 END;
 $$;
 --> statement-breakpoint

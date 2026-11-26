@@ -2,7 +2,7 @@
 
 Fleet Tracker is a Next.js API and PostgreSQL application for CNG fleet
 operations. The current code provides customer records, company-truck and
-company-skid dispatch workflows, plant-status reporting, customer-skid visit
+company-skid dispatch workflows, plant-status reporting, customer-skid loadings
 tracking, HCL Tracker integration, and Green API message intake and parsing.
 
 ## Current application state
@@ -45,28 +45,29 @@ trip legs.
   inbound trip when the truck leaves, and records the inbound arrival at the
   plant.
 
-Customer-owned skids have a separate visit flow below; the company dispatch
+Customer-owned skids have a separate loading flow below; the company dispatch
 function does not dispatch them.
 
-### Customer skid visits
+### Customer skid loadings
 
-Customer-owned skids visiting the plant are recorded separately from company
-skids. A visit starts in the `empty` state and stores the customer, skid number,
-state, washing selection, arrival time, first loaded time, and dispatch time.
+Customer-owned skids arriving at the plant to load are recorded separately
+from company skids. A loading record starts in the `empty` state and stores the
+customer, skid number, state, washing selection, arrival time, first loaded
+time, and dispatch time.
 
 - States are `empty`, `loading`, `loaded`, and `on_hold`.
-- A visit can be marked for washing only while it is empty or loaded.
-- Dispatch is a separate operation and is allowed only after the visit is
-  loaded. It records when the skid left and retains the visit for history.
+- A loading can be marked for washing only while it is empty or loaded.
+- Dispatch is a separate operation and is allowed only after the loading is
+  loaded. It records when the skid left and retains the loading record as history.
 - The app does not ask for or store a waybill number.
-- Only one active visit for a normalized skid number can exist at a time.
+- Only one active loading for a normalized skid number can exist at a time.
 
 ### Plant status
 
 Plant status is a single editable record in `plant_status`, not a series of
 saved report snapshots. Its officer, notes, and metrics can be updated while
 fleet information is assembled live from the truck, skid, movement, trip, and
-customer-visit records.
+customer-skid-loading records.
 
 The status response includes:
 
@@ -74,7 +75,7 @@ The status response includes:
   washing skids; trucks on the ground, on standby, in transit, returning, or in
   maintenance; and trucks and skids in maintenance.
 - Company skids currently available at the plant and active customer skid
-  visits, including their state and washing selection.
+  loadings, including their state and washing selection.
 - The current plant-status record and the daily dispatch summary.
 
 Metrics are JSON with supported fields for inlet and loading pressure, landing
@@ -85,7 +86,7 @@ metrics merges the submitted top-level fields into the existing metrics.
 current plant status. It does not send a WhatsApp message.
 
 Daily totals use the `Africa/Lagos` day boundary. Customer counts are based on
-customer skid visits dispatched that day; company counts are outbound dispatch
+customer skid loadings dispatched that day; company counts are outbound dispatch
 trips recorded as arrived that day. The response includes distinct customers
 served and the combined skid total. Company arrival timestamps are recorded by
 the database functions and location trigger.
@@ -147,9 +148,9 @@ dispatch. It only stores the parsed message data and its processing status.
 | `POST` | `/api/movements/[id]/manual-action` | Advance a manual dispatch |
 | `PATCH` | `/api/movements/[id]/tracking-mode` | Change an active dispatch's tracking mode |
 | `GET`, `POST` | `/api/plant-status` | Read live plant data and update the current status |
-| `GET`, `POST` | `/api/customer-skid-visits` | List active visits or history, and register a visit |
-| `PATCH` | `/api/customer-skid-visits/[id]` | Update a visit's state or washing selection |
-| `POST` | `/api/customer-skid-visits/[id]/dispatch` | Mark a loaded visit dispatched; no request body is required |
+| `GET`, `POST` | `/api/customer-skid-loadings` | List active loadings or history, and register a loading |
+| `PATCH` | `/api/customer-skid-loadings/[id]` | Update a loading's state or washing selection |
+| `POST` | `/api/customer-skid-loadings/[id]/dispatch` | Mark a loaded skid dispatched; no request body is required |
 | `POST` | `/api/messages` | Receive a Green API message webhook |
 | `GET` | `/api/hcltracker/vehicles?page=…&per_page=…` | Fetch upstream vehicle data |
 | `GET` | `/api/hcltracker/address?lat=…&lon=…` | Resolve an upstream address |
@@ -158,8 +159,8 @@ dispatch. It only stores the parsed message data and its processing status.
 | `GET` | `/api/cron/process-messages` | Parse pending messages |
 
 `GET /api/plant-status?date=YYYY-MM-DD` accepts an optional date for the
-dispatch summary. `GET /api/customer-skid-visits?includeHistory=true` includes
-dispatched visits; without that query, it returns active visits.
+dispatch summary. `GET /api/customer-skid-loadings?includeHistory=true` includes
+dispatched loadings; without that query, it returns active loadings.
 
 For the Green API webhook, both validation and processing failures are returned
 as JSON with HTTP 200 so the provider does not retry automatically. Check the
@@ -171,7 +172,7 @@ The current Drizzle schema defines:
 
 - `customers`, `trucks`, and `skids` for customers and company fleet assets.
 - `movements` and `trips` for dispatch and pickup lifecycles.
-- `customer_skid_visits` for customer-owned skids while they are at the plant.
+- `customer_skid_loadings` for customer-owned skids while they are at the plant.
 - `plant_status` for the one current plant-status record.
 - `geofence_zones` for plant/customer classifications and learned location
   areas.
@@ -182,8 +183,8 @@ The current Drizzle schema defines:
 
 The schema and database functions enforce key rules such as one active movement
 per truck, at most one trip per direction on a movement, loaded-only company
-dispatch, loaded-only customer-visit dispatch, and empty-or-loaded-only washing
-selection.
+dispatch, loaded-only customer-skid-loading dispatch, and empty-or-loaded-only
+washing selection.
 
 ## Technology
 

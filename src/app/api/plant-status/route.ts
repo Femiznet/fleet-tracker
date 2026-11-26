@@ -7,7 +7,7 @@ import { eq, and, isNull, sql, desc } from 'drizzle-orm';
 import { db } from '@/db';
 import { skids } from '@/db/schema/skids';
 import { customers } from '@/db/schema/customers';
-import { customerSkidVisits } from '@/db/schema/customer-skid-visit';
+import { customerSkidLoadings } from '@/db/schema/customer-skid-loading';
 import {
   getLivePlantFleetSnapshot,
   getCurrentPlantStatus,
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     const [
       fleetSnapshot,
       plantSkids,
-      currentCustomerVisits,
+      currentCustomerLoadings,
       currentStatus,
       dailyDispatchSummary,
     ] = await Promise.all([
@@ -66,19 +66,19 @@ export async function GET(request: NextRequest) {
 
       db
         .select({
-          id: customerSkidVisits.id,
-          customerId: customerSkidVisits.customerId,
+          id: customerSkidLoadings.id,
+          customerId: customerSkidLoadings.customerId,
           customerName: customers.name,
-          skidNum: customerSkidVisits.skidNum,
-          state: customerSkidVisits.state,
-          isForWashing: customerSkidVisits.isForWashing,
-          arrivedAt: customerSkidVisits.arrivedAt,
-          loadedAt: customerSkidVisits.loadedAt,
+          skidNum: customerSkidLoadings.skidNum,
+          state: customerSkidLoadings.state,
+          isForWashing: customerSkidLoadings.isForWashing,
+          arrivedAt: customerSkidLoadings.arrivedAt,
+          loadedAt: customerSkidLoadings.loadedAt,
         })
-        .from(customerSkidVisits)
-        .innerJoin(customers, eq(customerSkidVisits.customerId, customers.id))
-        .where(isNull(customerSkidVisits.dispatchedAt))
-        .orderBy(desc(customerSkidVisits.arrivedAt)),
+        .from(customerSkidLoadings)
+        .innerJoin(customers, eq(customerSkidLoadings.customerId, customers.id))
+        .where(isNull(customerSkidLoadings.dispatchedAt))
+        .orderBy(desc(customerSkidLoadings.arrivedAt)),
 
       getCurrentPlantStatus(),
       getDailyDispatchSummary(requestedDate ?? undefined),
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       fleetSnapshot,
       plantSkids,
-      customerSkidVisits: currentCustomerVisits,
+      customerSkidLoadings: currentCustomerLoadings,
       plantStatus: currentStatus,
       dailyDispatchSummary,
       previousMetrics: currentStatus?.metrics ?? null,

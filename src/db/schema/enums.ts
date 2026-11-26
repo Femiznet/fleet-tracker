@@ -44,8 +44,8 @@ export const skidStateEnum = pgEnum('skid_state', [
   'on_hold',
 ]);
 
-export const customerSkidVisitStateEnum = pgEnum(
-  'customer_skid_visit_state',
+export const customerSkidLoadingStateEnum = pgEnum(
+  'customer_skid_loading_state',
   ['empty', 'loading', 'loaded', 'on_hold']
 );
 
