@@ -1,128 +1,37 @@
-import { NextResponse } from 'next/server';
-import { apiErrorResponse, apiValidationErrorResponse } from '@/lib/api-errors';
-import {
-  customerIdSchema,
-  customersFeatureAvailable,
-  customersFeatureUnavailableResponse,
-  findCustomerById,
-} from '@/generated/customers-feature';
 import {
   deleteCustomerAction,
+  getCustomerAction,
   updateCustomerAction,
 } from '@/actions/customers';
+import { failedAction } from '@/actions/action-result';
+import { actionResponse } from '@/lib/action-response';
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
 export async function GET(_req: Request, { params }: RouteContext) {
-  if (!customersFeatureAvailable) {
-    return NextResponse.json(customersFeatureUnavailableResponse, {
-      status: 503,
-    });
-  }
-
-  try {
-    const { id } = await params;
-    const parsedId = customerIdSchema.safeParse(id);
-    if (!parsedId.success) {
-      return apiValidationErrorResponse(parsedId.error, 'Invalid customer ID');
-    }
-
-    const data = await findCustomerById(parsedId.data);
-
-    if (!data) {
-      return NextResponse.json(
-        { error: 'Customer not found' },
-        { status: 404 },
-      );
-    }
-
-    return NextResponse.json({ data });
-  } catch (error) {
-    return apiErrorResponse(error, 'Failed to fetch customer');
-  }
+  const { id } = await params;
+  return actionResponse(await getCustomerAction(id));
 }
 
 export async function PATCH(req: Request, { params }: RouteContext) {
-  if (!customersFeatureAvailable) {
-    return NextResponse.json(customersFeatureUnavailableResponse, {
-      status: 503,
-    });
-  }
-
   let body: unknown;
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json(
-      { error: 'Request body must be valid JSON' },
-      { status: 400 },
+    return actionResponse(
+      failedAction('Request body must be valid JSON', 400, {
+        code: 'INVALID_JSON',
+      }),
     );
   }
 
-  try {
-    const { id } = await params;
-    const parsedId = customerIdSchema.safeParse(id);
-    if (!parsedId.success) {
-      return apiValidationErrorResponse(parsedId.error, 'Invalid customer ID');
-    }
-
-    const result = await updateCustomerAction(parsedId.data, body);
-
-    if (!result.success) {
-      return apiErrorResponse(
-        result.error,
-        'Invalid customer data',
-        result.error.status,
-      );
-    }
-
-    if (!result.data) {
-      return NextResponse.json(
-        { error: 'Customer not found' },
-        { status: 404 },
-      );
-    }
-
-    return NextResponse.json({ data: result.data });
-  } catch (error) {
-    return apiErrorResponse(error, 'Failed to update customer');
-  }
+  const { id } = await params;
+  return actionResponse(await updateCustomerAction(id, body));
 }
 
 export async function DELETE(_req: Request, { params }: RouteContext) {
-  if (!customersFeatureAvailable) {
-    return NextResponse.json(customersFeatureUnavailableResponse, {
-      status: 503,
-    });
-  }
-
-  try {
-    const { id } = await params;
-    const parsedId = customerIdSchema.safeParse(id);
-    if (!parsedId.success) {
-      return apiValidationErrorResponse(parsedId.error, 'Invalid customer ID');
-    }
-
-    const result = await deleteCustomerAction(parsedId.data);
-    if (!result.success) {
-      return apiErrorResponse(
-        result.error,
-        'Invalid customer ID',
-        result.error.status,
-      );
-    }
-
-    if (!result.data) {
-      return NextResponse.json(
-        { error: 'Customer not found' },
-        { status: 404 },
-      );
-    }
-
-    return NextResponse.json({ data: result.data });
-  } catch (error) {
-    return apiErrorResponse(error, 'Failed to delete customer');
-  }
+  const { id } = await params;
+  return actionResponse(await deleteCustomerAction(id));
 }

@@ -2,6 +2,7 @@
 
 import {
   actionError,
+  failedAction,
   invalidActionInput,
   type ActionResult,
   unavailableAction,
@@ -38,7 +39,7 @@ export async function listCustomersAction(): Promise<ActionResult<Customer[]>> {
 
 export async function getCustomerAction(
   id: unknown,
-): Promise<ActionResult<Customer | null>> {
+): Promise<ActionResult<Customer>> {
   if (!customersFeatureAvailable) {
     return unavailableAction(customersFeatureUnavailableResponse);
   }
@@ -49,7 +50,12 @@ export async function getCustomerAction(
   }
 
   try {
-    return { success: true, data: await findCustomerById(parsedId.data) };
+    const data = await findCustomerById(parsedId.data);
+    if (!data) {
+      return failedAction('Customer not found', 404);
+    }
+
+    return { success: true, data };
   } catch (error) {
     return {
       success: false,
@@ -60,7 +66,7 @@ export async function getCustomerAction(
 
 export async function createCustomerAction(
   input: unknown,
-): Promise<ActionResult<Customer | undefined>> {
+): Promise<ActionResult<Customer>> {
   if (!customersFeatureAvailable) {
     return unavailableAction(customersFeatureUnavailableResponse);
   }
@@ -72,6 +78,10 @@ export async function createCustomerAction(
 
   try {
     const data = await createCustomer(parsed.data);
+    if (!data) {
+      return failedAction('Customer was not created', 500);
+    }
+
     revalidatePath('/customers');
     return { success: true, data };
   } catch (error) {
@@ -85,7 +95,7 @@ export async function createCustomerAction(
 export async function updateCustomerAction(
   id: unknown,
   input: unknown,
-): Promise<ActionResult<Customer | null>> {
+): Promise<ActionResult<Customer>> {
   if (!customersFeatureAvailable) {
     return unavailableAction(customersFeatureUnavailableResponse);
   }
@@ -102,6 +112,10 @@ export async function updateCustomerAction(
 
   try {
     const data = await updateCustomer(parsedId.data, parsed.data);
+    if (!data) {
+      return failedAction('Customer not found', 404);
+    }
+
     revalidatePath('/customers');
     return { success: true, data };
   } catch (error) {
@@ -114,7 +128,7 @@ export async function updateCustomerAction(
 
 export async function deleteCustomerAction(
   id: unknown,
-): Promise<ActionResult<Customer | null>> {
+): Promise<ActionResult<Customer>> {
   if (!customersFeatureAvailable) {
     return unavailableAction(customersFeatureUnavailableResponse);
   }
@@ -126,6 +140,10 @@ export async function deleteCustomerAction(
 
   try {
     const data = await deleteCustomer(parsedId.data);
+    if (!data) {
+      return failedAction('Customer not found', 404);
+    }
+
     revalidatePath('/customers');
     return { success: true, data };
   } catch (error) {

@@ -198,8 +198,10 @@ if (!result.success) {
 }
 ```
 
-The API routes remain available for webhooks, cron jobs, integrations, and
-external clients.
+Customer, movement, customer skid-loading, and plant-status API routes call
+these same actions and return the same JSON result; action failures also set
+the corresponding HTTP status. Webhooks, cron jobs, and external integrations
+remain separate API routes.
 
 ## Data model
 

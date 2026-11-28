@@ -20,7 +20,12 @@ import {
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
-const includeHistorySchema = z.boolean().default(false);
+const includeHistorySchema = z
+  .union([
+    z.boolean(),
+    z.enum(['true', 'false']).transform((value) => value === 'true'),
+  ])
+  .default(false);
 
 function revalidateLoadingViews() {
   revalidatePath('/customer-skid-loadings');
