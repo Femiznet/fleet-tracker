@@ -29,11 +29,8 @@ echo "💥 Wiping the PostgreSQL public schema..."
 psql "$DATABASE_URL" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO public;"
 
 # 5. Generate and apply a clean, fresh Drizzle state
-echo "🏗️  Generating fresh Drizzle migration snapshots..."
-pnpm exec drizzle-kit generate
-
-echo "🧩 Appending custom database functions..."
-pnpm exec tsx scripts/append-functions.ts
+echo "🏗️  Generating fresh Drizzle migration snapshots and 🧩 Appending custom database functions..."
+pnpm db:generate
 
 echo "🚀 Applying migrations to the fresh database..."
 pnpm db:migrate
