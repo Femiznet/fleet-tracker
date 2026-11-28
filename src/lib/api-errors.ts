@@ -22,7 +22,9 @@ export function getApiErrorInfo(
       ? error.message
       : typeof error === 'string'
         ? error
-        : record?.message;
+        : typeof record?.message === 'string'
+          ? record.message
+          : record?.error;
 
   if (typeof message !== 'string' || message.trim() === '') {
     if (
@@ -39,6 +41,7 @@ export function getApiErrorInfo(
   const info: ApiErrorInfo = { error: message };
   if (typeof record?.code === 'string') info.code = record.code;
   if (typeof record?.field === 'string') info.field = record.field;
+  if ('details' in (record ?? {})) info.details = record?.details;
   if (Array.isArray(record?.issues)) info.details = record.issues;
   return info;
 }

@@ -43,7 +43,11 @@ export async function POST(req: Request) {
     const result = await createCustomerAction(body);
 
     if (!result.success) {
-      return apiErrorResponse(result.error, 'Invalid customer data', 400);
+      return apiErrorResponse(
+        result.error,
+        'Invalid customer data',
+        result.error.status,
+      );
     }
 
     if (!result.data) {

@@ -181,6 +181,26 @@ For the Green API webhook, both validation and processing failures are returned
 as JSON with HTTP 200 so the provider does not retry automatically. Check the
 response's `ok` field to distinguish success from failure.
 
+## UI server actions
+
+UI components can call the feature actions directly instead of making fetch
+requests to the app's own API routes. Actions live under `src/actions/<feature>`
+and return a consistent `{ success, data }` or `{ success, error }` result.
+Errors include a message and status; validation failures also include field
+details.
+
+```ts
+import { createDispatchAction } from '@/actions/movements';
+
+const result = await createDispatchAction(formValues);
+if (!result.success) {
+  setError(result.error.error);
+}
+```
+
+The API routes remain available for webhooks, cron jobs, integrations, and
+external clients.
+
 ## Data model
 
 The current Drizzle schema defines:

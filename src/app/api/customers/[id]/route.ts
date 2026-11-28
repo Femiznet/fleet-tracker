@@ -71,7 +71,11 @@ export async function PATCH(req: Request, { params }: RouteContext) {
     const result = await updateCustomerAction(parsedId.data, body);
 
     if (!result.success) {
-      return apiErrorResponse(result.error, 'Invalid customer data', 400);
+      return apiErrorResponse(
+        result.error,
+        'Invalid customer data',
+        result.error.status,
+      );
     }
 
     if (!result.data) {
@@ -103,7 +107,11 @@ export async function DELETE(_req: Request, { params }: RouteContext) {
 
     const result = await deleteCustomerAction(parsedId.data);
     if (!result.success) {
-      return apiErrorResponse(result.error, 'Invalid customer ID', 400);
+      return apiErrorResponse(
+        result.error,
+        'Invalid customer ID',
+        result.error.status,
+      );
     }
 
     if (!result.data) {
