@@ -1,52 +1,34 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { apiErrorResponse } from '@/lib/api-errors';
-import { HCL_URL, queryHclTracker } from '@/lib/hcltracker/utils';
-
-async function fetchAddress({lat, lon, cookies}:{lat: string, lon: string, cookies: string}) {
-  return fetch(
-    `${HCL_URL}/ui/address?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`,
-    {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-        Cookie: cookies,
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-      redirect: 'manual',
-      cache: 'no-store',
-    }
-  );
-}
+import { NextRequest } from 'next/server';
+import { apiValidationErrorResponse } from '@/lib/api-errors';
+import {
+  addressCoordinatesSchema,
+  fetchHclAddress,
+} from '@/lib/hcltracker/address';
+import { queryHclTracker } from '@/lib/hcltracker/utils';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const lat = searchParams.get('lat');
-  const lon = searchParams.get('lon');
-
-  if (!lat || !lon) {
-    return NextResponse.json(
-      { error: 'Both lat and lon query parameters are required.' },
-      { status: 400 }
+  const parsed = addressCoordinatesSchema.safeParse({
+    lat: searchParams.get('lat'),
+    lon: searchParams.get('lon'),
+  });
+  if (!parsed.success) {
+    return apiValidationErrorResponse(
+      parsed.error,
+      'Invalid address coordinates',
     );
   }
 
-  try {
-    const fetchAddressTask = (cookies: string) => fetchAddress({ lat, lon, cookies });
-    return queryHclTracker({
-      fetchApiWithCookies: fetchAddressTask,
-      parseResponse: async (res) => ({
-        lat,
-        lon,
-        address: (await res.text()).trim(),
-      }),
-    });
-  } catch (error) {
-    return apiErrorResponse(error, 'Failed to fetch address');
-  }
+  const lat = String(parsed.data.lat);
+  const lon = String(parsed.data.lon);
+
+  return queryHclTracker({
+    fetchApiWithCookies: (cookies: string) =>
+      fetchHclAddress({ lat, lon, cookies }),
+    parseResponse: async (res) => ({
+      lat,
+      lon,
+      address: (await res.text()).trim(),
+    }),
+  });
 }
-
-
-
-
-
-

@@ -1,0 +1,12 @@
+{
+  "name": "@fleet/movements",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@fleet/database": "workspace:*",
+    "drizzle-orm": "0.45.4"
+  }
+}

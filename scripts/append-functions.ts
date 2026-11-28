@@ -22,12 +22,14 @@ async function main(): Promise<void> {
   }
 
   const statements = await Promise.all(
-    functionFiles.map(async (file) => (await readFile(path.join(functionsDir, file), 'utf8')).trim())
+    functionFiles.map(async (file) =>
+      (await readFile(path.join(functionsDir, file), 'utf8')).trim(),
+    ),
   );
 
   await appendFile(
     path.join(migrationDir, migrationFile),
-    `\n--> statement-breakpoint\n${statements.join('\n--> statement-breakpoint\n')}\n`
+    `\n--> statement-breakpoint\n${statements.join('\n--> statement-breakpoint\n')}\n`,
   );
 }
 

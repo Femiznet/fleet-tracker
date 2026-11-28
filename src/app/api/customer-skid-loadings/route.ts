@@ -1,26 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  apiErrorResponse,
-  apiValidationErrorResponse,
-} from '@/lib/api-errors';
+import { apiErrorResponse, apiValidationErrorResponse } from '@/lib/api-errors';
 import {
   createCustomerSkidLoading,
   CustomerSkidLoadingError,
-  getCustomerSkidLoadings,
-} from '@/services/customer-skid-loadings';
-import {
+  customerSkidLoadingsFeatureAvailable,
+  customerSkidLoadingsFeatureUnavailableResponse,
   createCustomerSkidLoadingSchema,
+  getCustomerSkidLoadings,
   customerSkidLoadingListQuerySchema,
-} from '@/services/customer-skid-loadings/validator';
+} from '@/generated/customer-skid-loadings-feature';
 
 export async function GET(request: NextRequest) {
+  if (!customerSkidLoadingsFeatureAvailable) {
+    return NextResponse.json(customerSkidLoadingsFeatureUnavailableResponse, {
+      status: 503,
+    });
+  }
+
   try {
     const query = customerSkidLoadingListQuerySchema.safeParse({
       includeHistory:
         new URL(request.url).searchParams.get('includeHistory') ?? undefined,
     });
     if (!query.success) {
-      return apiValidationErrorResponse(query.error, 'Invalid customer skid loading query');
+      return apiValidationErrorResponse(
+        query.error,
+        'Invalid customer skid loading query',
+      );
     }
 
     const data = await getCustomerSkidLoadings(query.data.includeHistory);
@@ -31,6 +37,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  if (!customerSkidLoadingsFeatureAvailable) {
+    return NextResponse.json(customerSkidLoadingsFeatureUnavailableResponse, {
+      status: 503,
+    });
+  }
+
   try {
     let body: unknown;
     try {
@@ -38,13 +50,16 @@ export async function POST(request: NextRequest) {
     } catch {
       return NextResponse.json(
         { error: 'Request body must be valid JSON' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const parsed = createCustomerSkidLoadingSchema.safeParse(body);
     if (!parsed.success) {
-      return apiValidationErrorResponse(parsed.error, 'Invalid customer skid loading');
+      return apiValidationErrorResponse(
+        parsed.error,
+        'Invalid customer skid loading',
+      );
     }
 
     const data = await createCustomerSkidLoading(parsed.data);
@@ -54,7 +69,7 @@ export async function POST(request: NextRequest) {
       return apiErrorResponse(
         error,
         'Failed to register customer skid loading',
-        error.status
+        error.status,
       );
     }
     return apiErrorResponse(error, 'Failed to register customer skid loading');

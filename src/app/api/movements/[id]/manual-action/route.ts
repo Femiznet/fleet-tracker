@@ -1,5 +1,14 @@
-import { manualDispatchAction } from '@/services/dispatch';
-import { apiErrorResponse } from '@/lib/api-errors';
+import {
+  manualDispatchAction,
+  movementsFeatureAvailable,
+  movementsFeatureUnavailableResponse,
+} from '@/generated/movements-feature';
+import { apiValidationErrorResponse } from '@/lib/api-errors';
+import { movementApiErrorResponse } from '@/lib/movement-api-errors';
+import {
+  manualDispatchActionRequestSchema,
+  movementIdSchema,
+} from '@/lib/validation/movements';
 import { NextRequest, NextResponse } from 'next/server';
 
 type RouteContext = {
@@ -7,32 +16,43 @@ type RouteContext = {
 };
 
 export async function POST(req: NextRequest, context: RouteContext) {
-  try {
-    const { id } = await context.params;
-    const body = await req.json().catch(() => null);
-
-    if (!body || typeof body !== 'object') {
-      return NextResponse.json({ error: 'A manual dispatch action is required' }, { status: 400 });
-    }
-
-    const action = body.action;
-    if (
-      action !== 'arrived_customer' &&
-      action !== 'returning'
-    ) {
-      return NextResponse.json(
-        { error: 'action must be arrived_customer or returning' },
-        { status: 400 }
-      );
-    }
-
-    await manualDispatchAction({
-      movementId: id,
-      action,
+  if (!movementsFeatureAvailable) {
+    return NextResponse.json(movementsFeatureUnavailableResponse, {
+      status: 503,
     });
+  }
 
-    return NextResponse.json({ movementId: id, action });
+  const { id } = await context.params;
+  const parsedId = movementIdSchema.safeParse(id);
+  if (!parsedId.success) {
+    return apiValidationErrorResponse(parsedId.error, 'Invalid movement ID');
+  }
+
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: 'Invalid or empty JSON request body' },
+      { status: 400 },
+    );
+  }
+
+  const parsed = manualDispatchActionRequestSchema.safeParse(body);
+  if (!parsed.success) {
+    return apiValidationErrorResponse(
+      parsed.error,
+      'Invalid manual dispatch action',
+    );
+  }
+
+  try {
+    await manualDispatchAction({ movementId: parsedId.data, ...parsed.data });
+    return NextResponse.json({
+      movementId: parsedId.data,
+      action: parsed.data.action,
+    });
   } catch (error) {
-    return apiErrorResponse(error, 'Failed to update manual dispatch', 400);
+    return movementApiErrorResponse(error, 'Failed to update manual dispatch');
   }
 }

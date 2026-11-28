@@ -1,5 +1,14 @@
-import { switchDispatchTrackingMode } from '@/services/dispatch';
-import { apiErrorResponse } from '@/lib/api-errors';
+import {
+  movementsFeatureAvailable,
+  movementsFeatureUnavailableResponse,
+  switchDispatchTrackingMode,
+} from '@/generated/movements-feature';
+import { apiValidationErrorResponse } from '@/lib/api-errors';
+import { movementApiErrorResponse } from '@/lib/movement-api-errors';
+import {
+  movementIdSchema,
+  trackingModeRequestSchema,
+} from '@/lib/validation/movements';
 import { NextRequest, NextResponse } from 'next/server';
 
 type RouteContext = {
@@ -7,38 +16,47 @@ type RouteContext = {
 };
 
 export async function PATCH(req: NextRequest, context: RouteContext) {
+  if (!movementsFeatureAvailable) {
+    return NextResponse.json(movementsFeatureUnavailableResponse, {
+      status: 503,
+    });
+  }
+
+  const { id } = await context.params;
+  const parsedId = movementIdSchema.safeParse(id);
+  if (!parsedId.success) {
+    return apiValidationErrorResponse(parsedId.error, 'Invalid movement ID');
+  }
+
+  let body: unknown;
   try {
-    const { id } = await context.params;
-    const body: unknown = await req.json().catch(() => null);
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: 'Invalid or empty JSON request body' },
+      { status: 400 },
+    );
+  }
 
-    if (
-      !body ||
-      typeof body !== 'object' ||
-      Array.isArray(body) ||
-      !('trackingMode' in body)
-    ) {
-      return NextResponse.json(
-        { error: 'trackingMode must be "live" or "manual"' },
-        { status: 400 }
-      );
-    }
+  const parsed = trackingModeRequestSchema.safeParse(body);
+  if (!parsed.success) {
+    return apiValidationErrorResponse(parsed.error, 'Invalid tracking mode');
+  }
 
-    const trackingMode = body.trackingMode;
-    if (trackingMode !== 'live' && trackingMode !== 'manual') {
-      return NextResponse.json(
-        { error: 'trackingMode must be "live" or "manual"' },
-        { status: 400 }
-      );
-    }
+  try {
+    await switchDispatchTrackingMode({
+      movementId: parsedId.data,
+      trackingMode: parsed.data.trackingMode,
+    });
 
-    await switchDispatchTrackingMode({ movementId: id, trackingMode });
-
-    return NextResponse.json({ movementId: id, trackingMode });
+    return NextResponse.json({
+      movementId: parsedId.data,
+      trackingMode: parsed.data.trackingMode,
+    });
   } catch (error) {
-    return apiErrorResponse(
+    return movementApiErrorResponse(
       error,
       'Failed to switch dispatch tracking mode',
-      400
     );
   }
 }

@@ -9,7 +9,10 @@ export interface ApiErrorInfo {
   details?: unknown;
 }
 
-export function getApiErrorInfo(error: unknown, fallback: string): ApiErrorInfo {
+export function getApiErrorInfo(
+  error: unknown,
+  fallback: string,
+): ApiErrorInfo {
   const record =
     error && typeof error === 'object'
       ? (error as Record<string, unknown>)
@@ -22,7 +25,10 @@ export function getApiErrorInfo(error: unknown, fallback: string): ApiErrorInfo 
         : record?.message;
 
   if (typeof message !== 'string' || message.trim() === '') {
-    if (record && ('errors' in record || 'properties' in record || 'issues' in record)) {
+    if (
+      record &&
+      ('errors' in record || 'properties' in record || 'issues' in record)
+    ) {
       return { error: fallback, details: error };
     }
 
@@ -41,17 +47,17 @@ export function apiErrorResponse(
   error: unknown,
   fallback: string,
   status = 500,
-  extra: Record<string, unknown> = {}
+  extra: Record<string, unknown> = {},
 ) {
   return NextResponse.json(
     { ...getApiErrorInfo(error, fallback), ...extra },
-    { status }
+    { status },
   );
 }
 
 export function apiValidationErrorResponse(error: ZodError, fallback: string) {
   return NextResponse.json(
     { error: fallback, details: treeifyZodError(error) },
-    { status: 400 }
+    { status: 400 },
   );
 }

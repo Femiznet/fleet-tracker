@@ -1,18 +1,23 @@
 // app/api/cron/process-messages/route.ts
 
-import { processPendingMessages } from "@/actions/messages/process";
+import {
+  messagesFeatureAvailable,
+  processPendingMessages,
+} from '@/generated/messages-feature';
 import { apiErrorResponse } from '@/lib/api-errors';
+import { cronAuthorizationError } from '@/lib/cron-auth';
 
 // export const dynamic = 'force-dynamic'; // never cache this route
 // export const maxDuration = 60;          // seconds; raise if your backlog can be large
 
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    return Response.json({ ok: false, error: 'CRON_SECRET is not set' }, { status: 500 });
-  }
-  if (request.headers.get('authorization') !== `Bearer ${secret}`) {
-    return Response.json({ ok: false, error: 'unauthorized' }, { status: 401 });
+  const authorizationError = cronAuthorizationError(request);
+  if (authorizationError) return authorizationError;
+  if (!messagesFeatureAvailable) {
+    return Response.json(
+      { ok: false, error: 'The messages feature is not installed' },
+      { status: 503 },
+    );
   }
 
   try {

@@ -1,5 +1,14 @@
-import { completeMovement } from '@/services/dispatch';
-import { apiErrorResponse } from '@/lib/api-errors';
+import {
+  completeMovement,
+  movementsFeatureAvailable,
+  movementsFeatureUnavailableResponse,
+} from '@/generated/movements-feature';
+import { apiValidationErrorResponse } from '@/lib/api-errors';
+import { movementApiErrorResponse } from '@/lib/movement-api-errors';
+import {
+  completeMovementRequestSchema,
+  movementIdSchema,
+} from '@/lib/validation/movements';
 import { NextRequest, NextResponse } from 'next/server';
 
 type RouteContext = {
@@ -7,19 +16,47 @@ type RouteContext = {
 };
 
 export async function POST(req: NextRequest, context: RouteContext) {
-  try {
-    const { id } = await context.params;
-    const body = await req.json().catch(() => ({}));
+  if (!movementsFeatureAvailable) {
+    return NextResponse.json(movementsFeatureUnavailableResponse, {
+      status: 503,
+    });
+  }
 
+  const { id } = await context.params;
+  const parsedId = movementIdSchema.safeParse(id);
+  if (!parsedId.success) {
+    return apiValidationErrorResponse(parsedId.error, 'Invalid movement ID');
+  }
+
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: 'Invalid or empty JSON request body' },
+      { status: 400 },
+    );
+  }
+
+  const parsed = completeMovementRequestSchema.safeParse(body);
+  if (!parsed.success) {
+    return apiValidationErrorResponse(
+      parsed.error,
+      'Invalid completion request',
+    );
+  }
+
+  try {
     await completeMovement({
-      movementId: id,
-      skidIdIn: body.skidIdIn ?? null,
-      note: body.note ?? null,
-      skidInState: body.skidInState,
+      movementId: parsedId.data,
+      ...parsed.data,
     });
 
-    return NextResponse.json({ movementId: id, status: 'completed' });
+    return NextResponse.json({
+      movementId: parsedId.data,
+      status: 'completed',
+    });
   } catch (error) {
-    return apiErrorResponse(error, 'Failed to complete movement', 400);
+    return movementApiErrorResponse(error, 'Failed to complete movement');
   }
 }

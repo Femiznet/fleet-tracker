@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+CRON_SECRET="${CRON_SECRET:-cron-job}"
+BASE_URL="http://localhost:3000"
+
+trap 'echo "Stopping worker..."; exit 0' SIGINT SIGTERM
+
+# Optional: Seed any new trucks once on startup
+curl -s --max-time 30 -H "Authorization: Bearer $CRON_SECRET" "$BASE_URL/api/cron/seed-trucks"
+echo ' -> seeded trucks'
+
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd -- "$script_dir/.." && pwd)"
 
@@ -45,10 +54,3 @@ if [[ "$seed_trucks" == true ]]; then
     "${BASE_URL%/}/api/cron/seed-trucks"
   printf '\n'
 fi
-
-query_test="$repo_root/scripts/query-test.sh"
-if [[ -f "$query_test" ]]; then
-  exec bash "$query_test"
-fi
-
-printf 'Skid seeds applied; query test script not found, skipping query tests.\n' >&2

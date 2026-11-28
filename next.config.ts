@@ -1,6 +1,7 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  transpilePackages: ['@fleet/database'],
   /* config options here */
   experimental: {
     agentFeedback: true,
@@ -9,13 +10,13 @@ const nextConfig: NextConfig = {
   partialPrefetching: true,
   turbopack: {
     rules: {
-      "*.css": {
-        loaders: ["@tailwindcss/turbopack"],
-        as: "*.css",
+      '*.css': {
+        loaders: ['@tailwindcss/turbopack'],
+        as: '*.css',
       },
     },
   },
-  allowedDevOrigins: ['odin-frowzier-spatteringly.ngrok-free.dev']
+  allowedDevOrigins: ['odin-frowzier-spatteringly.ngrok-free.dev'],
 };
 
 export default nextConfig;

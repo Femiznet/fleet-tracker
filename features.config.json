@@ -1,0 +1,28 @@
+{
+  "features": {
+    "customers": {
+      "required": true,
+      "dependencies": []
+    },
+    "messages": {
+      "required": false,
+      "dependencies": ["customers"]
+    },
+    "movements": {
+      "required": false,
+      "dependencies": []
+    },
+    "customer-skid-loadings": {
+      "required": false,
+      "dependencies": []
+    },
+    "plant-status": {
+      "required": false,
+      "dependencies": []
+    },
+    "trucks": {
+      "required": false,
+      "dependencies": []
+    }
+  }
+}

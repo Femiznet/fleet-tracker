@@ -135,28 +135,43 @@ warnings when data is missing or unclear.
 Parsing a dispatch-details message does **not** create a fleet movement or
 dispatch. It only stores the parsed message data and its processing status.
 
+## Feature package configuration
+
+Feature package availability is configured in `features.config.json`. Set
+`required` to `true` to fail registry generation when a package is missing, or
+`false` to allow it to be absent. An optional package is still enabled when it
+is present; if missing, its unavailable fallback is generated so the rest of
+the app can run. Dependencies are listed per feature; a feature is also
+unavailable when one of its dependencies is unavailable. For example, messages
+depends on customers.
+
+The customers feature is currently required. Set it to optional to let the app
+run without its package; customer API routes will return HTTP 503, and messages
+will also be unavailable. The database package is core infrastructure and is
+not optional.
+
 ## API routes
 
-| Method | Route | Purpose |
-| --- | --- | --- |
-| `GET`, `POST` | `/api/customers` | List or create customers |
-| `GET`, `PATCH`, `DELETE` | `/api/customers/[id]` | Fetch, update, or delete a customer |
-| `POST` | `/api/movements/dispatch` | Start a company-skid dispatch |
-| `POST` | `/api/movements/pickup` | Start a customer-site pickup |
-| `POST` | `/api/movements/[id]/complete` | Complete an active dispatch or pickup |
-| `POST` | `/api/movements/[id]/cancel` | Cancel an active movement |
-| `POST` | `/api/movements/[id]/manual-action` | Advance a manual dispatch |
-| `PATCH` | `/api/movements/[id]/tracking-mode` | Change an active dispatch's tracking mode |
-| `GET`, `POST` | `/api/plant-status` | Read live plant data and update the current status |
-| `GET`, `POST` | `/api/customer-skid-loadings` | List active loadings or history, and register a loading |
-| `PATCH` | `/api/customer-skid-loadings/[id]` | Update a loading's state or washing selection |
-| `POST` | `/api/customer-skid-loadings/[id]/dispatch` | Mark a loaded skid dispatched; no request body is required |
-| `POST` | `/api/messages` | Receive a Green API message webhook |
-| `GET` | `/api/hcltracker/vehicles?page=…&per_page=…` | Fetch upstream vehicle data |
-| `GET` | `/api/hcltracker/address?lat=…&lon=…` | Resolve an upstream address |
-| `GET` | `/api/cron/seed-trucks` | Seed trucks from the upstream vehicle feed |
-| `GET` | `/api/cron/sync-locations` | Sync GPS locations for registered trucks |
-| `GET` | `/api/cron/process-messages` | Parse pending messages |
+| Method                   | Route                                        | Purpose                                                    |
+| ------------------------ | -------------------------------------------- | ---------------------------------------------------------- |
+| `GET`, `POST`            | `/api/customers`                             | List or create customers                                   |
+| `GET`, `PATCH`, `DELETE` | `/api/customers/[id]`                        | Fetch, update, or delete a customer                        |
+| `POST`                   | `/api/movements/dispatch`                    | Start a company-skid dispatch                              |
+| `POST`                   | `/api/movements/pickup`                      | Start a customer-site pickup                               |
+| `POST`                   | `/api/movements/[id]/complete`               | Complete an active dispatch or pickup                      |
+| `POST`                   | `/api/movements/[id]/cancel`                 | Cancel an active movement                                  |
+| `POST`                   | `/api/movements/[id]/manual-action`          | Advance a manual dispatch                                  |
+| `PATCH`                  | `/api/movements/[id]/tracking-mode`          | Change an active dispatch's tracking mode                  |
+| `GET`, `POST`            | `/api/plant-status`                          | Read live plant data and update the current status         |
+| `GET`, `POST`            | `/api/customer-skid-loadings`                | List active loadings or history, and register a loading    |
+| `PATCH`                  | `/api/customer-skid-loadings/[id]`           | Update a loading's state or washing selection              |
+| `POST`                   | `/api/customer-skid-loadings/[id]/dispatch`  | Mark a loaded skid dispatched; no request body is required |
+| `POST`                   | `/api/messages`                              | Receive a Green API message webhook                        |
+| `GET`                    | `/api/hcltracker/vehicles?page=…&per_page=…` | Fetch upstream vehicle data                                |
+| `GET`                    | `/api/hcltracker/address?lat=…&lon=…`        | Resolve an upstream address                                |
+| `GET`                    | `/api/cron/seed-trucks`                      | Seed trucks from the upstream vehicle feed                 |
+| `GET`                    | `/api/cron/sync-locations`                   | Sync GPS locations for registered trucks                   |
+| `GET`                    | `/api/cron/process-messages`                 | Parse pending messages                                     |
 
 `GET /api/plant-status?date=YYYY-MM-DD` accepts an optional date for the
 dispatch summary. `GET /api/customer-skid-loadings?includeHistory=true` includes
@@ -206,24 +221,36 @@ PostgreSQL `psql` command-line client.
    pnpm install
    ```
 
-2. Copy `.env.example` to `.env.local` and set `DATABASE_URL` to a PostgreSQL
+2. Format the code with Prettier:
+
+   ```sh
+   pnpm format
+   ```
+
+   Check formatting without changing files:
+
+   ```sh
+   pnpm format:check
+   ```
+
+3. Copy `.env.example` to `.env.local` and set `DATABASE_URL` to a PostgreSQL
    database. The example file documents the expected connection-string format.
-3. For HCL Tracker routes and location jobs, also configure:
+4. For HCL Tracker routes and location jobs, also configure:
    - `HCL_BASE_URL`
    - `HCL_USER`
    - `HCL_PASS`
-4. Generate the current schema migration, append the database functions, and
+5. Generate the current schema migration, append the database functions, and
    apply it:
 
    ```sh
    pnpm db:push
    ```
 
-5. Configure `APP_URL` for the truck-seeding job, which calls the app's own
+6. Configure `APP_URL` for the truck-seeding job, which calls the app's own
    vehicle endpoint.
-6. Configure `CRON_SECRET` for scheduled jobs. The process-messages job
+7. Configure `CRON_SECRET` for scheduled jobs. The process-messages job
    requires it. The seed-trucks and sync-locations jobs check it when it is set.
-7. Start the development server:
+8. Start the development server:
 
    ```sh
    pnpm dev
@@ -244,13 +271,13 @@ requires appropriate customer and plant geofence records to be present.
 
 ## Database commands
 
-| Command | Effect |
-| --- | --- |
-| `pnpm db:generate` | Generate a Drizzle migration and append SQL files from `db-functions/` |
-| `pnpm db:migrate` | Apply generated Drizzle migrations |
-| `pnpm db:push` | Generate and then apply migrations |
-| `pnpm db:force` | Run `drizzle-kit push --force` directly |
-| `pnpm db:reset` | **Destructive:** drops the PostgreSQL `public` schema, deletes local `drizzle/` migrations, regenerates schema and functions, and reapplies them |
+| Command            | Effect                                                                                                                                           |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm db:generate` | Generate a Drizzle migration and append SQL files from `db-functions/`                                                                           |
+| `pnpm db:migrate`  | Apply generated Drizzle migrations                                                                                                               |
+| `pnpm db:push`     | Generate and then apply migrations                                                                                                               |
+| `pnpm db:force`    | Run `drizzle-kit push --force` directly                                                                                                          |
+| `pnpm db:reset`    | **Destructive:** drops the PostgreSQL `public` schema, deletes local `drizzle/` migrations, regenerates schema and functions, and reapplies them |
 
 Custom PostgreSQL functions are maintained in `db-functions/`; the
 `scripts/append-functions.ts` script appends them to the generated migration.

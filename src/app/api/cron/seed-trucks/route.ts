@@ -1,29 +1,42 @@
 // app/api/cron/seed-trucks/route.ts
 import { NextResponse } from 'next/server';
 import { apiErrorResponse } from '@/lib/api-errors';
-import { HclTruckData, insertTrucks } from '@/services/trucks/queries';
+import { cronAuthorizationError } from '@/lib/cron-auth';
+import { getCleanVehicles } from '@/lib/hcltracker/vehicles';
+import {
+  insertTrucks,
+  trucksFeatureAvailable,
+  trucksFeatureUnavailableResponse,
+} from '@/generated/trucks-feature';
 
 export async function GET(request: Request) {
-  // Optional: protect cron route with a secret header
-  const authHeader = request.headers.get('authorization');
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authorizationError = cronAuthorizationError(request);
+  if (authorizationError) return authorizationError;
+
+  if (!trucksFeatureAvailable) {
+    return NextResponse.json(trucksFeatureUnavailableResponse, {
+      status: 503,
+    });
   }
 
   try {
-    const res = await fetch(`${process.env.APP_URL}/api/hcltracker/vehicles?page=1&per_page=25`, {
-      cache: 'no-store',
-    });
-    if (!res.ok) throw new Error('Failed to fetch fleet feed');
-
-    const json: HclTruckData = await res.json();
-    const newTrucks = json.data || [];
-
-      if (newTrucks.length > 0) {
-          await insertTrucks(newTrucks);
-    }
-
-    return NextResponse.json({ seededCount: newTrucks.length });
+    const vehicles = await getCleanVehicles('1', '100');
+    const trucksToSeed = vehicles
+      .filter(
+        (vehicle): vehicle is typeof vehicle & { lat: number; lon: number } =>
+          vehicle.lat !== null &&
+          vehicle.lon !== null &&
+          Number.isFinite(vehicle.lat) &&
+          Number.isFinite(vehicle.lon),
+      )
+      .map((vehicle) => ({
+        truckNum: vehicle.plateNumber.trim(),
+        lat: vehicle.lat,
+        lon: vehicle.lon,
+        speed: parseInt(String(vehicle.speed), 10) || 0,
+      }));
+    const inserted = await insertTrucks(trucksToSeed);
+    return NextResponse.json({ seededCount: inserted.length });
   } catch (error) {
     return apiErrorResponse(error, 'Failed to seed trucks');
   }

@@ -1,32 +1,54 @@
-import { processGreenApiMessage } from '@/actions/messages';
-import { getApiErrorInfo } from '@/lib/api-errors';
-import { parseGreenApiMessage } from '@/services/messages/validator';
+import { apiErrorResponse } from '@/lib/api-errors';
+import {
+  handleIncomingMessage,
+  messagesFeatureAvailable,
+} from '@/generated/messages-feature';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
-  try {
-    const body: unknown = await request.json();
-    const messageResult = parseGreenApiMessage(body);
+  if (!messagesFeatureAvailable) {
+    return NextResponse.json({
+      ok: false,
+      error: 'MESSAGES_FEATURE_UNAVAILABLE',
+      message: 'The messages feature is not installed',
+    });
+  }
 
-    if (messageResult.status === 'invalid') {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { ok: false, error: 'Request body must be valid JSON' },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const result = await handleIncomingMessage(body);
+
+    if (result.status === 'invalid') {
       return NextResponse.json({
         ok: false,
-        error: messageResult.reason,
-        ...(messageResult.error ? { details: messageResult.error } : {}),
+        error: result.reason,
+        ...(result.error ? { details: result.error } : {}),
       });
     }
 
-    const result = await processGreenApiMessage(messageResult.data);
-    if (!result.success) {
+    if (result.status === 'failed') {
       return NextResponse.json({ ok: false, error: result.message });
+    }
+
+    if (result.status === 'unavailable') {
+      return NextResponse.json({
+        ok: false,
+        error: 'MESSAGES_FEATURE_UNAVAILABLE',
+        message: 'The messages feature is not installed',
+      });
     }
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    // Keep the webhook acknowledged with HTTP 200 to avoid automatic provider retries.
-    return NextResponse.json({
-      ok: false,
-      ...getApiErrorInfo(error, 'Failed to process webhook message'),
-    });
+    return apiErrorResponse(error, 'Failed to process webhook message', 500);
   }
 }

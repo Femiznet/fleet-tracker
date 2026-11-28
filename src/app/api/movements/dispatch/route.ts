@@ -1,36 +1,40 @@
-import { createDispatch } from '@/services/dispatch';
-import { apiErrorResponse } from '@/lib/api-errors';
+import {
+  createDispatch,
+  movementsFeatureAvailable,
+  movementsFeatureUnavailableResponse,
+} from '@/generated/movements-feature';
+import { apiValidationErrorResponse } from '@/lib/api-errors';
+import { movementApiErrorResponse } from '@/lib/movement-api-errors';
+import { createDispatchRequestSchema } from '@/lib/validation/movements';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-
-    if (!body.truckId || !body.customerId || !body.skidIdOut) {
-      return NextResponse.json(
-        { error: 'truckId, customerId, and skidIdOut are required' },
-        { status: 400 }
-      );
-    }
-
-    const trackingMode = body.trackingMode ?? 'live';
-    if (trackingMode !== 'live' && trackingMode !== 'manual') {
-      return NextResponse.json(
-        { error: 'trackingMode must be "live" or "manual"' },
-        { status: 400 }
-      );
-    }
-
-    const movementId = await createDispatch({
-      truckId: body.truckId,
-      customerId: body.customerId,
-      skidIdOut: body.skidIdOut,
-      note: body.note ?? null,
-      trackingMode,
+  if (!movementsFeatureAvailable) {
+    return NextResponse.json(movementsFeatureUnavailableResponse, {
+      status: 503,
     });
+  }
+
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: 'Invalid or empty JSON request body' },
+      { status: 400 },
+    );
+  }
+
+  const parsed = createDispatchRequestSchema.safeParse(body);
+  if (!parsed.success) {
+    return apiValidationErrorResponse(parsed.error, 'Invalid dispatch request');
+  }
+
+  try {
+    const movementId = await createDispatch(parsed.data);
 
     return NextResponse.json({ movementId }, { status: 201 });
   } catch (error) {
-    return apiErrorResponse(error, 'Failed to create dispatch', 400);
+    return movementApiErrorResponse(error, 'Failed to create dispatch');
   }
 }

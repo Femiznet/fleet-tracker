@@ -1,34 +1,39 @@
-import { createPickup } from '@/services/dispatch';
-import { getApiErrorInfo } from '@/lib/api-errors';
+import {
+  createPickup,
+  movementsFeatureAvailable,
+  movementsFeatureUnavailableResponse,
+} from '@/generated/movements-feature';
+import { apiValidationErrorResponse } from '@/lib/api-errors';
+import { movementApiErrorResponse } from '@/lib/movement-api-errors';
+import { createPickupRequestSchema } from '@/lib/validation/movements';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-
-    if (!body.truckId || !body.customerId) {
-      return NextResponse.json(
-        { error: 'truckId and customerId are required' },
-        { status: 400 }
-      );
-    }
-
-    const movementId = await createPickup({
-      truckId: body.truckId,
-      customerId: body.customerId,
-      skidIdIn: body.skidIdIn ?? null,
-      note: body.note ?? null,
-      forceOverride: Boolean(body.forceOverride),
+  if (!movementsFeatureAvailable) {
+    return NextResponse.json(movementsFeatureUnavailableResponse, {
+      status: 503,
     });
+  }
 
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: 'Invalid or empty JSON request body' },
+      { status: 400 },
+    );
+  }
+
+  const parsed = createPickupRequestSchema.safeParse(body);
+  if (!parsed.success) {
+    return apiValidationErrorResponse(parsed.error, 'Invalid pickup request');
+  }
+
+  try {
+    const movementId = await createPickup(parsed.data);
     return NextResponse.json({ movementId }, { status: 201 });
   } catch (error) {
-    const errorInfo = getApiErrorInfo(error, 'Failed to create pickup');
-    const requiresOverride = errorInfo.error.includes('Use manual override');
-
-    return NextResponse.json(
-      { ...errorInfo, requiresOverride },
-      { status: requiresOverride ? 409 : 400 }
-    );
+    return movementApiErrorResponse(error, 'Failed to create pickup', true);
   }
 }
