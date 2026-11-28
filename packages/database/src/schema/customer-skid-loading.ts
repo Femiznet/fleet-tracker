@@ -1,6 +1,5 @@
 import { sql } from 'drizzle-orm';
 import {
-  boolean,
   check,
   index,
   pgTable,
@@ -21,7 +20,6 @@ export const customerSkidLoadings = pgTable(
       .references(() => customers.id),
     skidNum: varchar('skid_num', { length: 100 }).notNull(),
     state: customerSkidLoadingStateEnum('state').notNull().default('empty'),
-    isForWashing: boolean('is_for_washing').notNull().default(false),
     arrivedAt: timestamp('arrived_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -36,10 +34,6 @@ export const customerSkidLoadings = pgTable(
     check(
       'customer_skid_loading_dispatch_requires_loaded',
       sql`${table.dispatchedAt} IS NULL OR ${table.state} = 'loaded'`,
-    ),
-    check(
-      'customer_skid_loading_washing_requires_empty_or_loaded',
-      sql`NOT ${table.isForWashing} OR ${table.state} IN ('empty', 'loaded')`,
     ),
     uniqueIndex('unq_active_customer_skid_loading')
       .on(sql`lower(btrim(${table.skidNum}))`)

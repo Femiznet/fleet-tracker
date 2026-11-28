@@ -17,13 +17,9 @@ export const createCustomerSkidLoadingSchema = z
 export const updateCustomerSkidLoadingSchema = z
   .object({
     state: customerSkidLoadingStateSchema.optional(),
-    isForWashing: z.boolean().optional(),
   })
   .strict()
-  .refine(
-    (input) => input.state !== undefined || input.isForWashing !== undefined,
-    'Provide state or isForWashing to update',
-  );
+  .refine((input) => input.state !== undefined, 'Provide a state to update');
 
 export const customerSkidLoadingListQuerySchema = z
   .object({

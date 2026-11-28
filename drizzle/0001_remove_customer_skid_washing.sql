@@ -1,0 +1,2 @@
+ALTER TABLE "customer_skid_loadings" DROP CONSTRAINT "customer_skid_loading_washing_requires_empty_or_loaded";--> statement-breakpoint
+ALTER TABLE "customer_skid_loadings" DROP COLUMN "is_for_washing";

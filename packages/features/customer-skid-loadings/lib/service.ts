@@ -50,7 +50,6 @@ export async function getCustomerSkidLoadings(includeHistory = false) {
       customerName: customers.name,
       skidNum: customerSkidLoadings.skidNum,
       state: customerSkidLoadings.state,
-      isForWashing: customerSkidLoadings.isForWashing,
       arrivedAt: customerSkidLoadings.arrivedAt,
       loadedAt: customerSkidLoadings.loadedAt,
       dispatchedAt: customerSkidLoadings.dispatchedAt,
@@ -145,21 +144,11 @@ export async function updateCustomerSkidLoading(
     }
 
     const nextState = input.state ?? existing.state;
-    const nextWashing = input.isForWashing ?? existing.isForWashing;
-    const canWash = nextState === 'empty' || nextState === 'loaded';
-
-    if (nextWashing && !canWash) {
-      throw new CustomerSkidLoadingError(
-        'Only empty or loaded customer skids can be selected for washing',
-        400,
-      );
-    }
 
     const [updated] = await tx
       .update(customerSkidLoadings)
       .set({
         state: nextState,
-        isForWashing: canWash && nextWashing,
         ...(nextState === 'loaded' && !existing.loadedAt
           ? { loadedAt: new Date() }
           : {}),

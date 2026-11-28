@@ -23,6 +23,10 @@ export const skids = pgTable(
       'skids_is_for_washing_state_check',
       sql`NOT ${table.isForWashing} OR ${table.state} IN ('empty', 'loaded')`,
     ),
+    check(
+      'skids_customer_owned_not_for_washing_check',
+      sql`${table.customerId} IS NULL OR NOT ${table.isForWashing}`,
+    ),
   ],
 );
 

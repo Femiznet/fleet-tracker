@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { db, dbtx } from '@fleet/database';
 import type { DbTransaction } from '@fleet/database';
 import { plantStatus, skids } from '@fleet/database/schema';
@@ -6,6 +6,16 @@ import type { SkidYardUpdate, UpdatePlantStatusInput } from './validator';
 import { formatPlantStatusMessage } from './format-message';
 import { getDailyDispatchSummary } from './queries';
 import { getLivePlantFleetSnapshot } from './snapshot';
+
+class CompanySkidYardUpdateError extends Error {
+  readonly status = 400;
+  readonly code = 'COMPANY_SKID_REQUIRED';
+
+  constructor() {
+    super('Plant status updates only support company-owned skids');
+    this.name = 'CompanySkidYardUpdateError';
+  }
+}
 
 export async function batchUpdateSkidYardStates(
   updates: SkidYardUpdate[],
@@ -15,8 +25,8 @@ export async function batchUpdateSkidYardStates(
   const conn = dbtx(tx);
 
   await Promise.all(
-    updates.map((update) =>
-      conn
+    updates.map(async (update) => {
+      const [updated] = await conn
         .update(skids)
         .set({
           ...(update.state !== undefined && { state: update.state }),
@@ -24,8 +34,13 @@ export async function batchUpdateSkidYardStates(
             isForWashing: update.isForWashing,
           }),
         })
-        .where(eq(skids.id, update.id)),
-    ),
+        .where(and(eq(skids.id, update.id), isNull(skids.customerId)))
+        .returning({ id: skids.id });
+
+      if (!updated) {
+        throw new CompanySkidYardUpdateError();
+      }
+    }),
   );
 }
 

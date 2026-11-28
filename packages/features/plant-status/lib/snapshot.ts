@@ -44,7 +44,6 @@ export async function getLivePlantFleetSnapshot(
         .select({
           skidNum: customerSkidLoadings.skidNum,
           state: customerSkidLoadings.state,
-          isForWashing: customerSkidLoadings.isForWashing,
           customerName: customers.name,
         })
         .from(customerSkidLoadings)
@@ -97,11 +96,6 @@ export async function getLivePlantFleetSnapshot(
     const label = `${loading.skidNum}(${loading.customerName})`;
     if (loading.state === 'on_hold') {
       snapshot.skidsOnHold.push(label);
-    } else if (loading.isForWashing) {
-      snapshot.skidsForWashing.push({
-        skidNum: label,
-        state: loading.state,
-      });
     } else if (loading.state === 'loading') {
       snapshot.skidsLoading.customer.push(label);
     } else if (loading.state === 'loaded') {

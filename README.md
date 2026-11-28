@@ -164,7 +164,7 @@ not optional.
 | `PATCH`                  | `/api/movements/[id]/tracking-mode`          | Change an active dispatch's tracking mode                  |
 | `GET`, `POST`            | `/api/plant-status`                          | Read live plant data and update the current status         |
 | `GET`, `POST`            | `/api/customer-skid-loadings`                | List active loadings or history, and register a loading    |
-| `PATCH`                  | `/api/customer-skid-loadings/[id]`           | Update a loading's state or washing selection              |
+| `PATCH`                  | `/api/customer-skid-loadings/[id]`           | Update a customer's loading state                          |
 | `POST`                   | `/api/customer-skid-loadings/[id]/dispatch`  | Mark a loaded skid dispatched; no request body is required |
 | `POST`                   | `/api/messages`                              | Receive a Green API message webhook                        |
 | `GET`                    | `/api/hcltracker/vehicles?page=…&per_page=…` | Fetch upstream vehicle data                                |
@@ -175,7 +175,10 @@ not optional.
 
 `GET /api/plant-status?date=YYYY-MM-DD` accepts an optional date for the
 dispatch summary. `GET /api/customer-skid-loadings?includeHistory=true` includes
-dispatched loadings; without that query, it returns active loadings.
+dispatched loadings; without that query, it returns active loadings. Customer
+loading records retain arrival, state, first-loaded, and dispatch times.
+Dispatched records remain available in history and are excluded from the live
+plant snapshot.
 
 For the Green API webhook, both validation and processing failures are returned
 as JSON with HTTP 200 so the provider does not retry automatically. Check the
@@ -207,9 +210,12 @@ remain separate API routes.
 
 The current Drizzle schema defines:
 
-- `customers`, `trucks`, and `skids` for customers and company fleet assets.
+- `customers`, `trucks`, and `skids` for company fleet assets. A skid with a
+  `customer_id` is customer-owned; Plant Status yard updates target only
+  company-owned skids, and the database prevents customer-owned skids from
+  being marked for washing.
 - `movements` and `trips` for dispatch and pickup lifecycles.
-- `customer_skid_loadings` for customer-owned skids while they are at the plant.
+- `customer_skid_loadings` for customer loading visits and their history.
 - `plant_status` for the one current plant-status record.
 - `geofence_zones` for plant/customer classifications and learned location
   areas.

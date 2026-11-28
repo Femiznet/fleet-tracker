@@ -118,7 +118,6 @@ export async function getPlantStatusDashboard(date?: string) {
         customerName: customers.name,
         skidNum: customerSkidLoadings.skidNum,
         state: customerSkidLoadings.state,
-        isForWashing: customerSkidLoadings.isForWashing,
         arrivedAt: customerSkidLoadings.arrivedAt,
         loadedAt: customerSkidLoadings.loadedAt,
       })
