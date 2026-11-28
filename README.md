@@ -31,8 +31,8 @@ trip legs.
   returning skid. Without the `forceOverride` option, the truck must be at the
   customer's geofence and a specified skid must be recorded there. The override
   bypasses those location matches.
-- Manual dispatch actions record arrival at the customer, the start of the
-  return journey, and arrival back at the plant.
+- Manual dispatch actions record arrival at the customer and the start of the
+  return journey. Completing the dispatch records its arrival back at the plant.
 - Tracking mode can be changed on an in-progress dispatch. The database guards
   switching back to live tracking when a GPS-observed arrival has not first
   been recorded manually.

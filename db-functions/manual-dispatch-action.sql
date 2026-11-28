@@ -1,10 +1,9 @@
 DROP FUNCTION IF EXISTS manual_dispatch_action(UUID, TEXT, UUID, TEXT);
+DROP FUNCTION IF EXISTS manual_dispatch_action(UUID, TEXT);
 
 CREATE OR REPLACE FUNCTION manual_dispatch_action(
   p_movement_id UUID,
-  p_action TEXT,
-  p_skid_id_in UUID DEFAULT NULL,
-  p_note TEXT DEFAULT NULL
+  p_action TEXT
 )
 RETURNS VOID
 LANGUAGE plpgsql
@@ -114,43 +113,6 @@ BEGIN
     UPDATE trucks
     SET status = 'in_transit'
     WHERE id = v_movement.truck_id;
-
-  ELSIF p_action = 'arrived_plant' THEN
-    SELECT status INTO v_trip_status
-    FROM trips
-    WHERE movement_id = p_movement_id
-      AND direction = 'inbound'
-    FOR UPDATE;
-
-    IF NOT FOUND OR v_trip_status != 'in_transit' THEN
-      RAISE EXCEPTION 'Return trip is not in transit';
-    END IF;
-
-    IF NOT EXISTS (
-      SELECT 1
-      FROM geofence_zones
-      WHERE type = 'plant'
-        AND UPPER(TRIM(geofence_name)) = 'GASTECH PLANT'
-    ) THEN
-      RAISE EXCEPTION 'GASTECH PLANT must be classified as a plant geofence';
-    END IF;
-
-    PERFORM set_config('app.manual_dispatch_location_update', 'true', TRUE);
-
-    UPDATE trucks
-    SET current_loc = 'GASTECH PLANT'
-    WHERE id = v_movement.truck_id;
-
-    PERFORM set_config('app.manual_dispatch_location_update', 'false', TRUE);
-
-    UPDATE trips
-    SET status = 'arrived',
-        arrived = TRUE,
-        arrived_at = COALESCE(arrived_at, NOW())
-    WHERE movement_id = p_movement_id
-      AND direction = 'inbound';
-
-    PERFORM complete_dispatch(p_movement_id, p_skid_id_in, p_note);
 
   ELSE
     RAISE EXCEPTION 'Unsupported manual dispatch action: %', p_action;

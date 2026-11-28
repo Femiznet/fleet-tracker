@@ -15,6 +15,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       movementId: id,
       skidIdIn: body.skidIdIn ?? null,
       note: body.note ?? null,
+      skidInState: body.skidInState,
     });
 
     return NextResponse.json({ movementId: id, status: 'completed' });

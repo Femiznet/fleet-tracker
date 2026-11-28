@@ -12,7 +12,7 @@ export interface CreateDispatchInput {
   trackingMode?: DispatchTrackingMode;
 }
 
-export type ManualDispatchAction = 'arrived_customer' | 'returning' | 'arrived_plant';
+export type ManualDispatchAction = 'arrived_customer' | 'returning';
 
 export interface CreatePickupInput {
   truckId: string;
@@ -22,10 +22,13 @@ export interface CreatePickupInput {
   forceOverride?: boolean;
 }
 
+export type skidInState = "empty" | "loaded";
+
 export interface CompleteMovementInput {
   movementId: string;
   skidIdIn?: string | null;
   note?: string | null;
+  skidInState: skidInState;
 }
 
 export interface CancelMovementInput {
@@ -67,16 +70,12 @@ export async function createDispatch(input: CreateDispatchInput): Promise<string
 export async function manualDispatchAction(input: {
   movementId: string;
   action: ManualDispatchAction;
-  skidIdIn?: string | null;
-  note?: string | null;
 }): Promise<void> {
   try {
     await db.execute(sql`
       SELECT manual_dispatch_action(
         ${input.movementId}::uuid,
-        ${input.action}::text,
-        ${input.skidIdIn ?? null}::uuid,
-        ${input.note ?? null}::text
+        ${input.action}::text
       )
     `);
   } catch (error) {
@@ -138,7 +137,8 @@ export async function completeMovement(input: CompleteMovementInput): Promise<vo
       SELECT complete_dispatch(
         ${input.movementId}::uuid,
         ${input.skidIdIn ?? null}::uuid,
-        ${input.note ?? null}::text
+        ${input.note ?? null}::text,
+        ${input.skidInState}
       )
     `);
   } catch (error) {

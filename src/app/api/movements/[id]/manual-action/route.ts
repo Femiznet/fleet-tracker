@@ -18,11 +18,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const action = body.action;
     if (
       action !== 'arrived_customer' &&
-      action !== 'returning' &&
-      action !== 'arrived_plant'
+      action !== 'returning'
     ) {
       return NextResponse.json(
-        { error: 'action must be arrived_customer, returning, or arrived_plant' },
+        { error: 'action must be arrived_customer or returning' },
         { status: 400 }
       );
     }
@@ -30,8 +29,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
     await manualDispatchAction({
       movementId: id,
       action,
-      skidIdIn: typeof body.skidIdIn === 'string' ? body.skidIdIn : null,
-      note: typeof body.note === 'string' ? body.note : null,
     });
 
     return NextResponse.json({ movementId: id, action });
